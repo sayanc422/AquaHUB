@@ -2,6 +2,8 @@ package com.aquashop.catalog.domain;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
+
 /**
  * The care profile a customer reads before buying, and the data the
  * aquatics-advisor service will later read through this service's API to
@@ -22,8 +24,23 @@ public class SpeciesProfile {
     @Column(name = "common_name", nullable = false)
     private String commonName;
 
-    @Column(name = "max_size_cm", nullable = false)
-    private double maxSizeCm;
+    // BigDecimal, not double, on every measurement below.
+    //
+    // The columns are NUMERIC(n,1) -- exact decimal, which is right for values
+    // a person types and reads: a pH of 6.8, not 6.800000000000000266. A bare
+    // `double` field maps to float(53), so `ddl-auto: validate` refused to
+    // start on this service's first ever boot, and Hibernate then refused the
+    // precision/scale annotation outright: "scale has no meaning for SQL
+    // floating point types". That error is the mapping telling the truth --
+    // an exact column needs an exact field, not a more detailed description of
+    // an inexact one.
+    //
+    // It also matters downstream. aquatics-advisor computes interval overlap
+    // across every inhabitant of a tank, and a 0.1 step that is not exactly
+    // 0.1 turns "6.8 is within 6.8-7.5" into a coin toss at the boundary. The
+    // published JSON stays a number: the DTO converts at the edge.
+    @Column(name = "max_size_cm", nullable = false, precision = 5, scale = 2)
+    private BigDecimal maxSizeCm;
 
     @Column(name = "min_tank_litres", nullable = false)
     private int minTankLitres;
@@ -31,12 +48,12 @@ public class SpeciesProfile {
     @Column(name = "min_group_size", nullable = false)
     private int minGroupSize;
 
-    @Column(name = "temp_min_c", nullable = false) private double tempMinC;
-    @Column(name = "temp_max_c", nullable = false) private double tempMaxC;
-    @Column(name = "ph_min", nullable = false)     private double phMin;
-    @Column(name = "ph_max", nullable = false)     private double phMax;
-    @Column(name = "dgh_min", nullable = false)    private double dghMin;
-    @Column(name = "dgh_max", nullable = false)    private double dghMax;
+    @Column(name = "temp_min_c", nullable = false, precision = 4, scale = 1) private BigDecimal tempMinC;
+    @Column(name = "temp_max_c", nullable = false, precision = 4, scale = 1) private BigDecimal tempMaxC;
+    @Column(name = "ph_min", nullable = false, precision = 3, scale = 1)     private BigDecimal phMin;
+    @Column(name = "ph_max", nullable = false, precision = 3, scale = 1)     private BigDecimal phMax;
+    @Column(name = "dgh_min", nullable = false, precision = 4, scale = 1)    private BigDecimal dghMin;
+    @Column(name = "dgh_max", nullable = false, precision = 4, scale = 1)    private BigDecimal dghMax;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -63,15 +80,15 @@ public class SpeciesProfile {
     public Long getId() { return id; }
     public String getScientificName() { return scientificName; }
     public String getCommonName() { return commonName; }
-    public double getMaxSizeCm() { return maxSizeCm; }
+    public BigDecimal getMaxSizeCm() { return maxSizeCm; }
     public int getMinTankLitres() { return minTankLitres; }
     public int getMinGroupSize() { return minGroupSize; }
-    public double getTempMinC() { return tempMinC; }
-    public double getTempMaxC() { return tempMaxC; }
-    public double getPhMin() { return phMin; }
-    public double getPhMax() { return phMax; }
-    public double getDghMin() { return dghMin; }
-    public double getDghMax() { return dghMax; }
+    public BigDecimal getTempMinC() { return tempMinC; }
+    public BigDecimal getTempMaxC() { return tempMaxC; }
+    public BigDecimal getPhMin() { return phMin; }
+    public BigDecimal getPhMax() { return phMax; }
+    public BigDecimal getDghMin() { return dghMin; }
+    public BigDecimal getDghMax() { return dghMax; }
     public Temperament getTemperament() { return temperament; }
     public CareLevel getCareLevel() { return careLevel; }
     public String getDiet() { return diet; }

@@ -10,7 +10,7 @@ touch `onHand`, so a tank with fish in it can legitimately report zero available
 
 ```bash
 kubectl -n aquashop-dev exec deploy/storefront -- \
-  wget -qO- http://inventory-service:8081/v1/stock/FSH-NEON-TETRA
+  wget -qO- http://inventory-service:8081/v1/stock/FSH-NEO-01
 ```
 
 `onHand` is the glass. `available` is what may still be sold. `held` is the difference, and it is

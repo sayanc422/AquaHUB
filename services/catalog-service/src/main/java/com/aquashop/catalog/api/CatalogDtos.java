@@ -34,7 +34,17 @@ public final class CatalogDtos {
         }
     }
 
-    public record Range(double min, double max) { }
+    /**
+     * The wire keeps plain numbers. The entity holds BigDecimal because the
+     * column is NUMERIC and the advisor compares these for range overlap;
+     * converting here, at the edge, keeps that decision out of the published
+     * contract.
+     */
+    public record Range(double min, double max) {
+        static Range of(BigDecimal min, BigDecimal max) {
+            return new Range(min.doubleValue(), max.doubleValue());
+        }
+    }
 
     public record SpeciesView(
             String scientificName, String commonName,
@@ -46,10 +56,10 @@ public final class CatalogDtos {
         public static SpeciesView of(SpeciesProfile s) {
             return new SpeciesView(
                     s.getScientificName(), s.getCommonName(),
-                    s.getMaxSizeCm(), s.getMinTankLitres(), s.getMinGroupSize(),
-                    new Range(s.getTempMinC(), s.getTempMaxC()),
-                    new Range(s.getPhMin(), s.getPhMax()),
-                    new Range(s.getDghMin(), s.getDghMax()),
+                    s.getMaxSizeCm().doubleValue(), s.getMinTankLitres(), s.getMinGroupSize(),
+                    Range.of(s.getTempMinC(), s.getTempMaxC()),
+                    Range.of(s.getPhMin(), s.getPhMax()),
+                    Range.of(s.getDghMin(), s.getDghMax()),
                     s.getTemperament().name(), s.getCareLevel().name(),
                     s.getDiet(), s.isPlantSafe(), s.getCareNotes());
         }

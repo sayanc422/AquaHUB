@@ -9,23 +9,23 @@ import (
 // different digest, every client behind a JSON-normalising proxy would see
 // spurious 409s.
 func TestDigestIsStableForTheSameIntent(t *testing.T) {
-	a := reservationRequest{OrderRef: "ord-1", SKU: "FSH-NEON-TETRA", Quantity: 6}
-	b := reservationRequest{SKU: "FSH-NEON-TETRA", OrderRef: "ord-1", Quantity: 6}
+	a := reservationRequest{OrderRef: "ord-1", SKU: "FSH-NEO-01", Quantity: 6}
+	b := reservationRequest{SKU: "FSH-NEO-01", OrderRef: "ord-1", Quantity: 6}
 	if digest(a, time.Minute) != digest(b, time.Minute) {
 		t.Fatal("same intent produced different digests")
 	}
 }
 
 func TestDigestChangesWithEveryFieldThatChangesTheOutcome(t *testing.T) {
-	base := reservationRequest{OrderRef: "ord-1", SKU: "FSH-NEON-TETRA", Quantity: 6}
+	base := reservationRequest{OrderRef: "ord-1", SKU: "FSH-NEO-01", Quantity: 6}
 	ttl := 15 * time.Minute
 	cases := map[string]struct {
 		req reservationRequest
 		ttl time.Duration
 	}{
-		"quantity": {reservationRequest{OrderRef: "ord-1", SKU: "FSH-NEON-TETRA", Quantity: 7}, ttl},
-		"sku":      {reservationRequest{OrderRef: "ord-1", SKU: "FSH-CORY-PANDA", Quantity: 6}, ttl},
-		"orderRef": {reservationRequest{OrderRef: "ord-2", SKU: "FSH-NEON-TETRA", Quantity: 6}, ttl},
+		"quantity": {reservationRequest{OrderRef: "ord-1", SKU: "FSH-NEO-01", Quantity: 7}, ttl},
+		"sku":      {reservationRequest{OrderRef: "ord-1", SKU: "FSH-COR-01", Quantity: 6}, ttl},
+		"orderRef": {reservationRequest{OrderRef: "ord-2", SKU: "FSH-NEO-01", Quantity: 6}, ttl},
 		"ttl":      {base, 30 * time.Minute},
 	}
 	for name, c := range cases {

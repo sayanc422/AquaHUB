@@ -29,8 +29,10 @@ killer make the decision.
 
 ## Status
 
-**Phase 1 complete.** `catalog-service` (Java 21 / Spring Boot) and `storefront` (TypeScript /
-Fastify) run in the local cluster with Postgres, ingress and TLS.
+**Phase 1 complete, and now actually run.** `catalog-service` (Java 21 / Spring Boot) and
+`storefront` (TypeScript / Fastify) build, boot against Postgres and serve rendered pages. Running
+them for the first time found two mapping defects that would have crash-looped the catalog on its
+first boot — see [RELEASE-NOTES.md](RELEASE-NOTES.md). They have still never run *in* k3d.
 
 **Phase 2 complete in code, not in the cluster.** `inventory-service` (Go) — tank-scoped,
 TTL-bounded, idempotent stock reservations — is built and tested against a real Postgres, including

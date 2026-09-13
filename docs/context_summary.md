@@ -3,7 +3,7 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of Phase 2 build session (13 September 2026).
+**Last updated:** end of the Phase 2 build and Phase 1 verification session (13 September 2026).
 
 ---
 
@@ -110,9 +110,16 @@ aquashop/
 ## Open items, in order
 
 1. **Run `./scripts/bootstrap.sh` and record real numbers.** Still the first item, and still
-   blocked on a machine with Docker — the Phase 2 session had none, so `inventory-service` has
-   never run in k3d. Every profile memory figure remains an estimate. Replace them from
-   `kubectl top pods -A` in `docs/architecture.md`, the PDF source, and `RELEASE-NOTES.md`.
+   blocked on a machine with Docker. Every profile memory figure remains an estimate.
+   Replace them from `kubectl top pods -A` in `docs/architecture.md`, the PDF source, and
+   `RELEASE-NOTES.md`.
+
+   Partly advanced: all three services have now been built and run *outside* k3d, against a local
+   Postgres, and the numbers are in `RELEASE-NOTES.md` and `docs/slo.md`. That found three real
+   defects (see the Phase 1 verification notes below), but it is not the same thing. In particular
+   the catalog's 338 MiB was measured with **no cgroup limit**, so the JVM sized its heap from host
+   RAM — it says nothing about whether the 640Mi limit is right, and the first `kubectl top` will
+   be the first honest JVM figure.
 2. **Bring the PDF up to date.** `docs/architecture-pdf.html` still carries Phase 1 content only;
    `docs/architecture.md` is now ahead of it. Regenerate after the numbers from item 1 land, so the
    PDF is rebuilt once rather than twice.
@@ -122,6 +129,23 @@ aquashop/
    its time-driven waiting state, and the saga that calls `inventory-service` and compensates by
    releasing the hold when payment fails. Ends with an order that survives a payment failure without
    stranding stock.
+
+### Phase 1 verification notes — worth carrying forward
+
+- Phase 1 was written, reviewed and committed without ever being executed, and it did not boot.
+  Two mapping defects, both caught by `ddl-auto: validate`, both fatal at startup. Review does not
+  substitute for running the thing.
+- `CHAR(3)` maps to `bpchar` and fails validation against a `String` field. Use `VARCHAR(n)`.
+- A `NUMERIC(n,1)` column needs a `BigDecimal` field. Hibernate refuses `precision`/`scale` on a
+  `double` outright — "scale has no meaning for SQL floating point types" — which is the mapping
+  saying the field type is wrong, not the annotation.
+- The SKU string is the whole contract between `catalog-service` and `inventory-service`. Check it
+  against the other service's seed data rather than assuming; a drift is invisible in both
+  databases and shows up as a product the customer cannot buy.
+- Verified by hand with the catalog stopped: storefront liveness stayed 200, readiness went 503,
+  the page returned 502. The design's most-repeated claim, demonstrated for the first time.
+
+---
 
 ### Known limitations to state plainly, never soften
 
@@ -133,6 +157,8 @@ aquashop/
   a local Postgres on a build container — never in k3d, never under sustained load.
 - `inventory-service` has never run in the cluster, and nothing calls `release` on a failed payment
   yet. Compensation arrives with Phase 3.
+- All three services have now run outside k3d, against a local Postgres. None has run *in* k3d, so
+  the probes, resource limits, ingress and TLS path remain written-and-reviewed, not exercised.
 
 ---
 

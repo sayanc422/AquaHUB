@@ -39,7 +39,13 @@ CREATE TABLE product (
     name               VARCHAR(160) NOT NULL,
     summary            TEXT,
     price_minor        BIGINT       NOT NULL CHECK (price_minor >= 0),
-    currency           CHAR(3)      NOT NULL,
+    -- VARCHAR(3), not CHAR(3). CHAR is blank-padded in Postgres, which makes
+    -- comparisons and trims a source of surprise for nothing gained over a
+    -- length-limited VARCHAR -- and it maps to bpchar, which Hibernate's
+    -- schema validation rejects against a String field. `ddl-auto: validate`
+    -- caught this on the service's first ever boot, which is the whole reason
+    -- for running it.
+    currency           VARCHAR(3)   NOT NULL,
     is_livestock       BOOLEAN      NOT NULL DEFAULT FALSE,
     category_id        BIGINT       NOT NULL REFERENCES category(id),
     species_profile_id BIGINT       REFERENCES species_profile(id),

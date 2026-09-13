@@ -18,9 +18,13 @@ and not under realistic concurrency.** Treat them as the right order of magnitud
 | `POST /v1/reservations` mean | 2.5 ms | `inventory_http_request_duration_seconds_sum / _count`, 40 successful reservations |
 | `POST /v1/reservations` distribution | 39 of 40 under 5 ms, 40 of 40 under 10 ms | histogram buckets |
 | Oversell under 300 concurrent reservations against 95 units | 0 | 95 succeeded, 205 refused, `available` reached exactly 0 |
+| `catalog-service` time to readiness | 5.8 s | cold start against an empty database, Flyway included |
+| `catalog-service` resident memory | 338 MiB | **with no cgroup limit** — the JVM sized its heap from 16 GB of host RAM, so this is not what it uses under the 640Mi limit |
+| `storefront` resident memory | 76 MiB | serving rendered pages against a live catalog |
 
-Not measured anywhere yet: anything in k3d, anything under sustained load, anything about the JVM
-services, and every figure in the profile memory table.
+Not measured anywhere yet: anything in k3d, anything under sustained load, and every figure in the
+profile memory table. The JVM memory figure above is measured but not *useful* — a JVM without a
+cgroup limit is not the JVM the cluster runs.
 
 ## Objectives
 
@@ -53,7 +57,7 @@ services, and every figure in the profile memory table.
 | **Availability** | 99.5% of page renders return 2xx |
 | **Latency** | p95 of the category page under 800 ms, including upstream calls |
 | **Degradation** | A catalog outage must degrade the page, not the pod. `/healthz` does not call the catalog, so an upstream failure cannot make Kubernetes restart every healthy storefront replica. |
-| **Status** | Target. Never measured. |
+| **Status** | Availability and latency: targets, never measured. Degradation: **verified by hand** — with the catalog stopped, liveness stayed 200, readiness went 503 and the page returned 502. |
 
 ## Error budget
 
