@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 # AquaShop local bootstrap. From nothing to a fish in a browser.
 #
-#   ./scripts/bootstrap.sh            bring up the `core` profile
-#   ./scripts/bootstrap.sh --destroy  delete the cluster
+#   ./scripts/bootstrap.sh                      bring up the `core` profile
+#   ./scripts/bootstrap.sh --profile commerce   core + inventory-service
+#   ./scripts/bootstrap.sh --destroy            delete the cluster
+#
+# Profiles exist because 11 GB does not hold the whole platform at once. They
+# are not a workaround bolted on at the end: they are why NATS replaced Kafka,
+# why one Postgres instance hosts a database per service, and why only one
+# environment is ever materialised.
 #
 # Everything here runs against k3d. Nothing in this script touches AWS.
 set -Eeuo pipefail
 
 CLUSTER=aquashop
+PROFILE=core
 NS=aquashop-dev
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST=aquashop.localtest.me
@@ -72,10 +79,15 @@ install_platform() {
 
 build_images() {
   log "building images (this is the memory-hungry step; observability profile must be down)"
+  local images=(aquashop/catalog-service:dev aquashop/storefront:dev)
   docker build -t aquashop/catalog-service:dev "${ROOT}/services/catalog-service"
   docker build -t aquashop/storefront:dev      "${ROOT}/services/storefront"
+  if [[ "$PROFILE" == commerce ]]; then
+    docker build -t aquashop/inventory-service:dev "${ROOT}/services/inventory-service"
+    images+=(aquashop/inventory-service:dev)
+  fi
   log "importing images into k3d (no registry round-trip)"
-  k3d image import -c "${CLUSTER}" aquashop/catalog-service:dev aquashop/storefront:dev
+  k3d image import -c "${CLUSTER}" "${images[@]}"
 }
 
 deploy() {
@@ -91,6 +103,20 @@ deploy() {
   kubectl -n "$NS" rollout status deployment/catalog-service --timeout=300s
   log "waiting for storefront"
   kubectl -n "$NS" rollout status deployment/storefront --timeout=120s
+
+  if [[ "$PROFILE" == commerce ]]; then
+    # Applied with -f, not through the dev kustomization, because the
+    # kustomization is the `core` profile. At Phase 4 Argo CD owns profiles and
+    # both of these lines go away.
+    log "applying commerce profile (inventory-service)"
+    kubectl apply -f "${ROOT}/platform-repo/dev/inventory/"
+    kubectl -n "$NS" set image deployment/inventory-service inventory-service=aquashop/inventory-service:dev
+    # The role and database are created by the Postgres init script, which only
+    # runs on an empty data directory. On a cluster whose PVC predates this
+    # service, see docs/runbooks/add-a-service-database.md.
+    log "waiting for inventory-service (migrations run inside the startup probe window)"
+    kubectl -n "$NS" rollout status deployment/inventory-service --timeout=120s
+  fi
 }
 
 verify() {
@@ -111,7 +137,19 @@ verify() {
 destroy() { log "deleting cluster"; k3d cluster delete "$CLUSTER"; }
 
 main() {
-  [[ "${1:-}" == "--destroy" ]] && { destroy; exit 0; }
+  while (( $# )); do
+    case "$1" in
+      --destroy) destroy; exit 0 ;;
+      --profile) PROFILE="${2:-}"; shift 2 ;;
+      *) die "unknown argument: $1" ;;
+    esac
+  done
+  case "$PROFILE" in
+    core|commerce) ;;
+    *) die "unknown profile: ${PROFILE} (core|commerce)" ;;
+  esac
+  log "profile: ${PROFILE}"
+
   preflight
   create_cluster
   install_platform

@@ -4,6 +4,12 @@ metadata:
   name: postgres-init
   namespace: aquashop-dev
 data:
+  # Runs once, on an empty data directory -- so adding a service here does
+  # nothing to a cluster that already has a PVC. Adding the role to a running
+  # cluster is docs/runbooks/add-a-service-database.md; the alternative, a
+  # bootstrap that deletes the volume, would make "add a service" mean "lose
+  # every order in dev".
+  #
   # Runs once, on an empty data directory. One database and one role per
   # service, and the role can reach nothing else. This is the local stand-in
   # for one RDS instance per service: credential isolation is faithful,
@@ -13,3 +19,8 @@ data:
     CREATE DATABASE catalog OWNER catalog;
     REVOKE ALL ON DATABASE catalog FROM PUBLIC;
     GRANT CONNECT ON DATABASE catalog TO catalog;
+
+    CREATE ROLE inventory LOGIN PASSWORD 'devinventory';
+    CREATE DATABASE inventory OWNER inventory;
+    REVOKE ALL ON DATABASE inventory FROM PUBLIC;
+    GRANT CONNECT ON DATABASE inventory TO inventory;

@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-config
+  namespace: aquashop-dev
+data:
+  DB_HOST: postgres.aquashop-dev.svc.cluster.local
+  DB_NAME: inventory
+  DB_USER: inventory
+  DB_POOL_MAX: "8"
+  # 15 minutes is the checkout window the storefront promises. Shorter and a
+  # customer who goes to find their card loses the fish; longer and abandoned
+  # baskets hold livestock out of the shop for an afternoon.
+  RESERVATION_TTL: 15m
+  RESERVATION_MAX_TTL: 2h
+  # Bookkeeping only: availability already ignores an expired hold. Raising this
+  # makes the state column and the active-holds gauge staler, nothing else.
+  REAPER_INTERVAL: 30s
+  SHUTDOWN_GRACE: 15s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: aquashop-dev
+  labels:
+    app: inventory-service
+spec:
+  selector:
+    app: inventory-service
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: aquashop-dev
+  labels:
+    app: inventory-service
+    aquashop.io/profile: commerce
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8081"
+    spec:
+      # 20s, not the 45s the JVM services get: a Go binary with an 8-connection
+      # pool drains in milliseconds. It must still exceed SHUTDOWN_GRACE (15s)
+      # so the process chooses its own exit rather than taking SIGKILL midway
+      # through a reservation transaction.
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: inventory-service
+          image: aquashop/inventory-service:PLACEHOLDER   # CI rewrites this to the git SHA
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          envFrom:
+            - configMapRef: { name: inventory-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: postgres-credentials, key: INVENTORY_PASSWORD }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          # No writable mount at all. A static Go binary needs no /tmp, unlike
+          # the JVM, so the root filesystem is read-only with nothing carved out.
+          # Migrations run at startup and are carried by the startup probe:
+          # 20 x 3s = 60s, which matches the service's own startup timeout.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 20
+            periodSeconds: 3
+          # Liveness answers from the process alone. If it checked Postgres, a
+          # database outage would restart every healthy pod in a loop and turn
+          # a degraded service into a missing one.
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            # Measured: 13.9 MiB resident idle, 17.0 MiB after 200 reservations
+            # -- but measured against a local Postgres on a build container, not
+            # in k3d, so treat it as the right order of magnitude rather than a
+            # cluster figure. 64Mi requested leaves room for pool growth; 96Mi
+            # is the ceiling. Still a seventh of what catalog-service asks for,
+            # which is the whole argument for Go on this node.
+            requests: { cpu: 50m, memory: 64Mi }
+            # No CPU limit, for the same reason as the JVM services: a limit is
+            # CFS throttling, which reads as latency spikes on an idle node.
+            limits: { memory: 96Mi }
