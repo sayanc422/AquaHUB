@@ -7,10 +7,13 @@
 >
 > The runtime is a single-node **k3d** cluster inside WSL2 on a 16 GB laptop. Diagrams carry AWS
 > labels because AWS is the target platform. Every place the local setup diverges from that target
-> is named in [Local to cloud](#local-to-cloud), not glossed over.
+> is named in [Local to cloud](#7-local-to-cloud), not glossed over.
 
 **Status:** Phase 1 complete — `catalog-service` and `storefront` run in the local cluster.
-Phases 2–7 are planned. See [context_summary.md](context_summary.md) for current state.
+Phase 2 complete in code — `inventory-service` is built and tested against a real Postgres, but has
+not yet run in k3d. Phases 3–7 are planned. See [context_summary.md](context_summary.md) for
+current state, [RELEASE-NOTES.md](../RELEASE-NOTES.md) for what has been measured, and
+[adr/](adr/) for the decisions and their costs.
 
 ---
 
@@ -63,7 +66,7 @@ foreign keys across boundaries. Where two services need the same data, one owns 
 calls its API or subscribes to its events.
 
 Locally these are separate databases and login roles on one Postgres instance, each role holding
-`CONNECT` on its own database only. See [Local to cloud](#local-to-cloud) for what that costs.
+`CONNECT` on its own database only. See [Local to cloud](#7-local-to-cloud) for what that costs.
 
 ### Asynchronous messaging
 
@@ -108,6 +111,50 @@ migrating to MSK is a heavier lift than the local-to-cloud mapping makes it look
   one. `/readyz` (readiness) does call it, because a storefront that cannot reach the catalog should
   not receive traffic.
 
+---
+
+## 4. Phase 2 — `inventory-service`
+
+Stock is held per physical tank, not as one integer per SKU, and every claim on it is time-bounded.
+That turns inventory into a distributed-systems problem — TTL expiry, retry safety, concurrent
+allocation — rather than a decrement.
+
+**The rule the service is built on:** availability is
+
+```
+quantity_on_hand − Σ holds WHERE state = 'held' AND expires_at > now()
+```
+
+The deadline is *in the query*, so an expired hold stops holding stock at the instant it expires.
+The reaper exists only to make the `state` column honest and the active-holds gauge current — it is
+not load-bearing, which is why it runs in every replica with no leader election, no distributed lock
+and no singleton deployment ([ADR 0008](adr/0008-availability-is-computed-from-the-deadline.md)).
+
+**Concurrency.** Reservations for a SKU serialise on that SKU's tank rows, locked in a total order
+so overlapping reservations cannot deadlock. The locks are taken in one statement and availability
+is read in a second: under READ COMMITTED a statement's snapshot is taken *before* it blocks on a
+lock, so doing both at once reads stale availability and oversells. The first version of the code
+did exactly that, and the concurrency test caught it
+([ADR 0010](adr/0010-lock-then-read-in-two-statements.md)).
+
+**Idempotency.** `Idempotency-Key` is required, not optional, and bound to a digest of the canonical
+request. Replay returns 200 with the original reservation; a key reused for a different request is a
+409; a refused reservation rolls back its key
+([ADR 0009](adr/0009-mandatory-idempotency-key.md)).
+
+**Allocation.** Best-fit, then largest-first — livestock from one tank ships as one bag.
+**Cost: fragmentation.** Quarantined tanks are reported with `available: 0` and never allocated
+from, because the fish exist and the person reconciling the count is standing in front of them.
+
+**Measured** (local Postgres on a build container, *not* k3d): 13.9 MiB resident idle, 17.0 MiB
+after 200 reservations, 2.5 ms mean reservation, and zero oversells across 300 concurrent
+reservations against 95 units of stock. See [slo.md](slo.md).
+
+**Not proven:** the service has never run in k3d. Its probes, limits and ConfigMap wiring are
+written and reviewed, not exercised.
+
+---
+
 ### Containers
 
 Multi-stage builds, distroless final stages, non-root, read-only root filesystem, all capabilities
@@ -128,7 +175,7 @@ unbounded pod cannot exist there by accident.
 
 ---
 
-## 4. The memory budget
+## 5. The memory budget
 
 16 GB of RAM, roughly 11 GB usable inside WSL2. The full platform does not fit at once, so the
 cluster is built as **profiles**: named subsets brought up for a purpose. This is not a workaround
@@ -161,7 +208,7 @@ there is no equivalent of throttling for it, only the OOM killer.
 
 ---
 
-## 5. Delivery
+## 6. Delivery
 
 Two repositories:
 
@@ -184,7 +231,7 @@ name the sync-window disable procedure.
 
 ---
 
-## 6. Local to cloud
+## 7. Local to cloud
 
 The full mapping document covers every component, the Terraform that would provision it, and the
 traffic path end to end. This is the Phase 1 extract.
@@ -220,7 +267,7 @@ allows the ALB SG on the node port range; RDS SG allows the node SG on 5432 only
 
 ---
 
-## 7. Known limitations
+## 8. Known limitations
 
 State these plainly. They make the project more credible, not less.
 
@@ -228,12 +275,27 @@ State these plainly. They make the project more credible, not less.
 - Single-node cluster: PDBs, anti-affinity, node drains and multi-AZ behaviour cannot be exercised.
 - Only one environment is materialised at a time; none has run concurrently with another.
 - The AWS layer has never been applied. Module wiring is proven; AWS behaviour is not.
-- No performance number in this document set is measured yet.
+- Performance numbers exist only for `inventory-service`, and only against a local Postgres on a
+  build container — never in k3d, never under sustained load. Every other number in this document
+  set, including the whole profile memory table, is an estimate.
+- `inventory-service` has never run in the cluster. Nothing calls `release` when a payment fails
+  yet, either: compensation arrives with `order-service` at Phase 3.
 - The observability stack and the image build cannot both run on this machine.
 
 ---
 
-## 8. Diagrams
+## 9. Where the rest of the documents are
+
+| Document | Contents |
+|---|---|
+| [adr/](adr/) | One record per decision that would be expensive to reverse, each with its cost |
+| [slo.md](slo.md) | Objectives, the consequence of missing each, and which numbers are measured |
+| [runbooks/](runbooks/) | One page per failure, written to be followed at 02:00 |
+| [../RELEASE-NOTES.md](../RELEASE-NOTES.md) | What was built per phase, what was measured, what is unproven |
+
+---
+
+## 10. Diagrams
 
 Generated by `docs/diagrams/generate.py` and committed as SVG so changes appear in diffs.
 
