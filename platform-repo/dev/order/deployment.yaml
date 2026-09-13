@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-config
+  namespace: aquashop-dev
+data:
+  DB_URL: jdbc:postgresql://postgres.aquashop-dev.svc.cluster.local:5432/orders
+  DB_USER: orders
+  DB_POOL_MAX: "10"
+  SPRING_PROFILES_ACTIVE: dev
+  # Service-to-service, inside the cluster. order-service is the only caller of
+  # inventory-service; neither is reachable through the ingress.
+  INVENTORY_BASE_URL: http://inventory-service.aquashop-dev.svc.cluster.local:8081
+  # Bounded, because an unbounded call lets a slow inventory-service hold
+  # checkout threads until the pool is exhausted -- one degraded dependency
+  # becoming a dead storefront.
+  INVENTORY_CONNECT_TIMEOUT_MS: "1000"
+  INVENTORY_READ_TIMEOUT_MS: "2000"
+  # The customer's time to enter a card, and stock held out of the shop while
+  # they do. A business decision, not a technical one.
+  ORDER_HOLD_TTL_SECONDS: "900"
+  ORDER_DISPATCH_ZONE: Asia/Kolkata
+  ORDER_DISPATCH_SCAN_MS: "60000"
+  # Stub until payment-service exists. APPROVE here; the declining mode is for
+  # demonstrating compensation, and it is configuration rather than a request
+  # field so that nobody placing an order can choose whether to pay.
+  PAYMENT_STUB_OUTCOME: APPROVE
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: aquashop-dev
+  labels:
+    app: order-service
+spec:
+  selector:
+    app: order-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: aquashop-dev
+  labels:
+    app: order-service
+    aquashop.io/profile: commerce
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8082"
+    spec:
+      # 60s, longer than the other JVM service. A checkout in flight is holding
+      # stock and may be between taking money and committing a reservation:
+      # SIGKILL there leaves the money taken, the holds live, and nothing to
+      # resume it. The saga is not yet crash-safe (Phase 6), so the grace
+      # period is doing work a durable saga log should be doing.
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: order-service
+          image: aquashop/order-service:PLACEHOLDER   # CI rewrites this to the git SHA
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            - configMapRef: { name: order-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: postgres-credentials, key: ORDERS_PASSWORD }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp        # the JVM needs a writable /tmp
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness includes the datasource. It does NOT include
+          # inventory-service: a pod that cannot reach inventory can still serve
+          # cart reads and order lookups, and failing readiness on an upstream
+          # outage would take the whole deployment out of the Service endpoints
+          # for a dependency that checkout already handles by refusing.
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 200m, memory: 448Mi }
+            # No CPU limit: a limit is CFS throttling, which reads as latency
+            # spikes on an idle-looking node. Memory is capped because memory is
+            # not compressible.
+            limits: { memory: 640Mi }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

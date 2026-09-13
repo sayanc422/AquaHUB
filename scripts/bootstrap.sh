@@ -34,7 +34,9 @@ preflight() {
   log "available memory: ${avail_mb} MB"
   # The core profile needs ~2.6 GB. Below 4 GB free, the OOM killer will start
   # taking pods and you will debug Kubernetes for an hour to find a WSL problem.
-  (( avail_mb > 4000 )) || die "need >4000 MB free; close something or raise WSL memory in .wslconfig"
+  local need_mb=4000
+  [[ "$PROFILE" == commerce ]] && need_mb=5000   # order-service is a second JVM
+  (( avail_mb > need_mb )) || die "need >${need_mb} MB free for the ${PROFILE} profile; close something or raise WSL memory in .wslconfig"
 
   if pgrep -f 'docker build' >/dev/null 2>&1; then
     warn "a docker build is running. Builds and the full profile do not co-exist in 11 GB."
@@ -84,7 +86,8 @@ build_images() {
   docker build -t aquashop/storefront:dev      "${ROOT}/services/storefront"
   if [[ "$PROFILE" == commerce ]]; then
     docker build -t aquashop/inventory-service:dev "${ROOT}/services/inventory-service"
-    images+=(aquashop/inventory-service:dev)
+    docker build -t aquashop/order-service:dev     "${ROOT}/services/order-service"
+    images+=(aquashop/inventory-service:dev aquashop/order-service:dev)
   fi
   log "importing images into k3d (no registry round-trip)"
   k3d image import -c "${CLUSTER}" "${images[@]}"
@@ -108,14 +111,18 @@ deploy() {
     # Applied with -f, not through the dev kustomization, because the
     # kustomization is the `core` profile. At Phase 4 Argo CD owns profiles and
     # both of these lines go away.
-    log "applying commerce profile (inventory-service)"
+    log "applying commerce profile (inventory-service, order-service)"
     kubectl apply -f "${ROOT}/platform-repo/dev/inventory/"
+    kubectl apply -f "${ROOT}/platform-repo/dev/order/"
     kubectl -n "$NS" set image deployment/inventory-service inventory-service=aquashop/inventory-service:dev
+    kubectl -n "$NS" set image deployment/order-service     order-service=aquashop/order-service:dev
     # The role and database are created by the Postgres init script, which only
     # runs on an empty data directory. On a cluster whose PVC predates this
     # service, see docs/runbooks/add-a-service-database.md.
     log "waiting for inventory-service (migrations run inside the startup probe window)"
     kubectl -n "$NS" rollout status deployment/inventory-service --timeout=120s
+    log "waiting for order-service"
+    kubectl -n "$NS" rollout status deployment/order-service --timeout=300s
   fi
 }
 

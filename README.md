@@ -34,12 +34,17 @@ killer make the decision.
 them for the first time found two mapping defects that would have crash-looped the catalog on its
 first boot — see [RELEASE-NOTES.md](RELEASE-NOTES.md). They have still never run *in* k3d.
 
-**Phase 2 complete in code, not in the cluster.** `inventory-service` (Go) — tank-scoped,
-TTL-bounded, idempotent stock reservations — is built and tested against a real Postgres, including
-a concurrency test that proves it cannot oversell. It has never run in k3d, because the session that
-built it had no Docker. That is the first open item.
+**Phases 2 and 3 complete in code, not in the cluster.** `inventory-service` (Go) holds stock in
+physical tanks with TTL-bounded, idempotent reservations, and a concurrency test proves it cannot
+oversell. `order-service` (Java) runs checkout as a saga across it — reserve, authorise, commit,
+confirm — and compensates when a step fails.
 
-Phases 3–7 are planned. See [docs/context_summary.md](docs/context_summary.md) for current state and
+The two have been run together against a real Postgres: a live checkout that confirms with a
+dispatch window, and a live declined card that returns every held fish to the shop immediately,
+takes no money, and leaves the compensation visible in the order's event trail. Neither has run
+*in* k3d — no session so far has had Docker, which is why that is still the first open item.
+
+Phases 4–7 are planned. See [docs/context_summary.md](docs/context_summary.md) for current state and
 [RELEASE-NOTES.md](RELEASE-NOTES.md) for what has actually been measured.
 
 ## Layout

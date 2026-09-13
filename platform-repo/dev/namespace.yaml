@@ -17,9 +17,18 @@ spec:
   hard:
     requests.cpu: "2"
     requests.memory: 3Gi
-    limits.cpu: "4"
     limits.memory: 4Gi
     pods: "20"
+    # No `limits.cpu` here, on purpose, and this is not an omission.
+    #
+    # A ResourceQuota that counts limits.cpu makes a CPU limit *mandatory*: any
+    # container without one is rejected. Combined with a LimitRange default, it
+    # is worse than that -- the pod is not rejected, it silently receives the
+    # default limit and is CFS-throttled. That is exactly the behaviour ADR 0006
+    # says this platform does not want, arriving by way of the namespace rather
+    # than the deployment, where nobody would think to look for it.
+    #
+    # Memory is still capped, because memory is not compressible.
 ---
 # Anything without explicit resources gets these, so an unbounded pod cannot
 # exist in this namespace by accident.
@@ -32,7 +41,8 @@ spec:
   limits:
     - type: Container
       default:
-        cpu: 500m
+        # Memory only. A default CPU *limit* would throttle every container that
+        # deliberately omits one -- see the note on the quota above.
         memory: 512Mi
       defaultRequest:
         cpu: 50m

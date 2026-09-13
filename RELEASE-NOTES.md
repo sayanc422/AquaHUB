@@ -5,6 +5,111 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Phase 3 — `order-service`
+
+Cart, the order state machine, the checkout saga with compensation, and livestock dispatch windows.
+Java 21 / Spring Boot.
+
+### The saga
+
+```
+  1. reserve    one hold per SKU in inventory-service    compensate: release
+  2. authorise  take the money                           compensate: refund
+  3. commit     turn every hold into a sale              compensate: refund
+  4. confirm    fix the dispatch window                  --
+```
+
+**The ordering is the design.** Stock is held before money is taken, so a declined card costs a
+released hold rather than a refund and an apology ([ADR 0012](docs/adr/0012-hold-stock-before-taking-money.md)).
+There is no transition from `PAID` to `PAYMENT_FAILED`: once money is taken, the only way out is a
+refund that says so by name.
+
+### The bug worth reporting
+
+The first implementation reserved every line inside one `@Transactional` method.
+`aPartlyReservedOrderReleasesTheHoldsItAlreadyTook` failed against it: when the third line was
+refused, the rollback erased the rows recording the first two holds — which by then **existed in
+inventory-service** — so the compensation found nothing to release and real stock sat held until its
+TTL expired.
+
+A database transaction does not cover work that has already happened in another service. The record
+of an external effect has to be committed as soon as it happens
+([ADR 0013](docs/adr/0013-record-external-effects-outside-the-transaction.md)). The window is now
+narrower rather than closed; an outbox closes it, and that is Phase 6.
+
+Found by a test that asserted a compensation happened, not by review. `@Transactional` on a method
+that reserves stock reads as careful rather than as a mistake.
+
+### A platform defect found on the way
+
+The `ResourceQuota` counted `limits.cpu`, which makes an explicit CPU limit **mandatory** on every
+container; the `LimitRange` then supplied a default of `500m`. So every JVM service was being
+CFS-throttled — exactly what [ADR 0006](docs/adr/0006-memory-limits-but-no-cpu-limits.md) exists to
+prevent — by way of the namespace rather than the deployment, where nobody would look. The symptom
+would have been latency spikes on an idle-looking node.
+
+### Verified live, both services running together
+
+A real `order-service` against a real `inventory-service` and a real Postgres:
+
+```
+happy path     6 neon tetra + 4 panda cory -> CONFIRMED, dispatchAt 2026-09-14T08:30Z
+               stock: 70 -> 64 and 27 -> 23 available, on hand down by the same
+               (committed: the fish have left the tank)
+
+declined card  10 neon tetra + 5 panda cory -> PAYMENT_FAILED
+               paymentRef null, both reservations RELEASED
+               stock: 64 and 23, unchanged -- returned immediately, not in 15 minutes
+```
+
+The order's event trail shows the compensation, which is visible nowhere else:
+
+```
+-               -> PENDING          order created from cart 57e680e2...
+PENDING         -> STOCK_RESERVED   2 hold(s), ttl 900s
+STOCK_RESERVED  -> STOCK_RESERVED   released hold 3d904285... (payment declined)
+STOCK_RESERVED  -> STOCK_RESERVED   released hold e25990b3... (payment declined)
+STOCK_RESERVED  -> PAYMENT_FAILED   card declined (stub gateway configured to decline)
+```
+
+That is the phase's acceptance criterion: **an order that survives a payment failure without
+stranding stock.**
+
+### Measured
+
+Local Postgres on the build container, **not k3d**.
+
+| | |
+|---|---|
+| Whole failed checkout (2 reservations, 2 releases, 5 persisted transitions) | 107 ms |
+| Checkout requests, mean | 69 ms (7 requests, including first-call JIT warm-up; max 193 ms) |
+| `order-service` resident memory | 361 MiB, **with no cgroup limit** — the JVM sized its heap from host RAM |
+| `inventory-service` alongside it | 14 MiB |
+| Tests | 32: 18 domain, 6 HTTP client, 8 saga against a real Postgres |
+
+### Dispatch windows
+
+Livestock leaves Monday, Tuesday or Wednesday only, before a 14:00 cut-off in the shop's local time;
+a bag posted on Thursday sits in a depot over the weekend. So an order placed Thursday afternoon is
+confirmed, paid for, and waiting for Monday — a state no event will end, only the clock.
+
+`dispatchable` is derived (`now() >= dispatch_at`), never stored, and there is no `AWAITING_DISPATCH`
+state. The dispatch watcher marks the moment for the notification service and is not load-bearing —
+the same rule as the reaper ([ADR 0011](docs/adr/0011-derived-state-over-stored-state.md)).
+
+### Still unproven
+
+- **Never run in k3d.** Two JVMs, Postgres and a Go service together is what the commerce profile now
+  asks of an 11 GB budget, and that has not been tried.
+- **The saga is not crash-safe.** If the process dies between taking the money and committing the
+  holds, the holds expire by themselves — so the stock returns — but the refund never happens. Only
+  the event trail would show it. Phase 6, with an outbox and NATS.
+- `payment-service` does not exist; the stub has no ledger, no idempotency of its own, and no outcome
+  between approved and declined. Nothing here shows the saga surviving a payment provider *timing
+  out*, which is the failure a real one is mostly designed around.
+
+---
+
 ## Phase 1 verification — the services were run for the first time
 
 Phase 1 had been written, reviewed and committed, and never executed. Running it found two defects

@@ -7,11 +7,12 @@
 >
 > The runtime is a single-node **k3d** cluster inside WSL2 on a 16 GB laptop. Diagrams carry AWS
 > labels because AWS is the target platform. Every place the local setup diverges from that target
-> is named in [Local to cloud](#7-local-to-cloud), not glossed over.
+> is named in [Local to cloud](#8-local-to-cloud), not glossed over.
 
-**Status:** Phase 1 complete — `catalog-service` and `storefront` run in the local cluster.
-Phase 2 complete in code — `inventory-service` is built and tested against a real Postgres, but has
-not yet run in k3d. Phases 3–7 are planned. See [context_summary.md](context_summary.md) for
+**Status:** Phases 1–3 complete in code. `catalog-service`, `storefront`, `inventory-service` and
+`order-service` all build, boot and have been exercised together against a real Postgres — a live
+checkout, and a live compensation that returns stock when a card is declined. **None of them has run
+in k3d.** Phases 4–7 are planned. See [context_summary.md](context_summary.md) for
 current state, [RELEASE-NOTES.md](../RELEASE-NOTES.md) for what has been measured, and
 [adr/](adr/) for the decisions and their costs.
 
@@ -66,7 +67,7 @@ foreign keys across boundaries. Where two services need the same data, one owns 
 calls its API or subscribes to its events.
 
 Locally these are separate databases and login roles on one Postgres instance, each role holding
-`CONNECT` on its own database only. See [Local to cloud](#7-local-to-cloud) for what that costs.
+`CONNECT` on its own database only. See [Local to cloud](#8-local-to-cloud) for what that costs.
 
 ### Asynchronous messaging
 
@@ -175,7 +176,47 @@ unbounded pod cannot exist there by accident.
 
 ---
 
-## 5. The memory budget
+## 5. Phase 3 — `order-service`
+
+Checkout is a saga: four steps across two services and a payment provider, with no distributed
+transaction available.
+
+```
+  1. reserve    one hold per SKU in inventory-service    compensate: release
+  2. authorise  take the money                           compensate: refund
+  3. commit     turn every hold into a sale              compensate: refund
+  4. confirm    fix the dispatch window                  --
+```
+
+**Stock is held before money is taken.** A customer charged for a fish that was never available is a
+refund, an apology and a support ticket; a customer whose card is declined after a hold is a released
+hold and nothing else. The reverse ordering is simpler to write and moves the cost of every failure
+onto the customer ([ADR 0012](adr/0012-hold-stock-before-taking-money.md)).
+
+**The state machine forbids the worst outcome rather than making it unlikely.** There is no
+transition from `PAID` to `PAYMENT_FAILED`: once the money is taken, the only way out is `REFUNDED`,
+which says by name what happened.
+
+**A saga's memory is all its compensation has.** Reserving every line inside one transaction meant a
+rollback erased the record of holds that already existed in the other service, and the compensation
+released nothing while real stock stayed held. Each line is now recorded in its own committed
+transaction ([ADR 0013](adr/0013-record-external-effects-outside-the-transaction.md)).
+
+**Dispatch windows are the domain constraint made concrete.** Livestock leaves Monday to Wednesday
+only, before a 14:00 cut-off in the shop's local time, because a bag posted on Thursday spends the
+weekend in a depot. An order placed on Thursday afternoon is confirmed, paid for, and waiting for
+Monday — a waiting state that no event ends, only the clock. `dispatchable` is therefore derived
+(`now() >= dispatch_at`) and never stored, and the dispatch watcher is not load-bearing — the same
+rule as inventory's reaper, generalised in [ADR 0011](adr/0011-derived-state-over-stored-state.md).
+
+**Not proven:** the saga is not crash-safe. If the process dies between taking the money and
+committing the holds, the holds expire by themselves — the stock returns — but the refund never
+happens. An outbox fixes it, at Phase 6 with NATS. `payment-service` does not exist yet; a stub
+stands in, and it cannot time out, which is the failure a real provider is mostly designed around.
+
+---
+
+## 6. The memory budget
 
 16 GB of RAM, roughly 11 GB usable inside WSL2. The full platform does not fit at once, so the
 cluster is built as **profiles**: named subsets brought up for a purpose. This is not a workaround
@@ -208,7 +249,7 @@ there is no equivalent of throttling for it, only the OOM killer.
 
 ---
 
-## 6. Delivery
+## 7. Delivery
 
 Two repositories:
 
@@ -231,7 +272,7 @@ name the sync-window disable procedure.
 
 ---
 
-## 7. Local to cloud
+## 8. Local to cloud
 
 The full mapping document covers every component, the Terraform that would provision it, and the
 traffic path end to end. This is the Phase 1 extract.
@@ -267,7 +308,7 @@ allows the ALB SG on the node port range; RDS SG allows the node SG on 5432 only
 
 ---
 
-## 8. Known limitations
+## 9. Known limitations
 
 State these plainly. They make the project more credible, not less.
 
@@ -275,16 +316,18 @@ State these plainly. They make the project more credible, not less.
 - Single-node cluster: PDBs, anti-affinity, node drains and multi-AZ behaviour cannot be exercised.
 - Only one environment is materialised at a time; none has run concurrently with another.
 - The AWS layer has never been applied. Module wiring is proven; AWS behaviour is not.
-- Performance numbers exist only for `inventory-service`, and only against a local Postgres on a
-  build container — never in k3d, never under sustained load. Every other number in this document
-  set, including the whole profile memory table, is an estimate.
-- `inventory-service` has never run in the cluster. Nothing calls `release` when a payment fails
-  yet, either: compensation arrives with `order-service` at Phase 3.
+- Performance numbers exist only from a local Postgres on a build container — never in k3d, never
+  under sustained load. Every figure in the profile memory table is still an estimate.
+- No service has ever run in the cluster. The commerce profile now asks an 11 GB budget to hold two
+  JVMs, a Go service, Postgres and the platform at once, and that has not been tried.
+- The checkout saga is not crash-safe: a process death between taking money and committing holds
+  loses the refund, though the stock returns on its own when the holds expire.
+- `payment-service` is a stub with no ledger and no timeout behaviour.
 - The observability stack and the image build cannot both run on this machine.
 
 ---
 
-## 9. Where the rest of the documents are
+## 10. Where the rest of the documents are
 
 | Document | Contents |
 |---|---|
@@ -295,7 +338,7 @@ State these plainly. They make the project more credible, not less.
 
 ---
 
-## 10. Diagrams
+## 11. Diagrams
 
 Generated by `docs/diagrams/generate.py` and committed as SVG so changes appear in diffs.
 

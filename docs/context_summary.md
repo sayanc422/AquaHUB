@@ -3,7 +3,7 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of the Phase 2 build and Phase 1 verification session (13 September 2026).
+**Last updated:** end of the Phase 3 build session (13 September 2026).
 
 ---
 
@@ -22,6 +22,9 @@ It is the state of the work, not a restatement of the brief.*
 | Reservation concurrency | Lock tank rows in one statement, read availability in a second | READ COMMITTED takes a statement's snapshot *before* it blocks on a lock, so one `SELECT ... FOR UPDATE` oversells — the concurrency test caught it. Cost: one extra round trip; a hot SKU serialises on its tanks. |
 | Idempotency | `Idempotency-Key` required, bound to a digest of the canonical request | Checkout retries. Cost: a breaking change for any client not told, and the digest's canonical form is a maintenance obligation on whoever adds a request field. |
 | Stock allocation | Best-fit, then largest-first | Livestock from one tank ships as one bag. Cost: fragmentation — many small orders leave many tanks holding a few fish each. |
+| Checkout ordering | Reserve stock, then take money, then commit | A declined card costs a released hold; the reverse ordering costs a refund and an apology. Cost: stock is held for customers who never complete, and the saga needs a compensation on the stock side that must be idempotent, out-of-transaction and non-masking. |
+| Saga bookkeeping | Each reservation is committed in its own transaction as it is taken | A rollback across the loop erases the record of holds that already exist elsewhere, and the compensation then releases nothing. Cost: one round trip per line instead of one per checkout. |
+| Waiting states | Derived from the clock, never stored | Generalises the reservation-expiry rule: no scheduled job is load-bearing. Cost: the value cannot be indexed directly, and the API must expose both stored state and derived state or it is lying by omission. |
 | CPU limits | Requests only on JVM services; memory limits always | A CPU limit means CFS throttling — the container is stopped for the rest of each 100 ms period, which reads as latency spikes on an idle-looking node. Memory is limited because memory is not compressible. Cost: a runaway pod can starve neighbours; ResourceQuota is the backstop. |
 
 ## Memory profiles (estimates until measured)
@@ -55,15 +58,16 @@ aquashop/
     catalog-service/        Java 21, Spring Boot 3.3, Flyway, Testcontainers, distroless
     storefront/             TypeScript, Fastify BFF, SSR HTML, distroless
     inventory-service/      Go 1.24, pgx, embedded migrations, distroless static
+    order-service/          Java 21, Spring Boot 3.3, checkout saga, dispatch calendar
   platform-repo/dev/        namespace + quota + limitrange, postgres, catalog, storefront,
-                            inventory, ingress
+                            inventory, order, ingress
   docs/
     architecture.md         full prose architecture
     architecture.pdf        8 pages, styled, diagrams embedded  (PHASE 1 CONTENT ONLY)
     architecture-pdf.html   source of the PDF                   (PHASE 1 CONTENT ONLY)
-    adr/                    ten decision records, each with its cost
+    adr/                    thirteen decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
-    runbooks/               four runbooks; three reproduced locally, one written from docs
+    runbooks/               five runbooks; four reproduced locally, one written from docs
     diagrams/generate.py    generates all three SVGs
     diagrams/*.svg          architecture, deployment, delivery-flow
   RELEASE-NOTES.md          per phase: what was built, measured, and still unproven
@@ -125,10 +129,11 @@ aquashop/
    PDF is rebuilt once rather than twice.
 3. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
    `docs/architecture.md` §7 and on page 7 of the PDF).
-4. **Phase 3:** `order-service` in Java — cart, checkout orchestration, the order state machine with
-   its time-driven waiting state, and the saga that calls `inventory-service` and compensates by
-   releasing the hold when payment fails. Ends with an order that survives a payment failure without
-   stranding stock.
+4. **Phase 4:** `payment-service` in Rust — authorisation, capture, refund, and a ledger whose
+   transitions are exhaustively matched at compile time. It replaces the stub behind the existing
+   `PaymentGateway` port, and it is what makes a payment *timeout* — as opposed to a decline —
+   something the saga can be tested against. Ends with a checkout that survives a payment provider
+   that never answers.
 
 ### Phase 1 verification notes — worth carrying forward
 
@@ -147,6 +152,26 @@ aquashop/
 
 ---
 
+### Phase 3 implementation notes worth carrying forward
+
+- Reserve before charging. The ordering is the whole design; see `docs/adr/0012-*`.
+- A `@Transactional` method that calls another service is a trap. The rollback erases the record of
+  effects that already happened elsewhere, and the compensation is then blind. Commit the record of
+  an external effect as soon as it happens; `docs/adr/0013-*`.
+- Spring's `@Transactional` does nothing when the method is called from inside the same class — the
+  proxy is bypassed silently. The saga steps live in their own bean for that reason alone.
+- `PAID -> PAYMENT_FAILED` must not exist in the state machine. Make the worst outcome unreachable
+  rather than unlikely.
+- Compensations: idempotent, `REQUIRES_NEW`, and they must swallow their own failures so they cannot
+  mask the original one.
+- The `ResourceQuota` counted `limits.cpu`, which makes a CPU limit mandatory, and the `LimitRange`
+  default then supplied one. Every JVM service had been throttled since Phase 1 by a file that says
+  nothing about JVMs. Check the namespace before believing a deployment manifest.
+- The dispatch calendar is pure and clock-injected. "What happens at 13:59 on a Wednesday" should be
+  a test, not a discussion.
+
+---
+
 ### Known limitations to state plainly, never soften
 
 - Secrets are plaintext in Git at Phase 1. Largest gap in the repo. Phase 5 replaces it.
@@ -157,8 +182,14 @@ aquashop/
   a local Postgres on a build container — never in k3d, never under sustained load.
 - `inventory-service` has never run in the cluster, and nothing calls `release` on a failed payment
   yet. Compensation arrives with Phase 3.
-- All three services have now run outside k3d, against a local Postgres. None has run *in* k3d, so
-  the probes, resource limits, ingress and TLS path remain written-and-reviewed, not exercised.
+- All four services have now run outside k3d, against a local Postgres — including a live checkout
+  across `order-service` and `inventory-service` together. None has run *in* k3d, so the probes,
+  resource limits, ingress and TLS path remain written-and-reviewed, not exercised.
+- The checkout saga is not crash-safe. A process death between taking money and committing holds
+  returns the stock (the holds expire) but loses the refund. Nothing scans for it; the check is a
+  manual query in `docs/runbooks/order-stuck-or-wrong.md`. Phase 6 fixes it with an outbox.
+- `payment-service` does not exist. The stub cannot time out, which is the failure a real payment
+  provider is mostly designed around.
 
 ---
 

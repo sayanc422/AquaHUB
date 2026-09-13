@@ -24,3 +24,8 @@ data:
     CREATE DATABASE inventory OWNER inventory;
     REVOKE ALL ON DATABASE inventory FROM PUBLIC;
     GRANT CONNECT ON DATABASE inventory TO inventory;
+
+    CREATE ROLE orders LOGIN PASSWORD 'devorders';
+    CREATE DATABASE orders OWNER orders;
+    REVOKE ALL ON DATABASE orders FROM PUBLIC;
+    GRANT CONNECT ON DATABASE orders TO orders;

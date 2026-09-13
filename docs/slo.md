@@ -21,6 +21,9 @@ and not under realistic concurrency.** Treat them as the right order of magnitud
 | `catalog-service` time to readiness | 5.8 s | cold start against an empty database, Flyway included |
 | `catalog-service` resident memory | 338 MiB | **with no cgroup limit** — the JVM sized its heap from 16 GB of host RAM, so this is not what it uses under the 640Mi limit |
 | `storefront` resident memory | 76 MiB | serving rendered pages against a live catalog |
+| Whole failed checkout, end to end | 107 ms | 2 reservations, 2 releases, 5 persisted transitions, across two services |
+| `order-service` checkout requests | 69 ms mean, 193 ms max | 7 requests including first-call JIT warm-up |
+| `order-service` resident memory | 361 MiB | same caveat as the catalog: no cgroup limit, so the heap was sized from host RAM |
 
 Not measured anywhere yet: anything in k3d, anything under sustained load, and every figure in the
 profile memory table. The JVM memory figure above is measured but not *useful* — a JVM without a
@@ -50,6 +53,17 @@ cgroup limit is not the JVM the cluster runs.
 | **Consequence when missed** | Page on availability or on any oversell. The histogram buckets in `internal/obs/metrics.go` are cut for this SLO — 0.1, 0.15, 0.3 — rather than the library defaults, which have no edge anywhere near 150 ms. |
 | **Status** | Latency measured only single-threaded on a build container (2.5 ms mean). Availability never measured. |
 
+### `order-service` — checkout
+
+| | |
+|---|---|
+| **Correctness** | No order in `PAYMENT_FAILED` with a payment reference, ever; no order stuck in `PAID`. Not an SLO with an error budget — both mean a customer's money is somewhere they cannot see. |
+| **Latency** | p99 of `POST /v1/orders/from-cart/{id}` under 2 s, end to end including the reservation and payment calls |
+| **Availability** | 99.9% of checkouts return a non-5xx response. A declined card is not a failure: it is a 201 with an order that says `PAYMENT_FAILED`. |
+| **Why these numbers** | 2 s is the point at which a customer who has entered a card starts pressing the button again. The reservation call is bounded at 2 s on its own, so the budget assumes at most one slow upstream, not four. |
+| **Consequence when missed** | Page on availability, on any stuck `PAID` order, and on any `REFUNDED` rate above a handful a week — a rising refund rate means the hold TTL is shorter than customers take to pay. |
+| **Status** | Measured only single-threaded on a build container: 107 ms for a whole failed checkout. Availability never measured. |
+
 ### `storefront` — the customer entry point
 
 | | |
@@ -72,6 +86,7 @@ been.
 
 ## What is deliberately not an SLO
 
+- **Dispatch-watcher lag.** Shippability is derived from the clock, so a stopped watcher delays no order. It delays a notification, which is worth an alert of its own and not an SLO on orders.
 - **Reaper lag.** It cannot affect stock correctness ([ADR 0008](adr/0008-availability-is-computed-from-the-deadline.md)). A gauge that is 30 s stale is worth an alert only if it is stale for hours — which means a reaper that stopped, and that is worth knowing for a different reason.
 - **Build duration.** It matters, it is tracked, and paging someone at 02:00 for it would be absurd.
 - **Pod restart count.** A symptom, not a promise. It belongs on a dashboard, next to the OOMKill counter.

@@ -19,3 +19,6 @@ because the reasoning that was true at the time is the useful part.
 | [0008](0008-availability-is-computed-from-the-deadline.md) | Availability is computed from the hold deadline, not from a reaper | Accepted |
 | [0009](0009-mandatory-idempotency-key.md) | `Idempotency-Key` is mandatory on reservations and bound to a request digest | Accepted |
 | [0010](0010-lock-then-read-in-two-statements.md) | Lock tank rows and read availability in two statements | Accepted |
+| [0011](0011-derived-state-over-stored-state.md) | Derived state over stored state, wherever a clock can answer | Accepted |
+| [0012](0012-hold-stock-before-taking-money.md) | Hold stock before taking money | Accepted |
+| [0013](0013-record-external-effects-outside-the-transaction.md) | An effect in another service must be recorded outside the transaction that may roll back | Accepted |

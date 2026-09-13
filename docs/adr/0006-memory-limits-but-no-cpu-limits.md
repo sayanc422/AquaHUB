@@ -22,3 +22,20 @@ Latency stays predictable under burst, and no pod can take the node down by allo
 
 **Cost:** a runaway pod can starve its neighbours of CPU. The namespace `ResourceQuota` is the
 backstop, and it is a ceiling for the namespace, not fairness between pods.
+
+## Postscript, Phase 3 — the decision was being reversed by the namespace
+
+This record was written in Phase 1 and the deployments have always been correct: no JVM service
+declares a CPU limit. The namespace was undoing it anyway.
+
+The `ResourceQuota` counted `limits.cpu`, and a quota that counts a resource makes an explicit limit
+for it **mandatory** — a container without one is rejected. The `LimitRange` then supplied a default
+of `500m`, so nothing was rejected: every JVM container silently received a CPU limit and was
+CFS-throttled, which is precisely the behaviour this record exists to avoid. The symptom would have
+been latency spikes on an idle-looking node, with nothing in any deployment manifest to explain them.
+
+Fixed by dropping `limits.cpu` from the quota and the default `cpu` from the `LimitRange`. Memory
+remains capped in both, because memory is not compressible.
+
+The decision did not change; its implementation was wrong for two phases, in a file nobody would
+think to read when asking "why is this pod being throttled".

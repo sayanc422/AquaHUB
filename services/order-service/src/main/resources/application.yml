@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/orders}
+    username: ${DB_USER:orders}
+    password: ${DB_PASSWORD:orders}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: 2
+      connection-timeout: 3000
+  jpa:
+    hibernate:
+      ddl-auto: validate       # Flyway owns the schema. Hibernate only checks it.
+    open-in-view: false        # keeps DB sessions out of view rendering
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  shutdown: graceful           # finish in-flight requests on SIGTERM
+  port: 8082
+
+orders:
+  # The hold window the saga asks inventory-service for. It is the customer's
+  # time to enter a card, and it is stock held out of the shop, so it is a
+  # business decision rather than a technical one.
+  hold-ttl-seconds: ${ORDER_HOLD_TTL_SECONDS:900}
+  currency: ${ORDER_CURRENCY:INR}
+  # The shop's local time: a 14:00 cut-off means 14:00 where the courier calls.
+  dispatch-zone: ${ORDER_DISPATCH_ZONE:Asia/Kolkata}
+  dispatch-scan-interval-ms: ${ORDER_DISPATCH_SCAN_MS:60000}
+
+inventory:
+  base-url: ${INVENTORY_BASE_URL:http://inventory-service:8081}
+  connect-timeout-ms: ${INVENTORY_CONNECT_TIMEOUT_MS:1000}
+  read-timeout-ms: ${INVENTORY_READ_TIMEOUT_MS:2000}
+
+payment:
+  stub:
+    # APPROVE or DECLINE. A stub until payment-service exists; the outcome is
+    # configuration rather than a request field, because a test hook in the API
+    # would let anyone who can place an order choose whether to pay.
+    outcome: ${PAYMENT_STUB_OUTCOME:APPROVE}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      service: order-service
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
