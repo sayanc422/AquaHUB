@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: catalog-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/catalog}
+    username: ${DB_USER:catalog}
+    password: ${DB_PASSWORD:catalog}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: 2
+      connection-timeout: 3000
+  jpa:
+    hibernate:
+      ddl-auto: validate       # Flyway owns the schema. Hibernate only checks it.
+    open-in-view: false        # keeps DB sessions out of view rendering
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  shutdown: graceful           # finish in-flight requests on SIGTERM
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true          # exposes /actuator/health/liveness and /readiness
+      show-details: never
+  metrics:
+    tags:
+      service: catalog-service
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{traceId:-}] %logger{36} - %msg%n"

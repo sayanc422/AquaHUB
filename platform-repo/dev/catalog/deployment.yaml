@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-config
+  namespace: aquashop-dev
+data:
+  DB_URL: jdbc:postgresql://postgres.aquashop-dev.svc.cluster.local:5432/catalog
+  DB_USER: catalog
+  DB_POOL_MAX: "10"
+  SPRING_PROFILES_ACTIVE: dev
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-service
+  namespace: aquashop-dev
+  labels:
+    app: catalog-service
+spec:
+  selector:
+    app: catalog-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  namespace: aquashop-dev
+  labels:
+    app: catalog-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: catalog-service
+  template:
+    metadata:
+      labels:
+        app: catalog-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8080"
+    spec:
+      # 45s: the JVM has to finish in-flight HTTP requests and close the Hikari
+      # pool. Shorter than the slowest request and SIGKILL cuts the pool mid-use.
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: catalog-service
+          image: aquashop/catalog-service:PLACEHOLDER   # CI rewrites this to the git SHA
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef: { name: catalog-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: postgres-credentials, key: CATALOG_PASSWORD }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp        # the JVM needs a writable /tmp; root FS stays read-only
+          # Startup probe carries the slow JVM boot so liveness can stay tight.
+          # 30 x 5s = 150s of grace; after that the pod is restarted.
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness includes the DB check, so a pod whose pool is exhausted
+          # leaves the Service Endpoints instead of serving 500s.
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 200m, memory: 448Mi }
+            # No CPU limit on purpose. A limit means CFS throttling: the JVM is
+            # stopped for the rest of each 100ms period once it exhausts its
+            # quota, which shows up as latency spikes with idle CPU on the node.
+            # Memory is limited because memory is not compressible.
+            limits:   { memory: 640Mi }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

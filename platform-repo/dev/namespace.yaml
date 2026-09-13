@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aquashop-dev
+  labels:
+    app.kubernetes.io/part-of: aquashop
+    aquashop.io/environment: dev
+---
+# Ceiling for the whole environment. On an 11 GB WSL budget this is what stops a
+# bad `resources.requests` from taking the cluster down instead of the pod.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: aquashop-dev-quota
+  namespace: aquashop-dev
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 3Gi
+    limits.cpu: "4"
+    limits.memory: 4Gi
+    pods: "20"
+---
+# Anything without explicit resources gets these, so an unbounded pod cannot
+# exist in this namespace by accident.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: aquashop-dev-defaults
+  namespace: aquashop-dev
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 128Mi

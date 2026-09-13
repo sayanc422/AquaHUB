@@ -1,0 +1,348 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  @page { size: 420mm 297mm; margin: 0; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; width:100%; background:#0f1725; color:#e6ecf5;
+    font-family:"DejaVu Sans", sans-serif; font-size:15.33pt; }
+  .page { width:100%; height:386mm; padding:21.33mm 24mm; background:#0f1725;
+    page-break-after:always; position:relative; overflow:hidden; }
+  .page:last-child { page-break-after:auto; }
+  h1 { font-size:40pt; margin:0 0 2.67mm; font-weight:700; }
+  h1 .a { color:#3ddc97; }
+  h2 { font-size:22.67pt; margin:0 0 4mm; font-weight:700; }
+  h2 .bar { display:inline-block; width:4px; height:20pt; background:#3ddc97;
+    vertical-align:-2px; margin-right:5.33mm; }
+  h3 { font-size:16pt; margin:0 0 2.67mm; color:#3ddc97; }
+  p { margin:0 0 4mm; line-height:1.5; }
+  .sub { color:#93a1bd; font-size:16pt; }
+  .muted { color:#93a1bd; }
+  .dim { color:#6d7a99; }
+  .orange { color:#ff9a4d; }
+  .violet { color:#8b7bf7; }
+  .teal { color:#3ddc97; }
+  .blue { color:#4cc9f0; }
+  code, .mono { font-family:"DejaVu Sans Mono", monospace; font-size:13.33pt; }
+  .panel { background:#182032; border:1px solid #2b3654; border-radius:10px;
+    padding:8mm 9.33mm; margin-bottom:6.67mm; }
+  .panel.teal { border-color:#3ddc97; }
+  .panel.orange { border-color:#ff9a4d; }
+  .panel.violet { border-color:#8b7bf7; }
+  .label { font-size:11.33pt; letter-spacing:1.6px; color:#93a1bd; font-weight:700;
+    text-transform:uppercase; margin-bottom:4mm; }
+  table { width:100%; border-collapse:collapse; font-size:13.33pt; }
+  th { text-align:left; color:#93a1bd; font-size:11.33pt; letter-spacing:1.2px;
+    text-transform:uppercase; padding:0 0 3.33mm; border-bottom:1px solid #2b3654; }
+  td { padding:3.47mm 0; border-bottom:1px solid #202a42; vertical-align:top; }
+  td.k { color:#e6ecf5; font-weight:700; width:22%; }
+  td.n { color:#93a1bd; }
+  .cols { display:table; width:100%; table-layout:fixed; border-spacing:8mm 0; }
+  .col { display:table-cell; vertical-align:top; }
+  .pill { display:inline-block; border-radius:11px; padding:1.87mm 5.33mm; font-size:11.33pt;
+    font-weight:700; letter-spacing:1px; border:1px solid; }
+  .pill.t { color:#3ddc97; border-color:#3ddc97; }
+  .pill.o { color:#ff9a4d; border-color:#ff9a4d; }
+  .pill.v { color:#8b7bf7; border-color:#8b7bf7; }
+  .foot { position:absolute; left:24mm; right:24mm; bottom:10.67mm; border-top:1px solid #2b3654;
+    padding-top:4mm; color:#6d7a99; font-size:11.33pt; }
+  .foot .r { float:right; }
+  img.diagram { display:block; max-width:100%; max-height:300mm; margin:5mm auto 0; }
+  ul { margin:0 0 4mm; padding-left:6.67mm; }
+  li { margin-bottom:2.4mm; line-height:1.45; color:#93a1bd; }
+  li b { color:#e6ecf5; }
+  .big { font-size:18.67pt; line-height:1.55; }
+</style></head><body>
+
+<!-- ------------------------------------------------------------- cover -->
+<div class="page">
+  <div style="height:69.33mm"></div>
+  <div style="border-left:6px solid #3ddc97; padding-left:8mm">
+    <h1>Aqua<span class="a">Shop</span> — Architecture</h1>
+    <div class="sub">A polyglot Kubernetes platform for a freshwater aquarium shop.<br>
+      Designed for AWS &middot; validated with <span class="mono">terraform test</span> &middot; run on k3d.</div>
+  </div>
+
+  <div style="height:18.67mm"></div>
+  <div class="panel orange" style="max-width:333.33mm">
+    <div class="label orange">Read this before anything else</div>
+    <p class="big">The AWS infrastructure layer in this repository has <b>never been applied to an AWS
+      account</b>. It is written as production-quality Terraform and validated in CI with
+      <span class="mono">fmt</span>, <span class="mono">validate</span>, <span class="mono">tflint</span>,
+      <span class="mono">checkov</span> and <span class="mono">terraform test</span> against mock
+      providers. That proves module composition, variable contracts and policy compliance. It does
+      not prove AWS behaviour.</p>
+    <p class="big">The runtime is a single-node <b>k3d</b> cluster inside WSL2 on a 16 GB laptop.
+      Every diagram in this document carries AWS labels because AWS is the target platform, and
+      every place where the local setup diverges from that target is named in the
+      local-to-cloud section rather than glossed over.</p>
+    <p class="big teal" style="margin-bottom:0">The short version, said out loud without hedging:
+      <b>"I built it AWS-first and ran it locally because I was paying for it myself."</b></p>
+  </div>
+
+  <div style="height:10.67mm"></div>
+  <span class="pill t">PHASE 1 COMPLETE</span>&nbsp;
+  <span class="pill v">PHASES 2–7 PLANNED</span>&nbsp;
+  <span class="pill o">AWS: VALIDATED, NOT APPLIED</span>
+
+  <div class="foot">AquaShop architecture &middot; document version 0.1 &middot; measured figures are
+    placeholders until measured<span class="r">docs/architecture.md</span></div>
+</div>
+
+<!-- -------------------------------------------------------- the product -->
+<div class="page">
+  <h2><span class="bar"></span>The product, and why this domain</h2>
+  <p class="muted" style="max-width:320mm">AquaShop sells live freshwater fish, shrimp, plants,
+    hardscape, equipment and food, with a full care profile published for every living species
+    before purchase. The domain was chosen because live livestock imposes constraints a generic
+    shop demo does not have, and each constraint forces an architectural decision that is worth
+    defending in an interview.</p>
+
+  <div class="cols">
+    <div class="col">
+      <div class="panel teal">
+        <div class="label teal">Domain constraint &rarr; architectural consequence</div>
+        <table>
+          <tr><td class="k">Perishable stock</td>
+              <td class="n">Livestock ships only inside a safe weather window, so an order can be
+                <i>confirmed but not yet shippable</i>. The order state machine has a waiting state
+                that a normal shop does not, and it is time-driven rather than event-driven.</td></tr>
+          <tr><td class="k">Stock per tank</td>
+              <td class="n">Stock is held per physical tank, not as one integer. Reservations are
+                tank-scoped, time-bounded and idempotent, which is a distributed-systems problem
+                (TTL expiry, retry safety) rather than a decrement.</td></tr>
+          <tr><td class="k">Compatibility</td>
+              <td class="n">Species are not mutually compatible. That is a rules engine over water
+                parameters and temperament, not CRUD — which is what justifies a separate service
+                with a different language and a different change cadence.</td></tr>
+          <tr><td class="k">Water parameters</td>
+              <td class="n">pH, dGH and temperature ranges must <i>overlap</i> across every
+                inhabitant. Interval intersection over a set, evaluated against tank volume.</td></tr>
+          <tr><td class="k">DOA claims</td>
+              <td class="n">High-value livestock sometimes arrives dead, so there is a claims
+                workflow with photo evidence and a compensating refund path — a real saga
+                compensation, not a contrived one.</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <div class="label">Eight services, and the property that justifies each language</div>
+        <table>
+          <th style="width:26%">Service</th><th style="width:22%">Stack</th><th>Why this stack</th>
+          <tr><td class="k">catalog-service</td><td class="mono muted">Java 21 / Spring Boot</td>
+              <td class="n">Read-heavy relational data with a rich schema; the ecosystem I know best, so the platform work is the novel part, not the language.</td></tr>
+          <tr><td class="k">order-service</td><td class="mono muted">Java 21 / Spring Boot</td>
+              <td class="n">Long-lived transactional orchestration; mature saga and scheduling libraries.</td></tr>
+          <tr><td class="k">inventory-service</td><td class="mono muted">Go</td>
+              <td class="n">Many small concurrent hold/expire operations; goroutines and a 40 MB footprint suit a service that scales on request count, not CPU work.</td></tr>
+          <tr><td class="k">payment-service</td><td class="mono muted">Rust / Axum</td>
+              <td class="n">Smallest surface, strictest correctness. Exhaustive compile-time matching over ledger state transitions and non-wrapping integer arithmetic. <span class="orange">Cost: slowest CI build, smallest maintainer pool.</span></td></tr>
+          <tr><td class="k">aquatics-advisor</td><td class="mono muted">Python / FastAPI</td>
+              <td class="n">Rules and numeric range logic that changes often and is edited by domain people, not platform people.</td></tr>
+          <tr><td class="k">notification-service</td><td class="mono muted">Go</td>
+              <td class="n">I/O-bound fan-out to email and webhooks with per-target retry.</td></tr>
+          <tr><td class="k">staff-portal</td><td class="mono muted">JSP / WildFly</td>
+              <td class="n">Deliberate. Containerising a slow-starting WAR — startup probes, stdout logging, ConfigMap config, graceful shutdown — is the exercise that connects this project to production work I actually do.</td></tr>
+          <tr><td class="k">storefront</td><td class="mono muted">TypeScript / Fastify</td>
+              <td class="n">A BFF is I/O aggregation; server-rendered HTML avoids a client state layer that would add build complexity and prove nothing.</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Data ownership: one logical database per service, no cross-service joins, no foreign
+    keys across boundaries.<span class="r">2</span></div>
+</div>
+
+<!-- ------------------------------------------------------ architecture -->
+<div class="page">
+  <h2><span class="bar"></span>System architecture</h2>
+  <img class="diagram" src="diagrams/png/architecture.png">
+  <div class="foot">Generated from <span class="mono">docs/diagrams/generate.py</span>; committed as SVG so
+    changes appear in diffs.<span class="r">3</span></div>
+</div>
+
+<!-- -------------------------------------------------------- deployment -->
+<div class="page">
+  <h2><span class="bar"></span>Deployment topology</h2>
+  <img class="diagram" src="diagrams/png/deployment.png">
+  <div class="foot">Left: what runs. Right: what it is designed to become, and has never
+    been.<span class="r">4</span></div>
+</div>
+
+<!-- ---------------------------------------------------------- delivery -->
+<div class="page">
+  <h2><span class="bar"></span>Delivery flow</h2>
+  <img class="diagram" src="diagrams/png/delivery-flow.png">
+  <div class="foot">Promotion is a pull request. Rollback is a revert.<span class="r">5</span></div>
+</div>
+
+<!-- ------------------------------------------------------- memory plan -->
+<div class="page">
+  <h2><span class="bar"></span>The memory budget — the constraint that shaped the design</h2>
+  <p class="muted" style="max-width:320mm">16 GB of RAM, roughly 11 GB usable inside WSL2 after
+    leaving Windows its share. The full platform does not fit at once, so the cluster is built as
+    <b>profiles</b>: named subsets brought up for a purpose. This is not a workaround bolted on at
+    the end; it is why NATS replaced Kafka, why one Postgres instance hosts per-service databases,
+    and why only one environment is materialised at a time.</p>
+
+  <div class="cols">
+    <div class="col">
+      <div class="panel teal">
+        <div class="label teal">Profiles</div>
+        <table>
+          <th>Profile</th><th>Adds</th><th style="width:20%">Est. total</th>
+          <tr><td class="k mono">core</td><td class="n">k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront</td><td class="teal mono">~2.6 GB</td></tr>
+          <tr><td class="k mono">commerce</td><td class="n">order, inventory, payment, advisor, NATS</td><td class="teal mono">~4.2 GB</td></tr>
+          <tr><td class="k mono">full-app</td><td class="n">notification, staff-portal (WildFly)</td><td class="teal mono">~5.2 GB</td></tr>
+          <tr><td class="k mono">platform</td><td class="n">Argo CD</td><td class="mono orange">~6.1 GB</td></tr>
+          <tr><td class="k mono">observability</td><td class="n">kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter</td><td class="mono orange">~9.2 GB</td></tr>
+        </table>
+        <p class="orange" style="margin:5.33mm 0 0; font-size:13.33pt">Rule enforced by the bootstrap script:
+          never build images while the observability profile is up. ~1.8 GB of headroom does not survive a
+          Maven or Cargo build, and the failure mode is the kernel OOM killer taking an unrelated pod.</p>
+      </div>
+      <div class="panel">
+        <div class="label">Phase 1 measured footprint</div>
+        <p class="dim" style="margin:0">Every number above is an estimate until measured. After the first
+          <span class="mono">bootstrap.sh</span> run, record <span class="mono">kubectl top pods -A</span>
+          here and in RELEASE-NOTES.md. Placeholders are left deliberately: a measured number I did not
+          measure is the kind of claim that collapses under one follow-up question.</p>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel violet">
+        <div class="label violet">Decisions this constraint forced, and what each costs</div>
+        <table>
+          <tr><td class="k">NATS JetStream<br><span class="dim mono" style="font-weight:400">instead of Kafka</span></td>
+              <td class="n">No consumer in this system needs log replay or partition ordering, and Kafka
+                costs ~1 GB this machine does not have.
+                <span class="orange">Cost: no partition-key ordering, a smaller tooling ecosystem, and
+                MSK is a heavier migration than the mapping suggests.</span></td></tr>
+          <tr><td class="k">One Postgres,<br><span class="dim mono" style="font-weight:400">database per service</span></td>
+              <td class="n">Separate databases and login roles, each with CONNECT on its own database only.
+                Saves ~1.1 GB.
+                <span class="orange">Cost: blast-radius isolation is lost — one restart takes every service
+                down, which per-service RDS instances would not. Credential isolation and the no-shared-schema
+                rule are unaffected.</span></td></tr>
+          <tr><td class="k">One environment<br><span class="dim mono" style="font-weight:400">materialised at a time</span></td>
+              <td class="n">dev, uat and prod are real Argo CD Applications; two of them sit at
+                <span class="mono">replicas: 0</span>.
+                <span class="orange">Cost: no environment has ever run concurrently with another, so
+                cross-environment concerns are untested. Say "three overlays under GitOps, one
+                materialised", never "I ran prod".</span></td></tr>
+          <tr><td class="k">No CPU limits<br><span class="dim mono" style="font-weight:400">on JVM services</span></td>
+              <td class="n">A CPU limit means CFS throttling: once the container exhausts its quota it is
+                stopped for the remainder of each 100 ms period, which appears as latency spikes while the
+                node looks idle. Memory is limited because memory is not compressible.
+                <span class="orange">Cost: a runaway pod can starve its neighbours; the ResourceQuota is
+                the backstop.</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Component estimates are RSS under light load in WSL2, not vendor
+    minimums.<span class="r">6</span></div>
+</div>
+
+<!-- ----------------------------------------------------- local to cloud -->
+<div class="page">
+  <h2><span class="bar"></span>Local to cloud — Phase 1 components</h2>
+  <p class="muted" style="max-width:320mm">The full mapping document covers every component,
+    the Terraform that would provision it, and the traffic path end to end. This page is the
+    Phase 1 extract: what is faithful, and what I have therefore <i>not</i> validated.</p>
+  <div class="panel">
+    <table>
+      <th style="width:14%">Local</th><th style="width:16%">AWS counterpart</th>
+      <th style="width:24%">Terraform module &rarr; consumer</th>
+      <th style="width:22%">Faithful</th><th>Not faithful — and what that means</th>
+      <tr>
+        <td class="k">k3d node container</td><td class="mono muted">EKS managed node group</td>
+        <td class="n mono">eks &rarr; outputs cluster_endpoint, oidc_provider_arn; consumed by iam and the addons module</td>
+        <td class="n">Kubernetes API behaviour, scheduling, probes, quotas, RBAC</td>
+        <td class="n">Single node, so PodDisruptionBudgets, anti-affinity and node drains are configured but never exercised. Pod IPs come from a Docker bridge, not from VPC subnets, so <b>VPC CNI IP exhaustion cannot occur here</b>.</td></tr>
+      <tr>
+        <td class="k">ingress-nginx hostPort</td><td class="mono muted">ALB + AWS Load Balancer Controller</td>
+        <td class="n mono">network &rarr; public_subnet_ids; consumed by the controller through subnet discovery tags</td>
+        <td class="n">Ingress objects, path routing, ingress class, nginx timeouts</td>
+        <td class="n">No target groups, no cross-zone balancing, no deregistration delay. A missing <span class="mono">kubernetes.io/role/elb</span> tag silently produces no load balancer — I can explain it, I have not hit it.</td></tr>
+      <tr>
+        <td class="k">cert-manager self-signed CA</td><td class="mono muted">ACM certificate on the ALB</td>
+        <td class="n mono">acm &rarr; certificate_arn; consumed by the Ingress annotation</td>
+        <td class="n">Certificate lifecycle, secret mounting, renewal mechanics</td>
+        <td class="n">TLS terminates <b>inside</b> the cluster here and <b>at the load balancer</b> in the target. Cipher policy, SNI and WAF association are untested.</td></tr>
+      <tr>
+        <td class="k">Postgres StatefulSet + local-path PVC</td><td class="mono muted">RDS PostgreSQL, Multi-AZ</td>
+        <td class="n mono">rds &rarr; endpoint, port, secret_arn; consumed by the app Helm values and IRSA policy</td>
+        <td class="n">Schema, Flyway migrations, connection pooling, credential isolation per service</td>
+        <td class="n">No failover, no automated backup, no parameter groups. The volume is node-local, so the "volume follows the pod" property of EBS does not exist. Multi-AZ failover is a DNS flip that pools must survive — explainable, not reproducible.</td></tr>
+      <tr>
+        <td class="k">Plaintext Secret in Git</td><td class="mono muted">Secrets Manager read via IRSA</td>
+        <td class="n mono">iam &rarr; irsa_role_arn; consumed by the ServiceAccount annotation</td>
+        <td class="n">Nothing yet — this is a Phase 1 placeholder</td>
+        <td class="n">The single largest gap in the repository today. Phase 5 replaces it with External Secrets + SOPS. Until then this is stated as a known limitation, not presented as a design.</td></tr>
+      <tr>
+        <td class="k">Local image import into k3d</td><td class="mono muted">ECR with immutable tags</td>
+        <td class="n mono">ecr &rarr; repository_urls; consumed by CI and the deployment image field</td>
+        <td class="n">SHA-tagged images, no <span class="mono">:latest</span>, scan-on-build via Trivy</td>
+        <td class="n">No registry authentication, no pull-through cache, no VPC endpoint for private pulls, no lifecycle policy for untagged images.</td></tr>
+    </table>
+  </div>
+  <div class="foot">This page is what makes the AWS labels on the diagrams honest rather than
+    decorative.<span class="r">7</span></div>
+</div>
+
+<!-- ---------------------------------------------------------- phase one -->
+<div class="page">
+  <h2><span class="bar"></span>Phase 1 — what exists, what is next</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="panel teal">
+        <div class="label teal">Built</div>
+        <ul>
+          <li><b>catalog-service</b> — Java 21, Spring Boot 3.3, Flyway-owned schema, Hibernate in
+            <span class="mono">validate</span> mode, DTOs separate from entities, join-fetch queries to
+            avoid N+1, actuator liveness/readiness probe groups, Prometheus registry already wired.</li>
+          <li><b>Seed data</b> — twelve species with real care parameters (temperature, pH, dGH, adult
+            size, minimum group, temperament, diet, plant safety) plus plants, hardscape, equipment and
+            food. A CHECK constraint makes a livestock row without a care profile impossible.</li>
+          <li><b>storefront</b> — TypeScript Fastify BFF, server-rendered HTML, 2 s bounded upstream
+            calls, 60 s nav cache, liveness that does <i>not</i> depend on the catalog.</li>
+          <li><b>Containers</b> — multi-stage, distroless, non-root, read-only root filesystem, dropped
+            capabilities, <span class="mono">MaxRAMPercentage</span> so the JVM sizes its heap from the
+            cgroup limit.</li>
+          <li><b>Cluster</b> — k3d with Traefik, servicelb and metrics-server disabled; ingress-nginx;
+            cert-manager; ResourceQuota and LimitRange on the namespace.</li>
+          <li><b>Bootstrap</b> — one idempotent script with a memory preflight that refuses to run
+            rather than letting the OOM killer make the decision.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel violet">
+        <div class="label violet">Next phases</div>
+        <table>
+          <tr><td class="k">Phase 2</td><td class="n">inventory-service (Go) with tank-scoped, TTL-bounded, idempotent reservations. Ends with a hold that expires and releases stock on its own.</td></tr>
+          <tr><td class="k">Phase 3</td><td class="n">order-service and payment-service: the checkout saga with every compensation path demonstrable on demand.</td></tr>
+          <tr><td class="k">Phase 4</td><td class="n">GitOps repo, Argo CD app-of-apps, CI pipelines. Ends when a merged PR deploys with no manual kubectl.</td></tr>
+          <tr><td class="k">Phase 5</td><td class="n">Observability: OTel across all services, RED plus business metrics, burn-rate alerts on the checkout SLO, runbooks. Secrets handling replaced.</td></tr>
+          <tr><td class="k">Phase 6</td><td class="n">aquatics-advisor, notification-service, staff-portal on WildFly — the slow-start WAR exercise.</td></tr>
+          <tr><td class="k">Phase 7</td><td class="n">Terraform modules and the full local-to-cloud document; NetworkPolicies, PDBs, HPA on a custom RPS metric.</td></tr>
+        </table>
+      </div>
+      <div class="panel orange">
+        <div class="label orange">Known limitations, stated plainly</div>
+        <ul>
+          <li>Secrets are plaintext in Git at Phase 1.</li>
+          <li>Single-node cluster: PDBs, anti-affinity and drains are untested.</li>
+          <li>No environment has run concurrently with another.</li>
+          <li>The AWS layer has never been applied; module wiring is proven, AWS behaviour is not.</li>
+          <li>Every performance figure in this document set is a placeholder until measured.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Each phase ends in something demonstrable. Phase 1 ends with a fish in a
+    browser.<span class="r">8</span></div>
+</div>
+
+</body></html>

@@ -1,0 +1,27 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: aquashop
+servers: 1
+agents: 0          # single node. Every extra agent is another ~250 MB of k3s.
+image: rancher/k3s:v1.30.4-k3s1
+ports:
+  - port: 80:80
+    nodeFilters: [server:0:direct]
+  - port: 443:443
+    nodeFilters: [server:0:direct]
+options:
+  k3s:
+    extraArgs:
+      # Traefik off: ingress-nginx is what the AWS target uses (ALB -> ingress-nginx),
+      # and running two ingress controllers wastes ~150 MB to prove nothing.
+      - arg: --disable=traefik
+        nodeFilters: [server:*]
+      # servicelb (klipper) off: host ports are mapped directly above, and in AWS
+      # a Service of type LoadBalancer is an NLB, which klipper does not resemble.
+      - arg: --disable=servicelb
+        nodeFilters: [server:*]
+      - arg: --disable=metrics-server
+        nodeFilters: [server:*]
+      - arg: --kube-controller-manager-arg=terminated-pod-gc-threshold=10
+        nodeFilters: [server:*]

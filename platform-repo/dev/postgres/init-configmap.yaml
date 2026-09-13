@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: aquashop-dev
+data:
+  # Runs once, on an empty data directory. One database and one role per
+  # service, and the role can reach nothing else. This is the local stand-in
+  # for one RDS instance per service: credential isolation is faithful,
+  # blast-radius isolation is not.
+  00-roles.sql: |
+    CREATE ROLE catalog LOGIN PASSWORD 'devcatalog';
+    CREATE DATABASE catalog OWNER catalog;
+    REVOKE ALL ON DATABASE catalog FROM PUBLIC;
+    GRANT CONNECT ON DATABASE catalog TO catalog;
