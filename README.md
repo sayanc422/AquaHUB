@@ -34,7 +34,7 @@ killer make the decision.
 them for the first time found two mapping defects that would have crash-looped the catalog on its
 first boot — see [RELEASE-NOTES.md](RELEASE-NOTES.md). They have still never run *in* k3d.
 
-**Phases 2, 3 and 4 complete in code, not in the cluster.** `inventory-service` (Go) holds stock in
+**Phases 2 to 5 complete in code, not in the cluster.** `inventory-service` (Go) holds stock in
 physical tanks with TTL-bounded, idempotent reservations, and a concurrency test proves it cannot
 oversell. `order-service` (Java) runs checkout as a saga across it — reserve, authorise, commit,
 confirm — and compensates when a step fails. `payment-service` (Rust) owns an append-only ledger and
@@ -46,7 +46,11 @@ no money; and a live checkout against a payment provider that never answers, whi
 with the money accounted for and nobody having touched it. None has run *in* k3d — no session so far
 has had Docker, which is why that is still the first open item.
 
-Phases 5–7 are planned. See [docs/context_summary.md](docs/context_summary.md) for current state and
+`aquatics-advisor` (Python) answers whether a tank will work, from a rules file meant to be edited
+by somebody who keeps fish — it refuses a bristlenose pleco in a 60 L tank and explains why in a
+sentence an aquarist would use.
+
+Phases 6–7 are planned. See [docs/context_summary.md](docs/context_summary.md) for current state and
 [RELEASE-NOTES.md](RELEASE-NOTES.md) for what has actually been measured.
 
 ## Layout

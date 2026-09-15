@@ -24,3 +24,5 @@ because the reasoning that was true at the time is the useful part.
 | [0013](0013-record-external-effects-outside-the-transaction.md) | An effect in another service must be recorded outside the transaction that may roll back | Accepted |
 | [0014](0014-unknown-is-not-failure.md) | An unknown payment outcome is a state, not a failure | Accepted |
 | [0015](0015-write-the-intent-before-the-call.md) | Write the intent before the external call, not after | Accepted |
+| [0016](0016-rules-are-data-not-code.md) | Stocking rules are data, owned by the person who keeps fish | Accepted |
+| [0017](0017-advisor-owns-no-data.md) | The advisor owns rules and no data | Accepted |

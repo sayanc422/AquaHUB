@@ -34,4 +34,21 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             order by p.name
            """)
     List<Product> search(String q);
+
+    /**
+     * The whole catalog, with categories fetched.
+     *
+     * <p>This exists because the inherited {@code findAll()} does not fetch the
+     * category, and with {@code open-in-view: false} there is no session left
+     * by the time the DTO asks for the category name -- so the unfiltered
+     * product list threw {@code LazyInitializationException} and returned 500.
+     * Every other query here join-fetches; the one method nobody wrote was the
+     * one that was wrong.
+     */
+    @Query("""
+           select p from Product p
+             join fetch p.category
+            order by p.name
+           """)
+    List<Product> findAllWithCategory();
 }

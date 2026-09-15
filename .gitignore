@@ -1,6 +1,10 @@
 *.class
+*.pyc
 .DS_Store
 .mvn/
+.pytest_cache/
+.venv/
+__pycache__/
 dist/
 node_modules/
 target/

@@ -26,7 +26,8 @@ and not under realistic concurrency.** Treat them as the right order of magnitud
 | `order-service` resident memory | 361 MiB | same caveat as the catalog: no cgroup limit, so the heap was sized from host RAM |
 | `payment-service` resident memory | **6 MiB** | the same measurement, on the service doing comparable work in Rust |
 | `payment-service` release binary | 4.2 MiB | |
-| Tests across the repository | 42 in `payment-service` (24 unit, 18 database), 48 in `order-service`, 24 in `inventory-service` | the Java and Rust database suites need a DSN in the environment and skip without one |
+| `aquatics-advisor` resident memory | 59 MiB | serving live requests against the catalog |
+| Tests across the repository | 42 in `payment-service` (24 unit, 18 database), 48 in `order-service`, 24 in `inventory-service`, 29 in `aquatics-advisor` | the Java and Rust database suites need a DSN in the environment and skip without one |
 
 Not measured anywhere yet: anything in k3d, anything under sustained load, and every figure in the
 profile memory table. The JVM memory figure above is measured but not *useful* — a JVM without a
@@ -77,6 +78,17 @@ cgroup limit is not the JVM the cluster runs.
 | **Resolution** | Every `pending` payment resolved within 2 minutes — the reconcile interval plus the void window |
 | **Consequence when missed** | Page on `payment_pending` above zero for more than 5 minutes, and on any `payment_unresolved_total` increase without a matching `payment_reconciled_total`. Those two are the alerting pair: unknowns arriving is normal, unknowns not being resolved is not. |
 | **Status** | Targets. Resolution demonstrated by hand (a pending payment resolved by the reconciler with nobody asking); nothing measured under load. |
+
+### `aquatics-advisor` — the advice
+
+| | |
+|---|---|
+| **Correctness** | No tank that a rule refuses is ever reported as `ok`. Every finding names a rule that exists in `rules.yaml` — an answer nobody can look up is an answer nobody can argue with. |
+| **Latency** | p99 of `POST /v1/tank/check` under 400 ms, warm cache |
+| **Availability** | 99% — the loosest target here, deliberately. Advice is not checkout: a customer who cannot get a compatibility answer is inconvenienced, one who cannot pay is lost. |
+| **Freshness** | A corrected care profile reaches the advice within the cache TTL (5 minutes). Bounded staleness, chosen rather than accidental. |
+| **Consequence when missed** | Ticket, not a page, unless it is down for an hour — with one exception: a rule that names a section missing from `rules.yaml` is a release problem and should fail the build, not the SLO. |
+| **Status** | Targets. Nothing measured under load; 59 MiB resident and correct answers on the cases in the test suite is all that is known. |
 
 ### `storefront` — the customer entry point
 

@@ -3,7 +3,7 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of the Phase 4 build session (15 September 2026).
+**Last updated:** end of the Phase 5 build session (15 September 2026).
 
 ---
 
@@ -27,6 +27,8 @@ It is the state of the work, not a restatement of the brief.*
 | Waiting states | Derived from the clock, never stored | Generalises the reservation-expiry rule: no scheduled job is load-bearing. Cost: the value cannot be indexed directly, and the API must expose both stored state and derived state or it is lying by omission. |
 | Unknown payment outcomes | A state in both services, never collapsed into success or failure | Releasing holds on a timeout sells stock while the customer's money is gone; confirming promises an unpaid order. Cost: two reconcilers that ARE load-bearing, and a state customers see ("we are checking with your bank"). |
 | Payment durability | The intent row is written before the acquirer is called | A charge-then-record design loses the record of every charge it dies during. Cost: two round trips instead of one, and a table of `pending` rows to scan. |
+| Stocking rules | Data in a YAML file with a justification per threshold, not code | The rules change weekly and belong to whoever keeps fish. Cost: a YAML file is not type-checked, and one list of SKUs (fin-nippers) is really data that belongs on the catalog's species profile. |
+| Advisor storage | None. It reads species profiles from catalog-service | A local copy is a second source of truth that drifts on the first correction. Cost: it cannot answer at all when the catalog is down, and a SKU lookup costs an extra hop. |
 | CPU limits | Requests only on JVM services; memory limits always | A CPU limit means CFS throttling — the container is stopped for the rest of each 100 ms period, which reads as latency spikes on an idle-looking node. Memory is limited because memory is not compressible. Cost: a runaway pod can starve neighbours; ResourceQuota is the backstop. |
 
 ## Memory profiles (estimates until measured)
@@ -62,13 +64,14 @@ aquashop/
     inventory-service/      Go 1.24, pgx, embedded migrations, distroless static
     order-service/          Java 21, Spring Boot 3.3, checkout saga, dispatch calendar
     payment-service/        Rust 1.94, Axum, sqlx, append-only ledger, distroless/cc
+    aquatics-advisor/       Python 3.11, FastAPI, rules in YAML, no database
   platform-repo/dev/        namespace + quota + limitrange, postgres, catalog, storefront,
-                            inventory, order, payment, ingress
+                            inventory, order, payment, advisor, ingress
   docs/
     architecture.md         full prose architecture
     architecture.pdf        8 pages, styled, diagrams embedded  (PHASE 1 CONTENT ONLY)
     architecture-pdf.html   source of the PDF                   (PHASE 1 CONTENT ONLY)
-    adr/                    fifteen decision records, each with its cost
+    adr/                    seventeen decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
     runbooks/               five runbooks; four reproduced locally, one written from docs
     diagrams/generate.py    generates all three SVGs
@@ -136,11 +139,11 @@ aquashop/
    `docs/architecture.md` §9 and on page 7 of the PDF).
 
    *(The `payment-service` database test suite that was listed here is done: 18 gated tests.)*
-4. **Phase 5:** `aquatics-advisor` in Python — compatibility rules, water-parameter interval
-   intersection across every inhabitant of a tank, and recommendations. It is the service whose
-   rules change most often and are edited by domain people, which is why it is a different language
-   and a different deployment cadence. Ends with a tank that refuses a fish it cannot keep, and says
-   why in terms an aquarist would use.
+4. **Phase 6:** observability and the delivery layer — the OTel collector, Tempo, a
+   kube-prometheus-stack, and then Argo CD with the app-of-apps across dev, uat and prod. This is
+   also where `order-service` gets the outbox that makes its saga crash-safe, and where NATS arrives
+   to carry the retries. Ends with a trace that follows one customer action from the storefront
+   through the checkout saga to the ledger.
 
 
 ### Phase 1 verification notes — worth carrying forward
@@ -204,6 +207,26 @@ aquashop/
 
 ---
 
+### Phase 5 implementation notes worth carrying forward
+
+- Thresholds live in rules.yaml with a sentence of justification each, and the API quotes those
+  sentences to the customer. A rule that cannot explain itself should not be in the file.
+- The tests load the SHIPPED rules file. That is what makes a loosened threshold visible.
+- Rules are read once at startup, never hot-reloaded: two pods answering differently mid-rollout is
+  worse than waiting for a deployment, and every response carries the rules version.
+- Three verdicts. No overlap at all is a refusal; a narrow overlap is a caution. They are different
+  problems.
+- A size-only predation rule refuses a kuhli loach with neon tetras. What predicts predation is
+  mouth gape, which the catalog does not record; the rule is limited to aggressive species, and the
+  remaining gap (a peaceful angelfish eating neons) is written down rather than hidden.
+- `combinations` never pairs a species with itself, so the same-species check had to be explicit --
+  without it, two male bettas passes everything.
+- A fourth Phase 1 defect surfaced here: GET /api/products returned 500 because the inherited
+  findAll() does not join-fetch the category. I had seen that error in an earlier session and blamed
+  my own shell one-liner. A second consumer calling it for real is what exposed it.
+
+---
+
 ### Known limitations to state plainly, never soften
 
 - Secrets are plaintext in Git at Phase 1. Largest gap in the repo. Phase 5 replaces it.
@@ -214,7 +237,7 @@ aquashop/
   a local Postgres on a build container — never in k3d, never under sustained load.
 - `inventory-service` has never run in the cluster, and nothing calls `release` on a failed payment
   yet. Compensation arrives with Phase 3.
-- All five services have now run outside k3d, against a local Postgres — including a live checkout
+- All six services have now run outside k3d, against a local Postgres — including a live checkout
   across `order-service` and `inventory-service` together. None has run *in* k3d, so the probes,
   resource limits, ingress and TLS path remain written-and-reviewed, not exercised.
 - The checkout saga is not crash-safe. A process death between taking money and committing holds
@@ -223,6 +246,8 @@ aquashop/
 - `payment-service`'s acquirer is a stub: no partial captures, no chargebacks, no 3-D Secure, no
   settlement files, and an in-process memory that a restart wipes.
 - The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.
+- `aquatics-advisor` has no automated test of its HTTP layer or its catalog client, and its image is
+  not distroless. Both are stated in its README rather than left to be found.
 
 ---
 

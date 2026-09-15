@@ -7,13 +7,12 @@
 >
 > The runtime is a single-node **k3d** cluster inside WSL2 on a 16 GB laptop. Diagrams carry AWS
 > labels because AWS is the target platform. Every place the local setup diverges from that target
-> is named in [Local to cloud](#9-local-to-cloud), not glossed over.
+> is named in [Local to cloud](#10-local-to-cloud), not glossed over.
 
-**Status:** Phases 1–4 complete in code. `catalog-service`, `storefront`, `inventory-service`, `order-service` and
-`payment-service` all build, boot and have been exercised together against a real Postgres — a live
-checkout, a live compensation that returns stock when a card is declined, and a live checkout that
-survives a payment provider which takes the money and never answers. **None of them has run in
-k3d.** Phases 5–7 are planned. See [context_summary.md](context_summary.md) for
+**Status:** Phases 1–5 complete in code. All six services build, boot and have been exercised against a real Postgres — a live checkout, a
+live compensation that returns stock when a card is declined, a live checkout that survives a payment
+provider which takes the money and never answers, and a live tank check that refuses a fish and says
+why. **None of them has run in k3d.** Phases 6–7 are planned. See [context_summary.md](context_summary.md) for
 current state, [RELEASE-NOTES.md](../RELEASE-NOTES.md) for what has been measured, and
 [adr/](adr/) for the decisions and their costs.
 
@@ -68,7 +67,7 @@ foreign keys across boundaries. Where two services need the same data, one owns 
 calls its API or subscribes to its events.
 
 Locally these are separate databases and login roles on one Postgres instance, each role holding
-`CONNECT` on its own database only. See [Local to cloud](#9-local-to-cloud) for what that costs.
+`CONNECT` on its own database only. See [Local to cloud](#10-local-to-cloud) for what that costs.
 
 ### Asynchronous messaging
 
@@ -255,7 +254,33 @@ trigger and its race-losing conditional update were exercised by hand.
 
 ---
 
-## 7. The memory budget
+## 7. Phase 5 — `aquatics-advisor`
+
+The service whose rules change weekly and whose code changes rarely, which is why it is a different
+language on a different release rhythm.
+
+**The rules are data.** `rules/rules.yaml` holds every threshold with a plain-English justification
+beside it, and the API quotes those justifications back to the customer. The Python decides what to
+check; the YAML decides how much is too much, and the person who keeps fish owns the second
+([ADR 0016](adr/0016-rules-are-data-not-code.md)). The test suite loads the shipped file, so widening
+a tolerance until an incompatible pair passes turns a test red.
+
+**It owns no data.** Species care profiles belong to `catalog-service`; a copy here would be a second
+source of truth that drifts the first time somebody corrects a pH range
+([ADR 0017](adr/0017-advisor-owns-no-data.md)). **Cost:** it cannot answer anything when the catalog
+is down — readiness fails, and liveness deliberately does not check, or an upstream outage would
+restart every healthy pod.
+
+**Three verdicts, not two.** No overlap at all is a refusal; a narrow overlap is a caution. Collapsing
+them would force every judgement call into an extreme, and most stocking questions are neither.
+
+**Not proven:** nothing tests the HTTP layer or the catalog client, and the image is
+`python:3.11-slim` rather than distroless — a shell and a package manager in the one service whose
+input is free-form customer data.
+
+---
+
+## 8. The memory budget
 
 16 GB of RAM, roughly 11 GB usable inside WSL2. The full platform does not fit at once, so the
 cluster is built as **profiles**: named subsets brought up for a purpose. This is not a workaround
@@ -288,7 +313,7 @@ there is no equivalent of throttling for it, only the OOM killer.
 
 ---
 
-## 8. Delivery
+## 9. Delivery
 
 Two repositories:
 
@@ -311,7 +336,7 @@ name the sync-window disable procedure.
 
 ---
 
-## 9. Local to cloud
+## 10. Local to cloud
 
 The full mapping document covers every component, the Terraform that would provision it, and the
 traffic path end to end. This is the Phase 1 extract.
@@ -347,7 +372,7 @@ allows the ALB SG on the node port range; RDS SG allows the node SG on 5432 only
 
 ---
 
-## 10. Known limitations
+## 11. Known limitations
 
 State these plainly. They make the project more credible, not less.
 
@@ -365,11 +390,15 @@ State these plainly. They make the project more credible, not less.
 - `payment-service` has no database tests. Its CHECK constraints, append-only trigger and
   race-losing conditional update were exercised by hand, not in CI.
 - The card acquirer is stubbed. No partial captures, no chargebacks, no 3-D Secure, no settlement.
+- `aquatics-advisor` has no test covering its HTTP layer or its catalog client, and ships on
+  `python:3.11-slim` rather than distroless — a shell and a package manager in the image.
+- The advisor's predation rule uses adult length because the catalog does not record mouth gape. It
+  will not catch a large peaceful fish with a big mouth, and that is stated in `rules.yaml`.
 - The observability stack and the image build cannot both run on this machine.
 
 ---
 
-## 11. Where the rest of the documents are
+## 12. Where the rest of the documents are
 
 | Document | Contents |
 |---|---|
@@ -380,7 +409,7 @@ State these plainly. They make the project more credible, not less.
 
 ---
 
-## 12. Diagrams
+## 13. Diagrams
 
 Generated by `docs/diagrams/generate.py` and committed as SVG so changes appear in diffs.
 

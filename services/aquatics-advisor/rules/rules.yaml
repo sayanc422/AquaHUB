@@ -1,0 +1,111 @@
+# Stocking rules for the AquaShop advisor.
+#
+# This file is meant to be edited by somebody who keeps fish, not only by
+# somebody who writes Python. Every number here is a judgement an aquarist
+# would recognise and argue about, which is exactly why it is data and not
+# code: changing "how much overlap is enough" should be a pull request against
+# a YAML file with a sentence of justification, reviewed by the person who runs
+# the shop -- not a code change that needs a release.
+#
+# That is also why this service is separate and deploys on its own cadence.
+# The rules change far more often than the software that applies them.
+#
+# Every threshold carries `why`, and the API quotes it back to the customer.
+# A rule that cannot explain itself in a sentence an aquarist would use is a
+# rule that should not be in here.
+
+version: 3
+updated: 2026-09-15
+
+water:
+  # An overlap narrower than this is technically possible and practically a
+  # slow decline: the tank has to be held inside a couple of degrees with no
+  # margin for a heater drifting or a summer afternoon.
+  min_temperature_overlap_c: 2.0
+  why_temperature: >-
+    Fish from different rivers want different temperatures. Where the ranges
+    barely meet, one species is always at the edge of what it tolerates, and
+    that shows up as disease months later rather than as a death this week.
+
+  # pH is logarithmic. Half a unit is a threefold difference in acidity, so a
+  # narrow overlap is a much bigger ask than the numbers suggest.
+  min_ph_overlap: 0.4
+  why_ph: >-
+    pH is a log scale, so 6.5 and 7.5 are ten times apart, not one apart. Soft
+    water fish in hard water stop colouring up and stop breeding long before
+    they die of it.
+
+  min_dgh_overlap: 2.0
+  why_dgh: >-
+    Hardness decides whether a fish can regulate its own salt balance. Livebearers
+    need it, blackwater fish are harmed by it, and no filter changes that.
+
+stocking:
+  # The classic "one inch per gallon" converted and then made stricter, because
+  # it was always a rule of thumb for young fish in bare tanks.
+  litres_per_adult_cm: 1.2
+  why_capacity: >-
+    Adult size, not the size in the bag. Most of what is sold as a community
+    fish is a juvenile, and a tank stocked to look right on the day is
+    overstocked within a year.
+
+  # Below this fraction of the recommended volume the tank is refused outright
+  # rather than flagged.
+  hard_refusal_fraction: 1.0
+  caution_fraction: 0.85
+
+behaviour:
+  # A fish that fits in another fish's mouth will eventually be in it. The
+  # ratio is adult size to adult size, and it is only applied to species that
+  # are aggressive or semi-aggressive -- see the known gap below.
+  predation_size_ratio: 2.5
+  why_predation: >-
+    If it fits in the mouth, it is food. This is not aggression, it is feeding
+    behaviour, and a peaceful label does not protect anything small enough.
+
+  # KNOWN GAP, deliberately left visible.
+  #
+  # What actually predicts predation is mouth gape, and catalog-service does not
+  # record it. Adult length is the available stand-in and it is wrong in both
+  # directions: a kuhli loach reaches 10 cm and eats nothing in midwater, while
+  # an angelfish is described as peaceful everywhere and is the classic reason
+  # a tank of neon tetras becomes a tank of one angelfish.
+  #
+  # The rule is therefore limited to aggressive and semi-aggressive species,
+  # which avoids the first error and accepts the second. Closing it properly
+  # means adding a gape or body-shape field to the catalog, which is a change
+  # to somebody else's service and a conversation rather than an edit here.
+  why_predation_limits: >-
+    This check catches fish that hunt. It does not catch a large peaceful fish
+    with a big mouth, so ask in the shop before mixing sizes.
+
+  # Temperaments that should not share a tank, by the shop's own experience.
+  incompatible_temperaments:
+    - [AGGRESSIVE, PEACEFUL]
+    - [AGGRESSIVE, AGGRESSIVE]
+    - [TERRITORIAL, TERRITORIAL]
+  why_temperament: >-
+    An aggressive fish in a community tank does not merely nip. It stops the
+    other fish feeding, and they starve slowly in a tank that looks fine.
+
+  # Species with trailing fins that get attacked by fin-nippers. Held as a list
+  # because it is a property of the individual animal, not of a data field the
+  # catalog has.
+  long_finned_skus: [FSH-BET-01, FSH-GUP-01]
+  fin_nipper_skus: [FSH-ZEB-01]
+  why_fin_nipping: >-
+    Zebra danios are fast and busy and will strip the fins off anything that
+    trails them. The victim usually dies of the infection, not the bite.
+
+welfare:
+  # A shoaling fish kept below its minimum group is not a smaller shoal, it is
+  # a stressed animal.
+  why_group_size: >-
+    Shoaling fish count their own kind, and a fish that cannot find a group
+    behaves as though it is being hunted. It hides, it stops eating, and it
+    colours down.
+
+plants:
+  why_plant_safety: >-
+    Some fish eat plants faster than the plants grow. That is a planted tank
+    becoming an unplanted one, not a compatibility failure.

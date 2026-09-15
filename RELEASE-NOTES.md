@@ -5,6 +5,98 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Phase 5 — `aquatics-advisor`
+
+Whether a tank will work, and why not. Python / FastAPI, no database, and a rules file meant to be
+edited by somebody who keeps fish.
+
+### The arrangement
+
+`rules/rules.yaml` holds every threshold with a plain-English justification beside it;
+`advisor/rules.py` decides *what* to check and never *how much is too much*
+([ADR 0016](docs/adr/0016-rules-are-data-not-code.md)). The justifications are not comments — the API
+quotes them back to the customer, and `GET /v1/rules` publishes the file, because a shop that cannot
+show its own rule is asking to be trusted rather than read.
+
+The test suite loads the **shipped** YAML rather than a fixture. Widening the pH tolerance until
+guppies and cardinal tetras pass turns a test red and makes whoever did it say so out loud.
+
+**No database** ([ADR 0017](docs/adr/0017-advisor-owns-no-data.md)). Species profiles belong to
+`catalog-service`; a copy here would be a second source of truth that drifts the first time somebody
+corrects a pH range. Cost: the advisor cannot answer anything when the catalog is down — readiness
+fails, liveness deliberately does not.
+
+### Three verdicts, not two
+
+`ok` · `caution` · `refused`. **No overlap at all is a refusal** — there is no number the tank can be
+set to. **A narrow overlap is a caution** — achievable, with no margin left. Those are different
+problems and a binary answer would collapse them.
+
+### The bug worth reporting
+
+A size-only predation rule refuses a kuhli loach with neon tetras: 10 cm against 3.5 cm, nearly three
+times. A kuhli is an eel-shaped bottom dweller with a mouth built for hunting in gravel and no
+interest whatever in a fish in midwater.
+
+What predicts predation is **mouth gape**, and the catalog does not record it. Adult length is wrong
+in both directions — the other error is an angelfish, which every source calls peaceful and which is
+the classic reason a tank of neon tetras becomes a tank of one angelfish. Limiting the rule to
+aggressive and semi-aggressive species avoids the first and accepts the second; the gap is named in
+`rules.yaml` rather than papered over, and closing it means adding a field to somebody else's service.
+
+`test_a_kuhli_loach_is_not_treated_as_a_predator` exists because of this.
+
+### A fourth Phase 1 defect, found by a new consumer
+
+`GET /api/products` with no query returned **500**. Every query in `ProductRepository` join-fetches
+the category except the inherited `findAll()`, which the controller used for the unfiltered list —
+and with `open-in-view: false` there is no session left when the DTO asks for the category name.
+`LazyInitializationException`.
+
+I saw this error in an earlier session and attributed it to a mistake in my own shell one-liner. It
+took a second consumer calling the endpoint for real to show what it was.
+
+### Verified live, against the real catalog
+
+```
+10 neon tetras + 6 panda cories in 120 L          -> ok
+    hold the tank at 20-25 °C, pH 6-7.4, 2-10 dGH; needs about 78 L when grown
+
+6 guppies + 10 cardinal tetras in 200 L           -> refused
+    "Guppy and Cardinal Tetra have no pH in common: Guppy needs 7-8.2, Cardinal Tetra
+     needs 4.6-6.8. There is no setting that suits both. pH is a log scale, so 6.5 and
+     7.5 are ten times apart, not one apart."
+
+a bristlenose pleco into 60 L of neon tetras      -> refused
+    "Bristlenose Pleco needs at least 120 L of tank and this one is 60 L. That is a
+     floor for the species, not a stocking calculation."
+
+a male betta into a community tank                -> refused (temperament)
+three neon tetras                                 -> refused (a shoal that is not a shoal)
+a heater, or an unknown SKU                       -> 404
+```
+
+That is the phase's acceptance criterion: **a tank that refuses a fish it cannot keep, and says why
+in terms an aquarist would use.**
+
+### Measured
+
+| | |
+|---|---|
+| `aquatics-advisor` resident memory | 59 MiB — between the Go service (14 MiB) and the JVMs (~360 MiB), which is where a CPython web service belongs |
+| Tests | 29, no database and no network |
+
+### Still unproven
+
+- **Never run in k3d**, like everything else here.
+- **No test covers the HTTP layer or the catalog client.** Both were exercised by hand against a live
+  `catalog-service`; neither has an automated test. Clearest gap of this phase.
+- The image is `python:3.11-slim`, not distroless — so it has a shell and a package manager in it,
+  the largest attack surface in the platform. Vendoring uvicorn's native wheels into
+  `distroless/python3` is possible and is a follow-up.
+
+---
+
 ## Phase 4 — `payment-service`, and an unknown that stays unknown
 
 Authorisation, capture, refund and a ledger, in Rust. And the change to `order-service` that the

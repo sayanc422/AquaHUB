@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: advisor-config
+  namespace: aquashop-dev
+data:
+  CATALOG_BASE_URL: http://catalog-service.aquashop-dev.svc.cluster.local:8080
+  # Bounded, like every upstream call in this platform.
+  CATALOG_TIMEOUT_S: "2.0"
+  # Care profiles change a few times a year. A tank check makes one call per
+  # species, so without a cache the advisor's latency is the catalog's.
+  CATALOG_CACHE_TTL_S: "300"
+  RULES_PATH: rules/rules.yaml
+  LOG_LEVEL: INFO
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aquatics-advisor
+  namespace: aquashop-dev
+  labels:
+    app: aquatics-advisor
+spec:
+  selector:
+    app: aquatics-advisor
+  ports:
+    - name: http
+      port: 8084
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aquatics-advisor
+  namespace: aquashop-dev
+  labels:
+    app: aquatics-advisor
+    aquashop.io/profile: commerce
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: aquatics-advisor
+  template:
+    metadata:
+      labels:
+        app: aquatics-advisor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8084"
+        # The rules ship in the image, so a rules change is a new image and a
+        # new rollout. That is the point: two pods answering the same question
+        # differently for the length of a rollout is bad enough without the
+        # file changing underneath a running process as well.
+        aquashop.io/rules-version: "3"
+    spec:
+      # 15s. Nothing here holds state, nothing is mid-transaction, and the only
+      # in-flight work is a read of the catalog.
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: aquatics-advisor
+          image: aquashop/aquatics-advisor:PLACEHOLDER   # CI rewrites this to the git SHA
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8084
+          envFrom:
+            - configMapRef: { name: advisor-config }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          # No database credentials, because there is no database. The advisor
+          # owns rules, not data: species profiles belong to catalog-service,
+          # and a copy here would be a second source of truth that drifts the
+          # first time somebody corrects a pH range.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 20
+            periodSeconds: 3
+          # Liveness does not call the catalog. If it did, a catalog outage
+          # would restart every healthy advisor pod in a loop. Readiness does,
+          # because an advisor that cannot read species profiles cannot answer.
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            # Measured: 59 MiB resident serving live requests against the
+            # catalog. Between the Go service (14 MiB) and the JVMs (~360 MiB),
+            # which is where a CPython web service belongs.
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 160Mi }

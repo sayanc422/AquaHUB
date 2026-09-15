@@ -90,7 +90,9 @@ build_images() {
     # Slowest build in the repository by a wide margin. Cargo's dependency
     # layer is cached, but a cold build is minutes, not seconds.
     docker build -t aquashop/payment-service:dev   "${ROOT}/services/payment-service"
-    images+=(aquashop/inventory-service:dev aquashop/order-service:dev aquashop/payment-service:dev)
+    docker build -t aquashop/aquatics-advisor:dev  "${ROOT}/services/aquatics-advisor"
+    images+=(aquashop/inventory-service:dev aquashop/order-service:dev \
+             aquashop/payment-service:dev aquashop/aquatics-advisor:dev)
   fi
   log "importing images into k3d (no registry round-trip)"
   k3d image import -c "${CLUSTER}" "${images[@]}"
@@ -114,13 +116,15 @@ deploy() {
     # Applied with -f, not through the dev kustomization, because the
     # kustomization is the `core` profile. At Phase 4 Argo CD owns profiles and
     # both of these lines go away.
-    log "applying commerce profile (inventory-service, order-service, payment-service)"
+    log "applying commerce profile (inventory, order, payment, advisor)"
     kubectl apply -f "${ROOT}/platform-repo/dev/inventory/"
     kubectl apply -f "${ROOT}/platform-repo/dev/payment/"
+    kubectl apply -f "${ROOT}/platform-repo/dev/advisor/"
     kubectl apply -f "${ROOT}/platform-repo/dev/order/"
     kubectl -n "$NS" set image deployment/inventory-service inventory-service=aquashop/inventory-service:dev
     kubectl -n "$NS" set image deployment/order-service     order-service=aquashop/order-service:dev
     kubectl -n "$NS" set image deployment/payment-service   payment-service=aquashop/payment-service:dev
+    kubectl -n "$NS" set image deployment/aquatics-advisor aquatics-advisor=aquashop/aquatics-advisor:dev
     # The role and database are created by the Postgres init script, which only
     # runs on an empty data directory. On a cluster whose PVC predates this
     # service, see docs/runbooks/add-a-service-database.md.
@@ -128,6 +132,8 @@ deploy() {
     kubectl -n "$NS" rollout status deployment/inventory-service --timeout=120s
     log "waiting for payment-service"
     kubectl -n "$NS" rollout status deployment/payment-service --timeout=120s
+    log "waiting for aquatics-advisor"
+    kubectl -n "$NS" rollout status deployment/aquatics-advisor --timeout=120s
     log "waiting for order-service"
     kubectl -n "$NS" rollout status deployment/order-service --timeout=300s
   fi

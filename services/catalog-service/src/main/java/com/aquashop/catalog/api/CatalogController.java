@@ -49,7 +49,9 @@ public class CatalogController {
 
     @GetMapping("/products")
     public List<CatalogDtos.ProductSummary> search(@RequestParam(name = "q", defaultValue = "") String q) {
-        return (q.isBlank() ? products.findAll() : products.search(q)).stream()
+        // findAllWithCategory(), not the inherited findAll(): the latter leaves
+        // the category to be lazy-loaded in the DTO, where there is no session.
+        return (q.isBlank() ? products.findAllWithCategory() : products.search(q)).stream()
                 .map(CatalogDtos.ProductSummary::of)
                 .toList();
     }
