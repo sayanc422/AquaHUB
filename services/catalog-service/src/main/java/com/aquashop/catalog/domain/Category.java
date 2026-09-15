@@ -42,8 +42,14 @@ public class Category {
     @Column(length = 200)
     private String teaser;
 
-    @Column(name = "image_url", length = 300)
-    private String imageUrl;
+    /**
+     * Where the photograph lives, as a key rather than a URL:
+     * {@code sections/malawi.jpg}. The storefront composes the URL from its
+     * own base, so moving the images behind a CDN is configuration rather than
+     * a migration.
+     */
+    @Column(name = "image_key", length = 300)
+    private String imageKey;
 
     protected Category() { }
 
@@ -55,5 +61,5 @@ public class Category {
     public Category getParent() { return parent; }
     public CategoryStatus getStatus() { return status; }
     public String getTeaser() { return teaser; }
-    public String getImageUrl() { return imageUrl; }
+    public String getImageKey() { return imageKey; }
 }

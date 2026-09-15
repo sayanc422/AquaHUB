@@ -42,7 +42,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
                c.teaser        AS teaser,
                c.description   AS description,
                c.status        AS status,
-               c.image_url     AS imageUrl,
+               c.image_key     AS imageKey,
                (SELECT count(*) FROM category k WHERE k.parent_id = c.id)        AS childCount,
                (SELECT count(*) FROM product p WHERE p.category_id = c.id)       AS productCount,
                (SELECT count(*) FROM product p JOIN sub s ON s.id = p.category_id
@@ -70,7 +70,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
               FROM category c JOIN up ON up.parent_id = c.id
         )
         SELECT slug AS slug, name AS name, '' AS teaser, '' AS description,
-               'ACTIVE' AS status, NULL AS imageUrl,
+               'ACTIVE' AS status, NULL AS imageKey,
                0 AS childCount, 0 AS productCount, 0 AS totalProducts
           FROM up WHERE slug <> :slug
          ORDER BY depth DESC

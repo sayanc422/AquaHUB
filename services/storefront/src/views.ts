@@ -6,6 +6,40 @@ const esc = (s: unknown): string =>
   String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
+/**
+ * Where images are served from.
+ *
+ * The catalog stores a key (`species/demasoni.jpg`); this composes the URL.
+ * In the cluster it stays `/static`; in the AWS target it becomes a CloudFront
+ * distribution, and that is a ConfigMap change rather than a data migration.
+ */
+const IMAGE_BASE = (process.env.IMAGE_BASE_URL ?? '/static').replace(/\/$/, '');
+
+/**
+ * A photograph, or an honest gap where one goes.
+ *
+ * `loading="lazy"` and an explicit aspect ratio, so a page of forty fish does
+ * not fetch forty images and does not reflow as each one lands.
+ *
+ * Two ways there can be no picture, and both land on the same placeholder:
+ *
+ *   * **no key** -- most of the catalogue is not photographed yet;
+ *   * **a key whose file is missing** -- the catalog names a photograph that
+ *     has not been taken, or has not been uploaded to the CDN yet.
+ *
+ * The second is handled in the browser because only the browser knows: the
+ * storefront cannot see a CDN's contents, and checking would mean a request per
+ * image on every render. A page full of broken-image icons reads as a broken
+ * site; a page of quiet placeholders reads as an incomplete catalogue, which is
+ * the truth.
+ */
+const photo = (key: string | null, alt: string, ratio: string) =>
+  key
+    ? `<img class="shot" style="aspect-ratio:${ratio}" src="${esc(IMAGE_BASE)}/${esc(key)}"
+          alt="${esc(alt)}" loading="lazy" decoding="async"
+          onerror="this.removeAttribute('src');this.classList.add('shot-none');this.alt=''">`
+    : `<span class="shot shot-none" style="aspect-ratio:${ratio}" aria-hidden="true"></span>`;
+
 const money = (p: ProductSummary) =>
   p.currency === 'INR' ? `\u20B9${Number(p.price).toFixed(2)}` : `${p.currency} ${p.price}`;
 
@@ -29,6 +63,7 @@ function layout(title: string, nav: CategoryView[], body: string): string {
 
 const card = (p: ProductSummary) => `
 <a class="card" href="/p/${esc(p.slug)}">
+  ${photo(p.imageKey, p.name, '4/3')}
   <div class="card-head">
     <span class="name">${esc(p.name)}</span>
     ${p.livestock ? '<span class="tag live">LIVE</span>' : ''}
@@ -53,6 +88,7 @@ const tile = (c: CategoryView) => {
         : (c.childCount > 0 ? `${c.childCount} sections` : 'Nothing stocked yet'))
     : 'Coming soon';
   const inner = `
+    ${photo(c.imageKey, c.name, '16/9')}
     <span class="name">${esc(c.name)}</span>
     <p class="summary">${esc(c.teaser ?? c.description ?? '')}</p>
     <span class="count">${esc(count)}</span>`;

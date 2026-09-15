@@ -9,7 +9,9 @@ export interface CategoryView {
   /** Derived by the catalog, so the storefront never maintains its own list of
    *  statuses that mean "enterable". */
   browsable: boolean;
-  imageUrl: string | null;
+  /** A key such as `sections/malawi.jpg`, not a URL: the storefront composes
+   *  the URL, so moving the images behind a CDN is configuration. */
+  imageKey: string | null;
   childCount: number;
   productCount: number;
   /** Everything in the subtree. A "Cichlids" tile holds nothing itself and six
@@ -19,7 +21,7 @@ export interface CategoryView {
 export interface ProductSummary {
   sku: string; slug: string; name: string; summary: string | null;
   price: string; currency: string; livestock: boolean; categorySlug: string;
-  imageUrl: string | null;
+  imageKey: string | null;
 }
 export interface Range { min: number; max: number }
 export interface SpeciesView {

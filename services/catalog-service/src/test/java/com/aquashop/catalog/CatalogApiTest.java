@@ -114,6 +114,25 @@ class CatalogApiTest {
     }
 
     @Test
+    void aPhotographedProductNamesItsImageAsAKeyNotAUrl() throws Exception {
+        // A URL hard-codes where the bytes live; a key does not. Moving the
+        // photographs behind a CDN should be a ConfigMap change, not a
+        // migration over every row.
+        mvc.perform(get("/api/products/demasoni"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.product.imageKey").value("species/demasoni.jpg"));
+    }
+
+    @Test
+    void anUnphotographedProductHasNoKeyRatherThanAGuessedOne() throws Exception {
+        // Null is handled by the storefront as a placeholder. A key invented
+        // from the slug would point at a file nobody has taken.
+        mvc.perform(get("/api/products/neon-tetra"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.product.imageKey").doesNotExist());
+    }
+
+    @Test
     void mbunaCarryTheWaterParametersThatMakeThemIncompatibleWithTetras() throws Exception {
         // Not a contrivance: aquatics-advisor refuses a demasoni-and-neon tank
         // on exactly these numbers, with no rule written about either fish.

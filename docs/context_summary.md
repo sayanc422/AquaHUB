@@ -240,6 +240,10 @@ aquashop/
   the same defect that took down `GET /api/products`.
 - Real stock found a backwards rule in the advisor: mbuna are aggressive AND kept in twelves. Check
   `min_group_size` before refusing a species for being kept with itself.
+- Images are stored as KEYS (`species/demasoni.jpg`), never URLs. The storefront composes the URL
+  from `IMAGE_BASE_URL`, so a CDN move is configuration rather than a migration over every row.
+- No photograph in the repository may be one found through an image search. The shop is a commercial
+  use; the rule and the reasoning are in `services/storefront/public/species/README.md`.
 
 ---
 
@@ -264,8 +268,9 @@ aquashop/
 - The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.
 - `aquatics-advisor` has no automated test of its HTTP layer or its catalog client, and its image is
   not distroless. Both are stated in its README rather than left to be found.
-- The catalogue has no images. `image_url` exists on both `category` and `product` and is null
-  everywhere; the storefront renders text cards.
+- The catalogue has no photographs. `image_key` is populated for the six Malawi fish and seven
+  sections, and every one of those files is missing -- they render as placeholders until the shop
+  supplies its own or licensed photography.
 - `catalog-service`'s test suite uses Testcontainers, so it could not be executed in the session that
   wrote the tree tests. Every assertion was verified by hand against the running service instead --
   which is weaker, and is why the first CI run after this change is worth watching.

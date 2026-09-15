@@ -5,6 +5,42 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Photography: a key, not a URL
+
+`image_url` arrived empty with the category tree and is now `image_key` before anything was written
+into it. The difference matters: a URL hard-codes where the bytes live, so the day the shop moves its
+photographs behind a CDN, every row has to be rewritten. A key does not — the storefront composes
+`IMAGE_BASE_URL + key`, and `/static` becoming a CloudFront distribution is a ConfigMap change with
+no migration at all. `catalog-service` owns *which* photograph belongs to a product; it has no
+business owning *where it is served from*.
+
+The convention is `species/<product slug>.jpg` and `sections/<category slug>.jpg` — predictable
+enough that whoever photographs a new fish knows what to call the file without asking. Dropping a
+JPEG into `services/storefront/public/species/` is the whole deployment.
+
+### Two ways to have no picture, one placeholder
+
+Most of the catalogue is not photographed, and a key can also point at a file that has not been
+uploaded yet. Both render the same quiet placeholder at the right aspect ratio: a null server-side,
+a missing file caught in the browser — because only the browser can know whether a CDN has the file,
+and checking server-side would mean a request per image on every render.
+
+A page of broken-image icons reads as a broken site. A page of placeholders reads as an incomplete
+catalogue, which is the truth.
+
+Images are `loading="lazy"` with an explicit `aspect-ratio`, so a page of forty fish neither fetches
+forty images nor reflows as each one lands.
+
+### Not done
+
+**There are no photographs in the repository.** Reference shots were supplied for this design work
+but they are web images — one carries another retailer's watermark — and a commercial shop has no
+fair-dealing argument available. Every photograph shipped here has to be the shop's own, licensed
+with the licence recorded, or supplied by the breeder with permission. The rule is written in
+`public/species/README.md` next to where the files go.
+
+---
+
 ## Catalogue becomes a tree
 
 The shop front was six flat categories because six was all the shop sold. A real fish shop is not

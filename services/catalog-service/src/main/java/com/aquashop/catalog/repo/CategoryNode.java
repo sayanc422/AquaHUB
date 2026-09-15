@@ -14,7 +14,7 @@ public interface CategoryNode {
     String getTeaser();
     String getDescription();
     String getStatus();
-    String getImageUrl();
+    String getImageKey();
 
     /** Sections directly inside this one. */
     long getChildCount();

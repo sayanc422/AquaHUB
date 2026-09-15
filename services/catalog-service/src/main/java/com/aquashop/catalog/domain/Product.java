@@ -38,9 +38,13 @@ public class Product {
     @Column(name = "is_livestock", nullable = false)
     private boolean livestock;
 
-    /** Where the photograph lives. Null until the shop has taken one. */
-    @Column(name = "image_url", length = 300)
-    private String imageUrl;
+    /**
+     * Where the photograph lives, as a key rather than a URL:
+     * {@code species/demasoni.jpg}. Null until the shop has taken one, and a
+     * null renders as a placeholder rather than a broken image.
+     */
+    @Column(name = "image_key", length = 300)
+    private String imageKey;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id")
@@ -65,7 +69,7 @@ public class Product {
     public String getCurrency() { return currency; }
     public boolean isLivestock() { return livestock; }
     public Category getCategory() { return category; }
-    public String getImageUrl() { return imageUrl; }
+    public String getImageKey() { return imageKey; }
     public SpeciesProfile getSpeciesProfile() { return speciesProfile; }
 
     public BigDecimal getPriceMajor() {

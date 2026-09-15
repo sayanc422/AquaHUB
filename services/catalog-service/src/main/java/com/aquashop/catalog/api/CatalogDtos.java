@@ -33,14 +33,14 @@ public final class CatalogDtos {
      */
     public record CategoryView(
             String slug, String name, String teaser, String description,
-            String status, boolean browsable, String imageUrl,
+            String status, boolean browsable, String imageKey,
             long childCount, long productCount, long totalProducts) {
 
         public static CategoryView of(CategoryNode n) {
             CategoryStatus status = CategoryStatus.valueOf(n.getStatus());
             return new CategoryView(
                     n.getSlug(), n.getName(), n.getTeaser(), n.getDescription(),
-                    status.name(), status.isBrowsable(), n.getImageUrl(),
+                    status.name(), status.isBrowsable(), n.getImageKey(),
                     n.getChildCount(), n.getProductCount(), n.getTotalProducts());
         }
 
@@ -52,7 +52,7 @@ public final class CatalogDtos {
 
         public static CategoryView of(Category c) {
             return new CategoryView(c.getSlug(), c.getName(), c.getTeaser(), c.getDescription(),
-                    c.getStatus().name(), c.getStatus().isBrowsable(), c.getImageUrl(), 0, 0, 0);
+                    c.getStatus().name(), c.getStatus().isBrowsable(), c.getImageKey(), 0, 0, 0);
         }
     }
 
@@ -73,13 +73,13 @@ public final class CatalogDtos {
     public record ProductSummary(
             String sku, String slug, String name, String summary,
             BigDecimal price, String currency, boolean livestock,
-            String categorySlug, String imageUrl) {
+            String categorySlug, String imageKey) {
 
         public static ProductSummary of(Product p) {
             return new ProductSummary(
                     p.getSku(), p.getSlug(), p.getName(), p.getSummary(),
                     p.getPriceMajor(), p.getCurrency(), p.isLivestock(),
-                    p.getCategory().getSlug(), p.getImageUrl());
+                    p.getCategory().getSlug(), p.getImageKey());
         }
     }
 
