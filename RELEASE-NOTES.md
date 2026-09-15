@@ -5,6 +5,79 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Catalogue becomes a tree
+
+The shop front was six flat categories because six was all the shop sold. A real fish shop is not
+flat: a customer after a Demasoni is looking for **Live Fishes › Freshwater › Cichlids › African ›
+Lake Malawi**, and every one of those levels is a page somebody browses.
+
+### What changed
+
+`category` gains `parent_id`, `status`, `teaser` and `image_url`; `product` gains `image_url`. Three
+new endpoints where there was one:
+
+| | |
+|---|---|
+| `GET /api/categories` | the **top of the shop** — roots only, which is what a nav bar wants. Returning all twenty-nine would make the caller filter, and then the caller has to understand the tree to draw a menu |
+| `GET /api/categories/{slug}` | one page in one call: where you are, the breadcrumb, the sections inside, the products at this level |
+| `GET /api/categories/{slug}/products?deep=true` | everything in the subtree |
+
+`status` is `ACTIVE` / `COMING_SOON` / `HIDDEN`, and the API publishes a derived `browsable` rather
+than making every client keep its own list of statuses that mean yes. Saltwater ships as
+`COMING_SOON`: greyed out and labelled on the shop front, because a customer who wants marine fish
+should learn we are working on it rather than conclude we do not sell fish.
+
+The counts on a tile are subtree counts. "Cichlids" holds no products of its own and six fish below
+it, and a tile reading 0 would be true and useless.
+
+### Five levels is five correct guesses
+
+The deepest path is five clicks from the front door to a fish. Every level that has sections
+therefore also offers *browse all* — the `deep=true` query, surfaced in the storefront as
+`/c/cichlids?all=1`. A tree that can only be walked one level at a time is a filing system, not a
+shop.
+
+### Stock, and what it did to the advisor
+
+Lake Malawi is stocked with six mbuna carrying real care data — Saulosi, Demasoni, Yellow Lab, Red
+Zebra, Acei, Auratus. Mbuna want pH 7.8–8.6; a neon tetra wants 5.5–7.5. Those ranges do not meet at
+any point, so `aquatics-advisor` refuses the tank **on the data alone**, with no rule written about
+either fish:
+
+```
+Demasoni and Neon Tetra have no pH in common: Demasoni needs 7.8-8.6, Neon Tetra
+needs 5.5-7.5. There is no setting that suits both.
+```
+
+### The bug that found
+
+The same run produced a second finding that was not merely wrong but backwards:
+
+```
+12 × Demasoni in one tank: this species is aggressive towards its own kind.
+```
+
+For mbuna, twelve **is** the husbandry — a crowd spreads the aggression so no single fish is driven
+to death, and the species' own profile says `min_group_size = 12`. The Phase 5 same-species rule
+fired on temperament alone and would have refused the sale the shop most wants to get right.
+
+It now applies only where `min_group_size == 1`: a species whose profile says "keep twelve" is
+telling us the group is the mitigation. Real data in the catalogue is what exposed it; the rule had
+looked correct against invented fish.
+
+### Also
+
+`GET /api/products` — the unfiltered list — is now covered by a test, after the Phase 5 session found
+it returning 500.
+
+### Not done
+
+The catalogue has no images yet: `image_url` is a column with nothing in it, and the storefront draws
+name-and-price cards. A prototype of the finished navigation, with drawn plates standing in for
+photographs, is published separately.
+
+---
+
 ## Phase 5 — `aquatics-advisor`
 
 Whether a tank will work, and why not. Python / FastAPI, no database, and a rules file meant to be

@@ -38,6 +38,10 @@ public class Product {
     @Column(name = "is_livestock", nullable = false)
     private boolean livestock;
 
+    /** Where the photograph lives. Null until the shop has taken one. */
+    @Column(name = "image_url", length = 300)
+    private String imageUrl;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id")
     private Category category;
@@ -61,6 +65,7 @@ public class Product {
     public String getCurrency() { return currency; }
     public boolean isLivestock() { return livestock; }
     public Category getCategory() { return category; }
+    public String getImageUrl() { return imageUrl; }
     public SpeciesProfile getSpeciesProfile() { return speciesProfile; }
 
     public BigDecimal getPriceMajor() {

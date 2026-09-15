@@ -3,10 +3,23 @@ import { request } from 'undici';
 const BASE = process.env.CATALOG_BASE_URL ?? 'http://catalog-service:8080';
 const TIMEOUT_MS = Number(process.env.CATALOG_TIMEOUT_MS ?? 2000);
 
-export interface CategoryView { slug: string; name: string; description: string | null }
+export interface CategoryView {
+  slug: string; name: string; teaser: string | null; description: string | null;
+  status: string;
+  /** Derived by the catalog, so the storefront never maintains its own list of
+   *  statuses that mean "enterable". */
+  browsable: boolean;
+  imageUrl: string | null;
+  childCount: number;
+  productCount: number;
+  /** Everything in the subtree. A "Cichlids" tile holds nothing itself and six
+   *  fish below it, and showing 0 would be true and useless. */
+  totalProducts: number;
+}
 export interface ProductSummary {
   sku: string; slug: string; name: string; summary: string | null;
   price: string; currency: string; livestock: boolean; categorySlug: string;
+  imageUrl: string | null;
 }
 export interface Range { min: number; max: number }
 export interface SpeciesView {
@@ -41,9 +54,26 @@ async function get<T>(path: string): Promise<T> {
   return (await res.body.json()) as T;
 }
 
+/**
+ * One category page in one call.
+ *
+ * The catalog assembles breadcrumb, subsections and products together because
+ * the page renders them together -- three round trips to draw one page is how
+ * a BFF ends up slower than the service behind it.
+ */
+export interface CategoryPage {
+  category: CategoryView;
+  breadcrumb: CategoryView[];
+  children: CategoryView[];
+  products: ProductSummary[];
+}
+
 export const catalog = {
   categories: () => get<CategoryView[]>('/api/categories'),
-  byCategory: (slug: string) => get<ProductSummary[]>(`/api/categories/${encodeURIComponent(slug)}/products`),
+  page: (slug: string) => get<CategoryPage>(`/api/categories/${encodeURIComponent(slug)}`),
+  byCategory: (slug: string, deep = false) =>
+    get<ProductSummary[]>(
+      `/api/categories/${encodeURIComponent(slug)}/products${deep ? '?deep=true' : ''}`),
   product: (slug: string) => get<ProductDetail>(`/api/products/${encodeURIComponent(slug)}`),
   ping: () => get<unknown>('/actuator/health/readiness'),
 };

@@ -197,9 +197,20 @@ def check_behaviour(tank_litres: float, inhabitants: list[Inhabitant], rules: Ru
     # A species kept with itself. `combinations` never pairs a species with
     # itself, so without this the single most common fatal mistake in the hobby
     # -- two male bettas in one tank -- would pass every check in this file.
+    #
+    # It applies only to species that are kept alone (min_group_size == 1), and
+    # that condition is not a detail. Mbuna are aggressive towards their own
+    # kind AND are kept in groups of twelve, because a crowd spreads the
+    # aggression so no single fish is driven to death. Without the check on
+    # group size this rule refused twelve demasoni -- which is not merely a
+    # false positive, it is the exact opposite of the correct husbandry, and it
+    # would have refused the sale the shop most wants to get right.
+    #
+    # The species' own minimum group size is the data that decides it: a fish
+    # whose profile says "keep 12" is telling us the group is the mitigation.
     for i in inhabitants:
         s = i.species
-        if i.quantity > 1 and frozenset({s.temperament}) in incompatible:
+        if i.quantity > 1 and s.min_group_size == 1 and frozenset({s.temperament}) in incompatible:
             findings.append(
                 Finding(
                     verdict=Verdict.REFUSED,

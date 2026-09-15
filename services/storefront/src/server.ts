@@ -25,17 +25,49 @@ async function nav(): Promise<CategoryView[]> {
 }
 
 app.get('/', async (_req, reply) => {
-  const [categories, fish] = await Promise.all([nav(), catalog.byCategory('livestock-fish')]);
+  // The shop front shows its top sections and a handful of what is actually in
+  // stock beneath them -- an empty grid of three doors tells a customer nothing.
+  const [categories, fish] = await Promise.all([
+    nav(),
+    catalog.byCategory('freshwater', true),
+  ]);
   reply.type('text/html').send(homePage(categories, fish.slice(0, 6)));
 });
 
-app.get<{ Params: { slug: string } }>('/c/:slug', async (req, reply) => {
-  const categories = await nav();
-  const current = categories.find(c => c.slug === req.params.slug);
-  if (!current) { reply.code(404).type('text/html').send(errorPage(categories, 404, 'No such category.')); return; }
-  const products = await catalog.byCategory(current.slug);
-  reply.type('text/html').send(categoryPage(categories, current, products));
-});
+/**
+ * A category page, at any depth.
+ *
+ * The catalogue is a tree six levels deep, so this one route serves the shop
+ * front's sections and a tank of Lake Malawi cichlids alike: whatever the
+ * catalog says is inside, is what gets rendered.
+ *
+ * `?all=1` asks for everything in the subtree rather than the sections. Six
+ * levels is five correct guesses before a customer sees a fish, so every level
+ * that has sections also offers a way past them.
+ */
+app.get<{ Params: { slug: string }; Querystring: { all?: string } }>(
+  '/c/:slug',
+  async (req, reply) => {
+    const categories = await nav();
+    let page;
+    try {
+      page = await catalog.page(req.params.slug);
+    } catch (err) {
+      if (err instanceof UpstreamError && err.status === 404) {
+        reply.code(404).type('text/html').send(errorPage(categories, 404, 'No such category.'));
+        return;
+      }
+      throw err;
+    }
+
+    const wantsAll = req.query.all === '1' && page.children.length > 0;
+    const products = wantsAll
+      ? await catalog.byCategory(page.category.slug, true)
+      : page.products;
+
+    reply.type('text/html')
+         .send(categoryPage(categories, page, products, wantsAll));
+  });
 
 app.get<{ Params: { slug: string } }>('/p/:slug', async (req, reply) => {
   const categories = await nav();

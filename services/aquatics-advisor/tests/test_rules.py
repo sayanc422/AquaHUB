@@ -5,7 +5,7 @@ mistakes people really make. A test suite of invented species would prove the
 arithmetic and none of the judgement.
 """
 
-from advisor.domain import Inhabitant, Verdict
+from advisor.domain import Inhabitant, Interval, Verdict
 from advisor.rules import assess
 
 from tests.conftest import BETTA, CARDINAL, CORY, DANIO, GUPPY, KUHLI, NEON, PLECO, species
@@ -125,6 +125,29 @@ def test_two_male_bettas_are_refused_even_though_nothing_else_is_in_the_tank(rul
     same = reasons(result, "behaviour.same_species")
     assert result.verdict is Verdict.REFUSED
     assert same and "2 ×" in same[0].detail
+
+
+def test_a_crowd_of_mbuna_is_not_refused_for_being_a_crowd(rules):
+    """The opposite of the betta case, and the one that matters commercially.
+
+    Mbuna are aggressive towards their own kind *and* are kept in groups of
+    twelve, because a crowd spreads the aggression so no single fish is driven
+    to death. The first version of the same-species rule refused this tank --
+    not a false positive so much as advice that was exactly backwards.
+    """
+    demasoni = species(
+        sku="FSH-MAL-02", common_name="Demasoni", scientific_name="Chindongo demasoni",
+        max_size_cm=7.0, min_tank_litres=150, min_group_size=12,
+        temperature=Interval(24.0, 28.0), ph=Interval(7.8, 8.6), dgh=Interval(10.0, 20.0),
+        temperament="AGGRESSIVE", diet="HERBIVORE", plant_safe=False,
+    )
+    litres, inhabitants = tank(200, (demasoni, 12))
+    result = assess(litres, inhabitants, rules)
+
+    assert not reasons(result, "behaviour.same_species"), [f.detail for f in result.findings]
+    # Below its minimum the welfare rule still refuses it, for the right reason.
+    few = assess(200, [Inhabitant(demasoni, 3)], rules)
+    assert reasons(few, "welfare.group_size")
 
 
 def test_one_betta_alone_is_fine(rules):

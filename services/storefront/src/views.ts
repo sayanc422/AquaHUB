@@ -1,4 +1,6 @@
-import type { CategoryView, ProductSummary, ProductDetail, Range } from './catalog-client.js';
+import type {
+  CategoryPage, CategoryView, ProductSummary, ProductDetail, Range,
+} from './catalog-client.js';
 
 const esc = (s: unknown): string =>
   String(s ?? '').replace(/[&<>"']/g, c =>
@@ -35,11 +37,75 @@ const card = (p: ProductSummary) => `
   <span class="price">${esc(money(p))}</span>
 </a>`;
 
-export function categoryPage(nav: CategoryView[], current: CategoryView, products: ProductSummary[]) {
-  return layout(current.name, nav, `
-    <h1>${esc(current.name)}</h1>
-    <p class="lede">${esc(current.description)}</p>
-    <section class="grid">${products.map(card).join('')}</section>`);
+/**
+ * A section tile.
+ *
+ * A section that is announced but not stocked renders as an inert `<span>`
+ * rather than a dead `<a>`: a link that goes nowhere is worse than no link,
+ * and a customer who clicks it learns nothing. The count comes from the
+ * subtree, because a "Cichlids" tile holding six fish two levels down should
+ * say six, not nothing.
+ */
+const tile = (c: CategoryView) => {
+  const count = c.browsable
+    ? (c.totalProducts > 0
+        ? `${c.totalProducts} in stock`
+        : (c.childCount > 0 ? `${c.childCount} sections` : 'Nothing stocked yet'))
+    : 'Coming soon';
+  const inner = `
+    <span class="name">${esc(c.name)}</span>
+    <p class="summary">${esc(c.teaser ?? c.description ?? '')}</p>
+    <span class="count">${esc(count)}</span>`;
+  return c.browsable
+    ? `<a class="tile" href="/c/${esc(c.slug)}">${inner}</a>`
+    : `<span class="tile soon" aria-disabled="true">${inner}</span>`;
+};
+
+/**
+ * The trail back to the shop front.
+ *
+ * Six levels deep, a customer without this has no idea where they are and no
+ * way up except the browser's back button.
+ */
+const crumbs = (trail: CategoryView[], here: string) => `
+<nav class="trail" aria-label="Breadcrumb">
+  <a href="/">Shop</a>
+  ${trail.map(c => `<span>/</span><a href="/c/${esc(c.slug)}">${esc(c.name)}</a>`).join('')}
+  <span>/</span><b>${esc(here)}</b>
+</nav>`;
+
+export function categoryPage(
+  nav: CategoryView[], page: CategoryPage, products: ProductSummary[], showingAll: boolean,
+) {
+  const c = page.category;
+  const hasSections = page.children.length > 0;
+
+  // The escape hatch. Without it the deepest fish in the shop is five correct
+  // guesses away from the front door.
+  const shortcut = hasSections && c.totalProducts > 0
+    ? (showingAll
+        ? `<p class="shortcut"><a href="/c/${esc(c.slug)}">Back to sections</a></p>`
+        : `<p class="shortcut">${c.totalProducts} in stock across ${page.children.length}
+             section${page.children.length > 1 ? 's' : ''}.
+             <a href="/c/${esc(c.slug)}?all=1">Browse all ${c.totalProducts}</a></p>`)
+    : '';
+
+  const sections = hasSections && !showingAll
+    ? `<section class="tiles">${page.children.map(tile).join('')}</section>`
+    : '';
+
+  const listing = products.length
+    ? `<section class="grid">${products.map(card).join('')}</section>`
+    : (hasSections ? '' : `<p class="empty">Nothing stocked here yet. Tell us what you are
+         looking for and we will source it on the next import.</p>`);
+
+  return layout(c.name, nav, `
+    ${crumbs(page.breadcrumb, c.name)}
+    <h1>${esc(c.name)}</h1>
+    <p class="lede">${esc(c.description ?? c.teaser ?? '')}</p>
+    ${shortcut}
+    ${sections}
+    ${listing}`);
 }
 
 export function homePage(nav: CategoryView[], featured: ProductSummary[]) {

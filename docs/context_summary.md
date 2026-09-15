@@ -29,6 +29,7 @@ It is the state of the work, not a restatement of the brief.*
 | Payment durability | The intent row is written before the acquirer is called | A charge-then-record design loses the record of every charge it dies during. Cost: two round trips instead of one, and a table of `pending` rows to scan. |
 | Stocking rules | Data in a YAML file with a justification per threshold, not code | The rules change weekly and belong to whoever keeps fish. Cost: a YAML file is not type-checked, and one list of SKUs (fin-nippers) is really data that belongs on the catalog's species profile. |
 | Advisor storage | None. It reads species profiles from catalog-service | A local copy is a second source of truth that drifts on the first correction. Cost: it cannot answer at all when the catalog is down, and a SKU lookup costs an extra hop. |
+| Catalogue shape | A tree: category.parent_id, with status ACTIVE/COMING_SOON/HIDDEN | A shop is browsed by narrowing. Cost: five levels means five clicks, so every level needs a "browse all" escape hatch, and counts have to be subtree counts or every branch tile reads zero. |
 | CPU limits | Requests only on JVM services; memory limits always | A CPU limit means CFS throttling — the container is stopped for the rest of each 100 ms period, which reads as latency spikes on an idle-looking node. Memory is limited because memory is not compressible. Cost: a runaway pod can starve neighbours; ResourceQuota is the backstop. |
 
 ## Memory profiles (estimates until measured)
@@ -227,6 +228,21 @@ aquashop/
 
 ---
 
+### Catalogue tree notes worth carrying forward
+
+- Roots-only at `/api/categories`. A client that has to filter a flat list to draw a menu has to
+  understand the tree, which is the service's job.
+- Publish `browsable` alongside `status`. A client keeping its own list of "statuses that mean yes"
+  goes stale the first time one is added.
+- Tile counts are subtree counts. A branch holds no products of its own.
+- The recursive CTE returns category *ids*; products are then loaded by JPQL with `join fetch`.
+  A native query returning `product.*` maps a lazy category proxy and blows up at render time --
+  the same defect that took down `GET /api/products`.
+- Real stock found a backwards rule in the advisor: mbuna are aggressive AND kept in twelves. Check
+  `min_group_size` before refusing a species for being kept with itself.
+
+---
+
 ### Known limitations to state plainly, never soften
 
 - Secrets are plaintext in Git at Phase 1. Largest gap in the repo. Phase 5 replaces it.
@@ -248,6 +264,11 @@ aquashop/
 - The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.
 - `aquatics-advisor` has no automated test of its HTTP layer or its catalog client, and its image is
   not distroless. Both are stated in its README rather than left to be found.
+- The catalogue has no images. `image_url` exists on both `category` and `product` and is null
+  everywhere; the storefront renders text cards.
+- `catalog-service`'s test suite uses Testcontainers, so it could not be executed in the session that
+  wrote the tree tests. Every assertion was verified by hand against the running service instead --
+  which is weaker, and is why the first CI run after this change is worth watching.
 
 ---
 

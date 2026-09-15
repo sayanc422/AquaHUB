@@ -36,3 +36,29 @@ h1{font-size:1.9rem;margin:0 0 .5rem}
 .care dd{margin:.15rem 0 0;font-weight:600}
 .notes{margin-top:1.25rem;color:var(--muted);max-width:70ch}
 footer{border-top:1px solid var(--line);color:var(--muted);font-size:.8rem;padding:1.5rem 2rem;text-align:center}
+
+/* ---- category tree -------------------------------------------------- */
+/* A tile is a doorway and a card is an object, so they do not share a look. */
+.trail { font-size: .85rem; margin: 0 0 1rem; color: #5a6b6d; display: flex; flex-wrap: wrap; gap: .35rem; }
+.trail a { color: #2a6a70; text-decoration: none; }
+.trail a:hover { text-decoration: underline; }
+.trail span { color: #9aa9aa; }
+.trail b { color: #14262a; }
+
+.tiles { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); margin-bottom: 2rem; }
+.tile { display: flex; flex-direction: column; gap: .3rem; padding: 1rem 1.1rem 1.15rem;
+        border: 1px solid #d7e0de; border-radius: 4px; background: #fff; text-decoration: none; color: inherit; }
+a.tile:hover { border-color: #2a6a70; }
+.tile .name { font-weight: 600; font-size: 1.05rem; }
+.tile .summary { margin: 0; color: #5a6b6d; font-size: .88rem; }
+.tile .count { margin-top: auto; padding-top: .6rem; font-size: .82rem; color: #2a6a70; }
+
+/* Announced, not stocked. Inert on purpose: a link that goes nowhere is worse
+   than no link at all. */
+.tile.soon { opacity: .55; cursor: not-allowed; background: #f2f5f4; }
+.tile.soon .count { color: #8a6a3a; font-weight: 600; }
+
+.shortcut { font-size: .9rem; color: #5a6b6d; border-left: 3px solid #b26a34;
+            padding: .55rem .9rem; background: #fff; margin: 0 0 1.5rem; }
+.shortcut a { color: #2a6a70; }
+.empty { border: 1px dashed #d7e0de; border-radius: 4px; padding: 2rem; text-align: center; color: #5a6b6d; }

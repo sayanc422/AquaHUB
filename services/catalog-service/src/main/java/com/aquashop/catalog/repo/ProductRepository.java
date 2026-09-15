@@ -51,4 +51,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             order by p.name
            """)
     List<Product> findAllWithCategory();
+
+    /**
+     * Products anywhere in a subtree.
+     *
+     * <p>The ids come from a recursive query in CategoryRepository; this half
+     * stays JPQL so it can `join fetch` the category. Splitting it in two is
+     * what keeps the category off the lazy path.
+     */
+    @Query("""
+           select p from Product p
+             join fetch p.category c
+            where c.id in :categoryIds
+            order by p.name
+           """)
+    List<Product> findInCategories(java.util.Collection<Long> categoryIds);
 }
