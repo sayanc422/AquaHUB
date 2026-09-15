@@ -28,6 +28,10 @@ public interface OrderRepository extends JpaRepository<CustomerOrder, UUID> {
 
     List<CustomerOrder> findByEmailOrderByCreatedAtDesc(String email);
 
+    /** Orders whose payment outcome is still unknown. Matches the partial index. */
+    @Query("select o from CustomerOrder o where o.state = :state order by o.updatedAt")
+    List<CustomerOrder> findUnresolvedPayments(OrderState state);
+
     /**
      * Orders that have become dispatchable and have not been noticed yet.
      * Matches the partial index exactly, so the watcher's scan stays cheap as

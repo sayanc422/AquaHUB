@@ -1,0 +1,33 @@
+[package]
+name = "payment-service"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "timeout"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio-rustls", "postgres", "uuid", "chrono", "macros", "migrate",
+] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+thiserror = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+
+[profile.release]
+# A payment service is the one place where a panic must not be a silent unwind
+# into a half-written ledger. `abort` makes a bug a crash, and a crash is
+# recoverable because every write is a transaction.
+panic = "abort"
+lto = true
+codegen-units = 1
+strip = true

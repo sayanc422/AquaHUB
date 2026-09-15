@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-config
+  namespace: aquashop-dev
+data:
+  DB_POOL_MAX: "8"
+  # The stub acquirer. `approve` for ordinary use; `hang` is how the
+  # unknown-outcome path is demonstrated -- it takes the money and does not
+  # answer, which is the failure the whole service is built around.
+  ACQUIRER_BEHAVIOUR: approve
+  ACQUIRER_DELAY_MS: "6000"
+  # How long to wait for the acquirer before giving up and leaving the payment
+  # pending. Shorter than order-service's payment read timeout, so this service
+  # gets to answer 504 rather than having the connection cut underneath it.
+  ACQUIRER_TIMEOUT_MS: "2000"
+  # Must exceed the longest an authorisation can be in flight at the acquirer.
+  # Below this age, "the acquirer has no charge" means "not yet", and voiding on
+  # it writes off a payment the customer is about to be charged for.
+  ACQUIRER_VOID_AFTER_SECONDS: "60"
+  RECONCILE_INTERVAL_MS: "15000"
+  RECONCILE_AFTER_SECONDS: "20"
+  RUST_LOG: info
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: aquashop-dev
+  labels:
+    app: payment-service
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - name: http
+      port: 8083
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: aquashop-dev
+  labels:
+    app: payment-service
+    aquashop.io/profile: commerce
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8083"
+    spec:
+      # 30s. Short, because the process drains in milliseconds -- but not the
+      # 20s given to inventory-service: an in-flight authorisation is money in
+      # motion, and SIGKILL in the middle of one leaves a charge with no record
+      # on this side. The `pending` row written before the acquirer call is what
+      # makes that recoverable rather than lost, and the grace period is what
+      # makes it rare.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: payment-service
+          image: aquashop/payment-service:PLACEHOLDER   # CI rewrites this to the git SHA
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8083
+          envFrom:
+            - configMapRef: { name: payment-config }
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: postgres-credentials, key: PAYMENTS_DATABASE_URL }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          # No writable mount: nothing here writes to disk.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 20
+            periodSeconds: 3
+          # Liveness answers from the process alone. A database outage must not
+          # restart every healthy pod.
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            # Measured: 6 MiB resident under the demo load -- against 361 MiB
+            # for order-service doing comparable work. That difference is the
+            # argument for Rust here, and it is the one service the profile
+            # budget barely notices.
+            requests: { cpu: 50m, memory: 32Mi }
+            # No CPU limit, for the same reason as everything else here: a limit
+            # is CFS throttling. Memory is capped because memory is not
+            # compressible.
+            limits: { memory: 64Mi }

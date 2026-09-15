@@ -26,6 +26,21 @@ public enum OrderState {
     /** Every line is held in inventory-service. Holds expire on their own. */
     STOCK_RESERVED,
 
+    /**
+     * The payment provider did not answer, and the money may or may not have
+     * been taken.
+     *
+     * <p>The state exists because the alternatives are both wrong: calling it a
+     * failure releases the stock while the customer's money is gone, and calling
+     * it a success confirms an order that may never have been paid for. An
+     * order here is resolved later by asking payment-service what happened.
+     *
+     * <p>The holds are deliberately <em>not</em> released on the way in. They
+     * expire on their own within the TTL, which returns the stock without
+     * anybody having decided that the payment failed.
+     */
+    PAYMENT_UNRESOLVED,
+
     /** Payment authorised. Stock is still only held. */
     PAID,
 
@@ -70,7 +85,11 @@ public enum OrderState {
     public Set<OrderState> allowedNext() {
         return switch (this) {
             case PENDING        -> EnumSet.of(STOCK_RESERVED, STOCK_UNAVAILABLE, CANCELLED);
-            case STOCK_RESERVED -> EnumSet.of(PAID, PAYMENT_FAILED, CANCELLED);
+            case STOCK_RESERVED -> EnumSet.of(PAID, PAYMENT_UNRESOLVED, PAYMENT_FAILED, CANCELLED);
+            // Only the two answers the provider can eventually give. There is no
+            // route from here to CANCELLED: cancelling an order whose payment
+            // status is unknown is exactly the guess this state exists to avoid.
+            case PAYMENT_UNRESOLVED -> EnumSet.of(PAID, PAYMENT_FAILED);
             // No route from PAID to PAYMENT_FAILED: once the money is taken the
             // only ways out are forward, or a refund that says so by name.
             case PAID           -> EnumSet.of(CONFIRMED, REFUNDED);

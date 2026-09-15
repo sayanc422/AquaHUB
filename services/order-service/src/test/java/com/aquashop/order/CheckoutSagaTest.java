@@ -2,6 +2,8 @@ package com.aquashop.order;
 
 import com.aquashop.order.client.*;
 import com.aquashop.order.domain.*;
+import com.aquashop.order.payment.PaymentGateway;
+import com.aquashop.order.payment.PaymentUnresolvedException;
 import com.aquashop.order.payment.StubPaymentGateway;
 import com.aquashop.order.repo.CartRepository;
 import com.aquashop.order.repo.OrderEventRepository;
@@ -61,6 +63,7 @@ class CheckoutSagaTest {
                 () -> System.getenv().getOrDefault("ORDER_TEST_PASSWORD", ""));
         // The watcher would otherwise scan while the tests run.
         registry.add("orders.dispatch-scan-interval-ms", () -> "3600000");
+        registry.add("orders.payment-reconcile-interval-ms", () -> "3600000");
     }
 
     @Autowired CheckoutSaga saga;
@@ -231,6 +234,75 @@ class CheckoutSagaTest {
         assertThat(events.findByOrderIdOrderByIdAsc(order.getId()))
                 .extracting(OrderEvent::getDetail)
                 .anyMatch(d -> d != null && d.contains("release FAILED"));
+    }
+
+    // ------------------------------------------------- unknown outcomes
+
+    /**
+     * The phase's headline. A provider that does not answer must not cause the
+     * holds to be released: that would sell the stock to somebody else while
+     * this customer's money may already be gone.
+     */
+    @Test
+    void anUnresolvedPaymentKeepsTheHoldsAndSaysSo() {
+        inventoryReserves();
+        payments.setOutcome(StubPaymentGateway.Outcome.UNRESOLVED);
+        UUID cart = cartWith("FSH-NEO-01", "FSH-COR-01");
+
+        CustomerOrder order = saga.checkout(cart, "buyer@example.com");
+
+        assertThat(order.getState()).isEqualTo(OrderState.PAYMENT_UNRESOLVED);
+        assertThat(order.getState().holdsMoney()).isFalse();
+        // No release, and no commit. Nothing was decided.
+        verify(inventory, never()).release(any());
+        verify(inventory, never()).commit(any());
+        assertThat(order.getReservations())
+                .allMatch(r -> r.getState() == OrderReservation.State.HELD);
+        // The key has to be on the order, or nothing can resolve it later.
+        assertThat(order.getPaymentIdempotencyKey()).isEqualTo("order-" + order.getId());
+    }
+
+    /**
+     * Resolved as captured: the saga picks up at step 3, from the reconciler
+     * rather than the request.
+     */
+    @Test
+    void anUnresolvedPaymentThatWasTakenFinishesTheCheckout() {
+        inventoryReserves();
+        payments.setOutcome(StubPaymentGateway.Outcome.UNRESOLVED);
+        UUID cart = cartWith("FSH-NEO-01");
+        CustomerOrder order = saga.checkout(cart, "buyer@example.com");
+        assertThat(order.getState()).isEqualTo(OrderState.PAYMENT_UNRESOLVED);
+
+        CustomerOrder finished = saga.resumeAfterPayment(order.getId(), "pay_resolved_1");
+
+        assertThat(finished.getState()).isEqualTo(OrderState.CONFIRMED);
+        assertThat(finished.getPaymentRef()).isEqualTo("pay_resolved_1");
+        assertThat(finished.getDispatchAt()).isNotNull();
+        verify(inventory).commit(any());
+    }
+
+    /**
+     * The ordinary case for a resolved-late payment: the holds expired while
+     * the outcome was unknown. The money has to go back, and the order has to
+     * say REFUNDED rather than quietly failing.
+     */
+    @Test
+    void anUnresolvedPaymentTakenTooLateIsRefunded() {
+        inventoryReserves();
+        payments.setOutcome(StubPaymentGateway.Outcome.UNRESOLVED);
+        UUID cart = cartWith("FSH-NEO-01");
+        CustomerOrder order = saga.checkout(cart, "buyer@example.com");
+
+        doThrow(new ReservationExpiredException(UUID.randomUUID(), "reservation_expired"))
+                .when(inventory).commit(any());
+
+        CustomerOrder finished = saga.resumeAfterPayment(order.getId(), "pay_resolved_2");
+
+        assertThat(finished.getState()).isEqualTo(OrderState.REFUNDED);
+        assertThat(finished.getState().holdsMoney()).isFalse();
+        assertThat(finished.getPaymentRef()).isEqualTo("pay_resolved_2");
+        assertThat(finished.getFailureReason()).contains("refunded");
     }
 
     @Test

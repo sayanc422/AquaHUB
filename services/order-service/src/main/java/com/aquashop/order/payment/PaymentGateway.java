@@ -12,11 +12,29 @@ package com.aquashop.order.payment;
 public interface PaymentGateway {
 
     /**
+     * Take the money.
+     *
+     * @param idempotencyKey derived from the order, never generated per attempt:
+     *        a retry after a timeout must present the same key or it charges
+     *        the customer twice. It is also the handle by which an unresolved
+     *        payment is looked up later.
      * @return a reference for the payment, to be stored on the order
      * @throws PaymentDeclinedException when the money was not taken — a
      *         business outcome, and the branch the saga compensates
+     * @throws PaymentUnresolvedException when the provider did not answer, and
+     *         whether the money moved is genuinely unknown
      */
-    String authorise(String orderReference, long amountMinor, String currency, String email);
+    String authorise(String idempotencyKey, String orderReference, long amountMinor,
+                     String currency, String email);
+
+    /**
+     * Ask what happened to a payment that was left unresolved.
+     *
+     * <p>A gateway that cannot answer this cannot support a saga: without it,
+     * every provider timeout becomes a permanent unknown and a manual
+     * investigation.
+     */
+    PaymentOutcome resolve(String idempotencyKey);
 
     /**
      * Give the money back. Must be safe to call twice: the saga can be retried,

@@ -24,6 +24,8 @@ and not under realistic concurrency.** Treat them as the right order of magnitud
 | Whole failed checkout, end to end | 107 ms | 2 reservations, 2 releases, 5 persisted transitions, across two services |
 | `order-service` checkout requests | 69 ms mean, 193 ms max | 7 requests including first-call JIT warm-up |
 | `order-service` resident memory | 361 MiB | same caveat as the catalog: no cgroup limit, so the heap was sized from host RAM |
+| `payment-service` resident memory | **6 MiB** | the same measurement, on the service doing comparable work in Rust |
+| `payment-service` release binary | 4.2 MiB | |
 
 Not measured anywhere yet: anything in k3d, anything under sustained load, and every figure in the
 profile memory table. The JVM memory figure above is measured but not *useful* — a JVM without a
@@ -64,6 +66,17 @@ cgroup limit is not the JVM the cluster runs.
 | **Consequence when missed** | Page on availability, on any stuck `PAID` order, and on any `REFUNDED` rate above a handful a week — a rising refund rate means the hold TTL is shorter than customers take to pay. |
 | **Status** | Measured only single-threaded on a build container: 107 ms for a whole failed checkout. Availability never measured. |
 
+### `payment-service` — the money
+
+| | |
+|---|---|
+| **Correctness** | No payment in `pending` for longer than it takes to resolve one, and no charge without a ledger entry. Not an SLO with an error budget: both mean money whose location nobody can state. |
+| **Latency** | p99 of `POST /v1/payments` under 2.5 s — the acquirer timeout plus the two writes around it |
+| **Availability** | 99.9% of payment requests return a *decision*, where 504 counts as a decision: "unknown" is a correct answer and must not be traded for a confident wrong one |
+| **Resolution** | Every `pending` payment resolved within 2 minutes — the reconcile interval plus the void window |
+| **Consequence when missed** | Page on `payment_pending` above zero for more than 5 minutes, and on any `payment_unresolved_total` increase without a matching `payment_reconciled_total`. Those two are the alerting pair: unknowns arriving is normal, unknowns not being resolved is not. |
+| **Status** | Targets. Resolution demonstrated by hand (a pending payment resolved by the reconciler with nobody asking); nothing measured under load. |
+
 ### `storefront` — the customer entry point
 
 | | |
@@ -86,6 +99,7 @@ been.
 
 ## What is deliberately not an SLO
 
+- **Acquirer latency.** It is somebody else's service and no amount of alerting changes it. What is worth alerting on is *this* system's behaviour when it is slow — which is the resolution objective above, not a percentile on a call we do not control.
 - **Dispatch-watcher lag.** Shippability is derived from the clock, so a stopped watcher delays no order. It delays a notification, which is worth an alert of its own and not an SLO on orders.
 - **Reaper lag.** It cannot affect stock correctness ([ADR 0008](adr/0008-availability-is-computed-from-the-deadline.md)). A gauge that is 30 s stale is worth an alert only if it is stale for hours — which means a reaper that stopped, and that is worth knowing for a different reason.
 - **Build duration.** It matters, it is tracked, and paging someone at 02:00 for it would be absurd.

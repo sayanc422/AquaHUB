@@ -40,6 +40,30 @@ public class OrderConfig {
      * has not answered in two seconds is not going to, and a retry with the
      * same idempotency key is safe.
      */
+    /**
+     * The payment call gets a longer read timeout than the inventory call, and
+     * the reason is worth stating: a slow inventory call can be abandoned
+     * safely, because the idempotency key makes a retry free. A payment call
+     * that is abandoned may already have taken the money. Waiting a little
+     * longer is cheaper than resolving an unknown.
+     *
+     * <p>It is still bounded. An unbounded call would hold a checkout thread
+     * until the socket gave up, and the customer's browser will have given up
+     * long before that.
+     */
+    @Bean
+    public RestClient paymentRestClient(
+            @Value("${payment.base-url:http://payment-service:8083}") String baseUrl,
+            @Value("${payment.connect-timeout-ms:1000}") int connectTimeoutMs,
+            @Value("${payment.read-timeout-ms:5000}") int readTimeoutMs) {
+
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));
+        factory.setReadTimeout(Duration.ofMillis(readTimeoutMs));
+
+        return RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
+    }
+
     @Bean
     public RestClient inventoryRestClient(
             @Value("${inventory.base-url:http://inventory-service:8081}") String baseUrl,

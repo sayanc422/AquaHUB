@@ -9,6 +9,7 @@ import com.aquashop.order.domain.OrderLine;
 import com.aquashop.order.domain.OrderState;
 import com.aquashop.order.payment.PaymentDeclinedException;
 import com.aquashop.order.payment.PaymentGateway;
+import com.aquashop.order.payment.PaymentUnresolvedException;
 import com.aquashop.order.repo.CartRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,18 +119,38 @@ public class CheckoutSaga {
                 held + " hold(s), ttl " + holdTtlSeconds + "s");
 
         // ---- step 2: take the money --------------------------------------
+        //
+        // Three answers, not two. "Unknown" is the one that decides whether
+        // this system loses money.
+        String paymentKey = paymentKey(order);
         String paymentRef;
         try {
-            paymentRef = payments.authorise(order.getReference(), order.getTotalMinor(),
+            paymentRef = payments.authorise(paymentKey, order.getReference(), order.getTotalMinor(),
                     order.getCurrency(), order.getEmail());
         } catch (PaymentDeclinedException e) {
-            // The compensation that matters: the fish go back on sale now,
+            // Declined is a fact: no money moved. The fish go back on sale now,
             // rather than in fifteen minutes when the holds would have expired.
             steps.releaseAll(orderId, "payment declined");
             steps.fail(orderId, OrderState.PAYMENT_FAILED, e.getMessage());
             return steps.load(orderId);
+        } catch (PaymentUnresolvedException e) {
+            // The provider did not answer. The money may or may not have been
+            // taken, so neither compensation is safe:
+            //
+            //   * releasing the holds and calling it a failure would sell the
+            //     stock to somebody else while this customer's money is gone;
+            //   * confirming would promise an order that may never be paid for.
+            //
+            // So: record what is true and ask again later. The holds are
+            // deliberately left alone -- they expire on their own, which
+            // returns the stock without anybody having decided that the
+            // payment failed.
+            log.warn("payment unresolved order={} key={} reason={}",
+                    order.getReference(), paymentKey, e.getMessage());
+            steps.markUnresolved(orderId, paymentKey, e.getMessage());
+            return steps.load(orderId);
         }
-        steps.recordPayment(orderId, paymentRef);
+        steps.recordPayment(orderId, paymentRef, paymentKey);
 
         // ---- step 3: the stock is ours -----------------------------------
         try {
@@ -148,5 +169,44 @@ public class CheckoutSaga {
         // ---- step 4: when does it ship -----------------------------------
         steps.confirm(orderId);
         return steps.load(orderId);
+    }
+
+    /**
+     * Finish a checkout whose payment was unknown at the time and has since
+     * been resolved as captured.
+     *
+     * <p>Steps 3 and 4 of the same saga, reached from the reconciler rather
+     * than from the request. The holds have very likely expired by now -- that
+     * is the ordinary case here, not an exception -- and the refund branch that
+     * already existed handles it, which is why this needed no new failure path.
+     */
+    public CustomerOrder resumeAfterPayment(UUID orderId, String paymentRef) {
+        steps.recordPayment(orderId, paymentRef, null);
+        CustomerOrder order = steps.load(orderId);
+        try {
+            steps.commitEveryReservation(orderId);
+        } catch (ReservationExpiredException | InventoryUnavailableException e) {
+            log.warn("commit failed after a resolved payment order={} reason={}",
+                    order.getReference(), e.getMessage());
+            payments.refund(paymentRef, order.getTotalMinor(), "stock could not be committed");
+            steps.releaseAll(orderId, "commit failed after a resolved payment");
+            steps.fail(orderId, OrderState.REFUNDED, "refunded: " + e.getMessage());
+            return steps.load(orderId);
+        }
+        steps.confirm(orderId);
+        return steps.load(orderId);
+    }
+
+    /**
+     * The key this order pays with.
+     *
+     * <p>Derived from the order, never random, for the same reason as the
+     * reservation keys: a retry must present the same key or it charges twice.
+     * It is also the handle by which an unresolved payment is looked up later,
+     * so it is written to the order rather than recomputed -- a derivation rule
+     * that changes would leave old orders unresolvable.
+     */
+    static String paymentKey(CustomerOrder order) {
+        return "order-" + order.getId();
     }
 }

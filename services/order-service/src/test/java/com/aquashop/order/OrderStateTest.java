@@ -51,6 +51,34 @@ class OrderStateTest {
                 .isInstanceOf(IllegalTransitionException.class);
     }
 
+    /**
+     * An unknown payment outcome has exactly two ways out: it was taken, or it
+     * was not. Cancelling from here would be the guess the state exists to
+     * avoid.
+     */
+    @Test
+    void anUnresolvedPaymentCanOnlyBecomePaidOrFailed() {
+        CustomerOrder o = order();
+        o.transitionTo(OrderState.STOCK_RESERVED);
+        o.transitionTo(OrderState.PAYMENT_UNRESOLVED);
+
+        assertThat(OrderState.PAYMENT_UNRESOLVED.allowedNext())
+                .containsExactlyInAnyOrder(OrderState.PAID, OrderState.PAYMENT_FAILED);
+        assertThatThrownBy(() -> o.transitionTo(OrderState.CANCELLED))
+                .isInstanceOf(IllegalTransitionException.class);
+        assertThatThrownBy(() -> o.transitionTo(OrderState.CONFIRMED))
+                .isInstanceOf(IllegalTransitionException.class);
+    }
+
+    @Test
+    void anUnresolvedPaymentIsNotTerminalAndHoldsNoMoney() {
+        // Not terminal: something still has to resolve it.
+        assertThat(OrderState.PAYMENT_UNRESOLVED.isTerminal()).isFalse();
+        // And it must never count as money taken -- every report and every
+        // decision downstream reads this.
+        assertThat(OrderState.PAYMENT_UNRESOLVED.holdsMoney()).isFalse();
+    }
+
     @Test
     void everyTerminalStateIsAbsorbing() {
         for (OrderState state : OrderState.values()) {

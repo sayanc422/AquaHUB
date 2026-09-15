@@ -45,6 +45,46 @@ cannot be the cause — check it anyway, because its silence means no notificati
 kubectl -n aquashop-dev logs deploy/order-service | grep 'dispatch window open'
 ```
 
+## "The order says PAYMENT_UNRESOLVED"
+
+The payment provider did not answer, and whether the customer was charged is genuinely unknown. The
+order is correct to be in this state; what matters is that it does not stay there.
+
+Nothing needs releasing by hand. The holds were deliberately left alone — releasing them would be a
+decision that the payment failed — and they expire on their own within `ORDER_HOLD_TTL_SECONDS`.
+
+```bash
+# how many, and for how long
+kubectl -n aquashop-dev exec deploy/storefront -- \
+  wget -qO- http://order-service:8082/actuator/metrics/orders_payment_unresolved
+
+# what payment-service says about the same payment
+kubectl -n aquashop-dev exec -it statefulset/postgres -- psql -U orders -d orders -c "
+  SELECT reference, state, payment_idempotency_key, updated_at FROM customer_order
+   WHERE state = 'PAYMENT_UNRESOLVED'"
+
+kubectl -n aquashop-dev exec deploy/storefront -- \
+  wget -qO- http://payment-service:8083/v1/payments/by-key/<key>
+```
+
+The order-service reconciler asks every 30 s and finishes the checkout either way: captured means it
+resumes at the commit step (and refunds if the holds have since expired), not-taken means it releases
+the holds and marks the order `PAYMENT_FAILED`.
+
+**If the number is not falling**, the reconciler is the thing to check — unlike the dispatch watcher,
+this one is load-bearing:
+
+```bash
+kubectl -n aquashop-dev logs deploy/order-service | grep -E 'unresolved|resolving'
+kubectl -n aquashop-dev exec deploy/storefront -- wget -qO- http://payment-service:8083/metrics \
+  | grep -E 'payment_pending|payment_unresolved_total|payment_reconciled_total'
+```
+
+`payment_pending` above zero for more than a few minutes means payment-service cannot resolve either
+— the acquirer is not answering its lookups. That is an incident with the provider, not with this
+system, and the correct action is to leave the orders unresolved and say so. Guessing is what every
+rule here exists to prevent.
+
 ## "The order says PAYMENT_FAILED but there is a payment reference"
 
 That combination should be impossible: the state machine has no transition from `PAID` to

@@ -148,12 +148,47 @@ public class OrderSteps {
     }
 
     @Transactional
-    public void recordPayment(UUID orderId, String paymentRef) {
+    public void recordPayment(UUID orderId, String paymentRef, String paymentKey) {
         CustomerOrder order = orders.findById(orderId).orElseThrow();
         order.setPaymentRef(paymentRef);
+        if (paymentKey != null) {
+            order.setPaymentIdempotencyKey(paymentKey);
+        }
         OrderState from = order.transitionTo(OrderState.PAID);
         orders.save(order);
         events.save(new OrderEvent(orderId, from, OrderState.PAID, "payment " + paymentRef));
+    }
+
+    /**
+     * Record that the payment's outcome is unknown.
+     *
+     * <p>No holds are released here, deliberately. Releasing them would be a
+     * decision that the payment failed, and that is precisely what is not
+     * known. They expire on their own, which returns the stock without anyone
+     * having decided anything.
+     */
+    @Transactional
+    public void markUnresolved(UUID orderId, String paymentKey, String detail) {
+        CustomerOrder order = orders.findById(orderId).orElseThrow();
+        order.setPaymentIdempotencyKey(paymentKey);
+        OrderState from = order.transitionTo(OrderState.PAYMENT_UNRESOLVED);
+        order.setFailureReason(truncate(detail));
+        orders.save(order);
+        events.save(new OrderEvent(orderId, from, OrderState.PAYMENT_UNRESOLVED, truncate(detail)));
+    }
+
+    /**
+     * The payment was resolved as never taken. Now -- and only now -- the holds
+     * can go back, because "no money moved" has become a fact rather than a
+     * guess.
+     */
+    @Transactional
+    public void failUnresolved(UUID orderId, String reason) {
+        CustomerOrder order = orders.findById(orderId).orElseThrow();
+        OrderState from = order.transitionTo(OrderState.PAYMENT_FAILED);
+        order.setFailureReason(truncate(reason));
+        orders.save(order);
+        events.save(new OrderEvent(orderId, from, OrderState.PAYMENT_FAILED, truncate(reason)));
     }
 
     @Transactional

@@ -24,6 +24,19 @@ data:
   # Stub until payment-service exists. APPROVE here; the declining mode is for
   # demonstrating compensation, and it is configuration rather than a request
   # field so that nobody placing an order can choose whether to pay.
+  # `http` uses the real payment-service. The stub cannot produce an unknown
+  # outcome, so only this setting exercises the path that matters.
+  PAYMENT_GATEWAY: http
+  PAYMENT_BASE_URL: http://payment-service.aquashop-dev.svc.cluster.local:8083
+  PAYMENT_CONNECT_TIMEOUT_MS: "1000"
+  # Longer than the inventory timeout, and longer than payment-service's own
+  # acquirer timeout: an abandoned inventory call is free to retry, an abandoned
+  # payment call may already have taken the money. Letting payment-service
+  # answer 504 is better than cutting the connection and having to guess.
+  PAYMENT_READ_TIMEOUT_MS: "5000"
+  # Load-bearing, unlike the dispatch scan: orders whose payment never answered
+  # only finish because of this. Watch orders_payment_unresolved.
+  ORDER_PAYMENT_RECONCILE_MS: "30000"
   PAYMENT_STUB_OUTCOME: APPROVE
 ---
 apiVersion: v1

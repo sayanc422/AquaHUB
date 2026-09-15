@@ -7,12 +7,13 @@
 >
 > The runtime is a single-node **k3d** cluster inside WSL2 on a 16 GB laptop. Diagrams carry AWS
 > labels because AWS is the target platform. Every place the local setup diverges from that target
-> is named in [Local to cloud](#8-local-to-cloud), not glossed over.
+> is named in [Local to cloud](#9-local-to-cloud), not glossed over.
 
-**Status:** Phases 1–3 complete in code. `catalog-service`, `storefront`, `inventory-service` and
-`order-service` all build, boot and have been exercised together against a real Postgres — a live
-checkout, and a live compensation that returns stock when a card is declined. **None of them has run
-in k3d.** Phases 4–7 are planned. See [context_summary.md](context_summary.md) for
+**Status:** Phases 1–4 complete in code. `catalog-service`, `storefront`, `inventory-service`, `order-service` and
+`payment-service` all build, boot and have been exercised together against a real Postgres — a live
+checkout, a live compensation that returns stock when a card is declined, and a live checkout that
+survives a payment provider which takes the money and never answers. **None of them has run in
+k3d.** Phases 5–7 are planned. See [context_summary.md](context_summary.md) for
 current state, [RELEASE-NOTES.md](../RELEASE-NOTES.md) for what has been measured, and
 [adr/](adr/) for the decisions and their costs.
 
@@ -67,7 +68,7 @@ foreign keys across boundaries. Where two services need the same data, one owns 
 calls its API or subscribes to its events.
 
 Locally these are separate databases and login roles on one Postgres instance, each role holding
-`CONNECT` on its own database only. See [Local to cloud](#8-local-to-cloud) for what that costs.
+`CONNECT` on its own database only. See [Local to cloud](#9-local-to-cloud) for what that costs.
 
 ### Asynchronous messaging
 
@@ -216,7 +217,45 @@ stands in, and it cannot time out, which is the failure a real provider is mostl
 
 ---
 
-## 6. The memory budget
+## 6. Phase 4 — `payment-service`
+
+The smallest surface in the platform and the strictest correctness requirement. Rust, for two
+properties that are load-bearing rather than decorative: every ledger transition is an exhaustive
+`match` with no catch-all arm, so a new state or event stops the build until a person decides what it
+means; and every operation on money is checked, because release-mode Rust wraps on overflow silently
+and a wrapped balance is a refund of nine quintillion rupees.
+
+**The failure it exists for is not a decline.** It is an acquirer that takes the money and does not
+answer. Both obvious responses are wrong — calling it a failure releases the stock while the
+customer's money is gone; calling it a success promises an order that may never have been paid for.
+So the unknown is a state in both services, and it never collapses into either neighbour
+([ADR 0014](adr/0014-unknown-is-not-failure.md)).
+
+**The intent is written before the acquirer is called.** A service that charges first and records
+afterwards loses the record of every charge it dies in the middle of. The `pending` row is what
+makes an unanswered charge findable, and the reconciler turns it into an answer
+([ADR 0015](adr/0015-write-the-intent-before-the-call.md)). This is the outbox pattern in the small,
+and `order-service`'s saga still lacks it.
+
+**The ledger is append-only, enforced by a trigger** rather than by convention: a refund is a new
+entry, never an edit of the capture it reverses. The balance is a fold over the entries.
+
+**Two reconcilers here are load-bearing**, which is a real departure from
+[ADR 0011](adr/0011-derived-state-over-stored-state.md) and is named as one. Resolving requires
+asking another party, which no schema design makes derivable from a clock. What survives is the
+safety property: an unresolved payment is never counted as money taken, so a stopped reconciler
+delays the answer rather than corrupting it.
+
+**Measured:** 6 MiB resident, against 361 MiB for `order-service` doing comparable work. That is the
+argument for the language choice, as a number rather than a belief.
+
+**Not proven:** the acquirer is a stub — no partial captures, no chargebacks, no 3-D Secure, no
+settlement. And `payment-service` has no database tests at all: its constraints, its append-only
+trigger and its race-losing conditional update were exercised by hand.
+
+---
+
+## 7. The memory budget
 
 16 GB of RAM, roughly 11 GB usable inside WSL2. The full platform does not fit at once, so the
 cluster is built as **profiles**: named subsets brought up for a purpose. This is not a workaround
@@ -249,7 +288,7 @@ there is no equivalent of throttling for it, only the OOM killer.
 
 ---
 
-## 7. Delivery
+## 8. Delivery
 
 Two repositories:
 
@@ -272,7 +311,7 @@ name the sync-window disable procedure.
 
 ---
 
-## 8. Local to cloud
+## 9. Local to cloud
 
 The full mapping document covers every component, the Terraform that would provision it, and the
 traffic path end to end. This is the Phase 1 extract.
@@ -308,7 +347,7 @@ allows the ALB SG on the node port range; RDS SG allows the node SG on 5432 only
 
 ---
 
-## 9. Known limitations
+## 10. Known limitations
 
 State these plainly. They make the project more credible, not less.
 
@@ -321,13 +360,16 @@ State these plainly. They make the project more credible, not less.
 - No service has ever run in the cluster. The commerce profile now asks an 11 GB budget to hold two
   JVMs, a Go service, Postgres and the platform at once, and that has not been tried.
 - The checkout saga is not crash-safe: a process death between taking money and committing holds
-  loses the refund, though the stock returns on its own when the holds expire.
-- `payment-service` is a stub with no ledger and no timeout behaviour.
+  loses the refund, though the stock returns on its own when the holds expire. `payment-service`
+  solves the same problem for itself with an intent row; `order-service` gets it at Phase 6.
+- `payment-service` has no database tests. Its CHECK constraints, append-only trigger and
+  race-losing conditional update were exercised by hand, not in CI.
+- The card acquirer is stubbed. No partial captures, no chargebacks, no 3-D Secure, no settlement.
 - The observability stack and the image build cannot both run on this machine.
 
 ---
 
-## 10. Where the rest of the documents are
+## 11. Where the rest of the documents are
 
 | Document | Contents |
 |---|---|
@@ -338,7 +380,7 @@ State these plainly. They make the project more credible, not less.
 
 ---
 
-## 11. Diagrams
+## 12. Diagrams
 
 Generated by `docs/diagrams/generate.py` and committed as SVG so changes appear in diffs.
 

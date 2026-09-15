@@ -29,3 +29,8 @@ data:
     CREATE DATABASE orders OWNER orders;
     REVOKE ALL ON DATABASE orders FROM PUBLIC;
     GRANT CONNECT ON DATABASE orders TO orders;
+
+    CREATE ROLE payments LOGIN PASSWORD 'devpayments';
+    CREATE DATABASE payments OWNER payments;
+    REVOKE ALL ON DATABASE payments FROM PUBLIC;
+    GRANT CONNECT ON DATABASE payments TO payments;

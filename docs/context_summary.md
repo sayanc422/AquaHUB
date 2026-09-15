@@ -3,7 +3,7 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of the Phase 3 build session (13 September 2026).
+**Last updated:** end of the Phase 4 build session (15 September 2026).
 
 ---
 
@@ -25,6 +25,8 @@ It is the state of the work, not a restatement of the brief.*
 | Checkout ordering | Reserve stock, then take money, then commit | A declined card costs a released hold; the reverse ordering costs a refund and an apology. Cost: stock is held for customers who never complete, and the saga needs a compensation on the stock side that must be idempotent, out-of-transaction and non-masking. |
 | Saga bookkeeping | Each reservation is committed in its own transaction as it is taken | A rollback across the loop erases the record of holds that already exist elsewhere, and the compensation then releases nothing. Cost: one round trip per line instead of one per checkout. |
 | Waiting states | Derived from the clock, never stored | Generalises the reservation-expiry rule: no scheduled job is load-bearing. Cost: the value cannot be indexed directly, and the API must expose both stored state and derived state or it is lying by omission. |
+| Unknown payment outcomes | A state in both services, never collapsed into success or failure | Releasing holds on a timeout sells stock while the customer's money is gone; confirming promises an unpaid order. Cost: two reconcilers that ARE load-bearing, and a state customers see ("we are checking with your bank"). |
+| Payment durability | The intent row is written before the acquirer is called | A charge-then-record design loses the record of every charge it dies during. Cost: two round trips instead of one, and a table of `pending` rows to scan. |
 | CPU limits | Requests only on JVM services; memory limits always | A CPU limit means CFS throttling — the container is stopped for the rest of each 100 ms period, which reads as latency spikes on an idle-looking node. Memory is limited because memory is not compressible. Cost: a runaway pod can starve neighbours; ResourceQuota is the backstop. |
 
 ## Memory profiles (estimates until measured)
@@ -59,13 +61,14 @@ aquashop/
     storefront/             TypeScript, Fastify BFF, SSR HTML, distroless
     inventory-service/      Go 1.24, pgx, embedded migrations, distroless static
     order-service/          Java 21, Spring Boot 3.3, checkout saga, dispatch calendar
+    payment-service/        Rust 1.94, Axum, sqlx, append-only ledger, distroless/cc
   platform-repo/dev/        namespace + quota + limitrange, postgres, catalog, storefront,
-                            inventory, order, ingress
+                            inventory, order, payment, ingress
   docs/
     architecture.md         full prose architecture
     architecture.pdf        8 pages, styled, diagrams embedded  (PHASE 1 CONTENT ONLY)
     architecture-pdf.html   source of the PDF                   (PHASE 1 CONTENT ONLY)
-    adr/                    thirteen decision records, each with its cost
+    adr/                    fifteen decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
     runbooks/               five runbooks; four reproduced locally, one written from docs
     diagrams/generate.py    generates all three SVGs
@@ -118,22 +121,29 @@ aquashop/
    Replace them from `kubectl top pods -A` in `docs/architecture.md`, the PDF source, and
    `RELEASE-NOTES.md`.
 
-   Partly advanced: all three services have now been built and run *outside* k3d, against a local
-   Postgres, and the numbers are in `RELEASE-NOTES.md` and `docs/slo.md`. That found three real
-   defects (see the Phase 1 verification notes below), but it is not the same thing. In particular
-   the catalog's 338 MiB was measured with **no cgroup limit**, so the JVM sized its heap from host
-   RAM — it says nothing about whether the 640Mi limit is right, and the first `kubectl top` will
-   be the first honest JVM figure.
+   Partly advanced: all five services have now been built and run *outside* k3d, against a local
+   Postgres — including all three commerce services together — and the numbers are in
+   `RELEASE-NOTES.md` and `docs/slo.md`. That has found five real defects across the phases, but it
+   is not the same thing as running in the cluster. In particular the JVM figures (338 MiB and
+   361 MiB) were measured with **no cgroup limit**, so the heap was sized from host RAM; they say
+   nothing about whether the 640Mi limits are right, and the first `kubectl top` will be the first
+   honest JVM number. `payment-service`'s 6 MiB does not have that problem, which is itself part of
+   the argument for it.
 2. **Bring the PDF up to date.** `docs/architecture-pdf.html` still carries Phase 1 content only;
    `docs/architecture.md` is now ahead of it. Regenerate after the numbers from item 1 land, so the
    PDF is rebuilt once rather than twice.
 3. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
-   `docs/architecture.md` §7 and on page 7 of the PDF).
-4. **Phase 4:** `payment-service` in Rust — authorisation, capture, refund, and a ledger whose
-   transitions are exhaustively matched at compile time. It replaces the stub behind the existing
-   `PaymentGateway` port, and it is what makes a payment *timeout* — as opposed to a decline —
-   something the saga can be tested against. Ends with a checkout that survives a payment provider
-   that never answers.
+   `docs/architecture.md` §9 and on page 7 of the PDF).
+
+   Also missing: a gated database test suite for `payment-service`, in the shape `order-service`
+   already has. Its CHECK constraints, append-only trigger and race-losing conditional update are
+   currently proven by hand only.
+4. **Phase 5:** `aquatics-advisor` in Python — compatibility rules, water-parameter interval
+   intersection across every inhabitant of a tank, and recommendations. It is the service whose
+   rules change most often and are edited by domain people, which is why it is a different language
+   and a different deployment cadence. Ends with a tank that refuses a fish it cannot keep, and says
+   why in terms an aquarist would use.
+
 
 ### Phase 1 verification notes — worth carrying forward
 
@@ -172,6 +182,26 @@ aquashop/
 
 ---
 
+### Phase 4 implementation notes worth carrying forward
+
+- "Unknown" is a third answer, not a flavour of failure. Every layer has to keep it distinct: the
+  acquirer stub, payment-service's 504, the HTTP gateway's exception type, and the order state.
+  Flattening it anywhere loses the property everywhere.
+- Write the intent BEFORE the external call. payment-service does; order-service's saga still does
+  not, and that is the Phase 6 outbox.
+- A lookup that says "no charge" is not proof that no charge will be made. Voiding on it wrote off a
+  payment the customer was charged for five seconds later. Only void beyond a window that exceeds
+  the acquirer's in-flight time -- or better, call an explicit cancel, which this stub has no
+  equivalent of.
+- Two resolvers (the caller retrying and the reconciler) will race. A conditional
+  `UPDATE ... WHERE state = 'pending'` makes the loser write nothing, which is why both can run
+  without coordination.
+- Rust earned its place with a number: 6 MiB against 361 MiB for comparable work. The exhaustive
+  matching is the other half -- there is no `_ =>` anywhere in the ledger machine, deliberately.
+- payment-service has no database tests. Say so before anyone asks.
+
+---
+
 ### Known limitations to state plainly, never soften
 
 - Secrets are plaintext in Git at Phase 1. Largest gap in the repo. Phase 5 replaces it.
@@ -182,14 +212,16 @@ aquashop/
   a local Postgres on a build container — never in k3d, never under sustained load.
 - `inventory-service` has never run in the cluster, and nothing calls `release` on a failed payment
   yet. Compensation arrives with Phase 3.
-- All four services have now run outside k3d, against a local Postgres — including a live checkout
+- All five services have now run outside k3d, against a local Postgres — including a live checkout
   across `order-service` and `inventory-service` together. None has run *in* k3d, so the probes,
   resource limits, ingress and TLS path remain written-and-reviewed, not exercised.
 - The checkout saga is not crash-safe. A process death between taking money and committing holds
   returns the stock (the holds expire) but loses the refund. Nothing scans for it; the check is a
   manual query in `docs/runbooks/order-stuck-or-wrong.md`. Phase 6 fixes it with an outbox.
-- `payment-service` does not exist. The stub cannot time out, which is the failure a real payment
-  provider is mostly designed around.
+- `payment-service`'s acquirer is a stub: no partial captures, no chargebacks, no 3-D Secure, no
+  settlement files, and an in-process memory that a restart wipes.
+- `payment-service` has no database tests. Its constraints, its append-only trigger and its
+  race-losing conditional update were exercised by hand, not in CI. Clearest gap of Phase 4.
 
 ---
 

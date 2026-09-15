@@ -1,6 +1,6 @@
-target/
-node_modules/
-dist/
 *.class
 .DS_Store
 .mvn/
+dist/
+node_modules/
+target/

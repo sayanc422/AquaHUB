@@ -44,6 +44,14 @@ public class CustomerOrder {
     @Column(name = "payment_ref", length = 64)
     private String paymentRef;
 
+    /**
+     * The idempotency key this order paid with. Stored rather than recomputed,
+     * so that a change to how keys are derived cannot orphan an order whose
+     * payment is still unresolved.
+     */
+    @Column(name = "payment_idempotency_key", length = 128)
+    private String paymentIdempotencyKey;
+
     @Column(name = "dispatch_at")
     private Instant dispatchAt;
 
@@ -134,7 +142,10 @@ public class CustomerOrder {
     public List<OrderLine> getLines() { return lines; }
     public List<OrderReservation> getReservations() { return reservations; }
 
+    public String getPaymentIdempotencyKey() { return paymentIdempotencyKey; }
+
     public void setPaymentRef(String paymentRef) { this.paymentRef = paymentRef; }
+    public void setPaymentIdempotencyKey(String key) { this.paymentIdempotencyKey = key; }
     public void setDispatchAt(Instant dispatchAt) { this.dispatchAt = dispatchAt; }
     public void setDispatchableSeenAt(Instant at) { this.dispatchableSeenAt = at; }
     public void setFailureReason(String reason) { this.failureReason = reason; }

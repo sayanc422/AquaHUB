@@ -5,6 +5,113 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Phase 4 — `payment-service`, and an unknown that stays unknown
+
+Authorisation, capture, refund and a ledger, in Rust. And the change to `order-service` that the
+whole phase is for: a checkout that survives a payment provider which never answers.
+
+### The failure it is built around
+
+Not a decline. **An acquirer that takes the money and does not answer.** Both obvious responses to
+that are wrong: calling it a failure releases the stock while the customer's money is gone, and
+calling it a success promises an order that may never have been paid for
+([ADR 0014](docs/adr/0014-unknown-is-not-failure.md)).
+
+So the unknown is modelled as a state in both services. `payment-service` leaves the payment
+`pending` and answers **504** — not 500, which invites a caller to treat it as failure and move on.
+`order-service` has `PAYMENT_UNRESOLVED`, whose only exits are `PAID` and `PAYMENT_FAILED`; there is
+deliberately no route to `CANCELLED`. **The holds are not released on the way in**, because
+releasing is a decision that the payment failed. They expire on their own, which returns the stock
+without anybody having decided anything.
+
+### The bug worth reporting
+
+`payment-service` was written to prevent exactly this class of error and contained one anyway.
+
+The first `resolve_pending` treated "the acquirer has no charge for this reference" as proof that no
+charge would ever be made, and voided the payment. Demonstrated against the running service —
+acquirer delay 6 s, client timeout 1.5 s:
+
+```
+t+0.0s  authorise  -> 504, payment left pending
+t+1.0s  resolve    -> acquirer has no charge -> payment written off as `failed`
+t+6.0s  the acquirer takes the money
+t+8.0s  ledger:  seq 1 authorise 50000 | seq 2 void  "no charge for this reference"
+```
+
+The customer charged, the ledger saying the payment never happened. An authorisation that has not
+appeared is not an authorisation that will not appear. A `NoSuchCharge` may now only void a payment
+older than `ACQUIRER_VOID_AFTER_SECONDS`. The same scenario after the fix:
+
+```
+t+1.0s  resolve -> 504 still_unresolved   (too early to call)
+t+7.0s  resolve -> 200 captured
+        ledger:  seq 1 authorise 50000 | seq 2 capture 50000 balance 50000
+```
+
+The authoritative fix is an explicit cancel call to the acquirer, which makes "no charge" a fact
+rather than an observation. The age window is what a stub acquirer allows, and it is a weaker
+guarantee that is named as one in the code.
+
+### Verified live, three services together
+
+`order-service` → `payment-service` (acquirer hanging 6 s, client timeout 1.5 s) → `inventory-service`,
+all against a real Postgres. Nobody touched anything after the checkout request:
+
+```
+order state:  PAYMENT_UNRESOLVED     stock: 70 -> 62 available, on hand still 100
+                                     (the holds are held; nothing was decided)
+
+  -                  -> PENDING            order created from cart c5affb27...
+  PENDING            -> STOCK_RESERVED     1 hold(s), ttl 900s
+  STOCK_RESERVED     -> PAYMENT_UNRESOLVED acquirer_timeout: the acquirer did not answer
+  PAYMENT_UNRESOLVED -> PAID               payment 952f6069-...
+  PAID               -> CONFIRMED          livestock dispatch window 2026-09-15T14:00+05:30
+
+order state:  CONFIRMED               stock: on hand 100 -> 92 (committed)
+payment ledger:  seq 1 authorise 72000 | seq 2 capture 72000 balance 72000
+```
+
+That is the phase's acceptance criterion: **a checkout that survives a payment provider that never
+answers.**
+
+Also verified by hand: replay returns 200 rather than charging twice; a key reused for a different
+amount is 409; partial refunds accumulate and the last one closes the payment; a retried refund with
+the same key pays out once; an over-refund is 409; and the reconciler resolves a pending payment
+with nobody asking.
+
+### Measured
+
+Local Postgres on the build container, **not k3d**.
+
+| | |
+|---|---|
+| `payment-service` resident memory | **6 MiB** — against 361 MiB for `order-service` doing comparable work |
+| `payment-service` release binary | 4.2 MiB |
+| Tests | 24 in `payment-service` (money, ledger machine, acquirer); `order-service` up from 32 to 48 |
+
+That memory difference is the argument for Rust here, stated as a measurement rather than a belief.
+
+### What is stubbed, and what that costs
+
+The service is real; the card network behind it is not. The stub models the case that matters — it
+records the charge after the delay **whether or not the caller is still waiting** — and models
+nothing else: no partial captures, no chargebacks, no 3-D Secure, no settlement files. Its memory is
+in-process, so a restart makes previously recorded charges look like "no such charge", which is
+worth knowing when reading a demo.
+
+### Still unproven
+
+- **Never run in k3d.** The commerce profile is now two JVMs, a Go service, a Rust service and
+  Postgres on an 11 GB budget.
+- **`payment-service` has no database tests.** All 24 are pure or in-process. The CHECK constraints,
+  the append-only trigger and the conditional update that stops two resolvers writing twice were
+  exercised by hand and should have a gated integration suite like `order-service`'s. That is the
+  clearest gap this phase leaves.
+- The saga still is not crash-safe between taking money and committing holds. Phase 6.
+
+---
+
 ## Phase 3 — `order-service`
 
 Cart, the order state machine, the checkout saga with compensation, and livestock dispatch windows.

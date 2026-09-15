@@ -34,17 +34,19 @@ killer make the decision.
 them for the first time found two mapping defects that would have crash-looped the catalog on its
 first boot — see [RELEASE-NOTES.md](RELEASE-NOTES.md). They have still never run *in* k3d.
 
-**Phases 2 and 3 complete in code, not in the cluster.** `inventory-service` (Go) holds stock in
+**Phases 2, 3 and 4 complete in code, not in the cluster.** `inventory-service` (Go) holds stock in
 physical tanks with TTL-bounded, idempotent reservations, and a concurrency test proves it cannot
 oversell. `order-service` (Java) runs checkout as a saga across it — reserve, authorise, commit,
-confirm — and compensates when a step fails.
+confirm — and compensates when a step fails. `payment-service` (Rust) owns an append-only ledger and
+the case that matters: an acquirer that takes the money and does not answer.
 
-The two have been run together against a real Postgres: a live checkout that confirms with a
-dispatch window, and a live declined card that returns every held fish to the shop immediately,
-takes no money, and leaves the compensation visible in the order's event trail. Neither has run
-*in* k3d — no session so far has had Docker, which is why that is still the first open item.
+All three have been run together against a real Postgres. A live checkout that confirms with a
+dispatch window; a live declined card that returns every held fish to the shop immediately and takes
+no money; and a live checkout against a payment provider that never answers, which ends `CONFIRMED`
+with the money accounted for and nobody having touched it. None has run *in* k3d — no session so far
+has had Docker, which is why that is still the first open item.
 
-Phases 4–7 are planned. See [docs/context_summary.md](docs/context_summary.md) for current state and
+Phases 5–7 are planned. See [docs/context_summary.md](docs/context_summary.md) for current state and
 [RELEASE-NOTES.md](RELEASE-NOTES.md) for what has actually been measured.
 
 ## Layout
@@ -52,6 +54,7 @@ Phases 4–7 are planned. See [docs/context_summary.md](docs/context_summary.md)
 | Path | Contents |
 |---|---|
 | `services/` | Application code, one directory per service. Each has its own README |
+| `platform-repo/dev/` | The dev overlay: namespace, quota, Postgres, and one directory per service |
 | `platform-repo/` | Cluster desired state. Moves to its own repository at Phase 4 |
 | `scripts/` | k3d cluster config and the bootstrap script |
 | `docs/` | Architecture, decision records, SLOs, runbooks, diagrams, context summary |

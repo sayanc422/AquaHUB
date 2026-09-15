@@ -22,3 +22,5 @@ because the reasoning that was true at the time is the useful part.
 | [0011](0011-derived-state-over-stored-state.md) | Derived state over stored state, wherever a clock can answer | Accepted |
 | [0012](0012-hold-stock-before-taking-money.md) | Hold stock before taking money | Accepted |
 | [0013](0013-record-external-effects-outside-the-transaction.md) | An effect in another service must be recorded outside the transaction that may roll back | Accepted |
+| [0014](0014-unknown-is-not-failure.md) | An unknown payment outcome is a state, not a failure | Accepted |
+| [0015](0015-write-the-intent-before-the-call.md) | Write the intent before the external call, not after | Accepted |

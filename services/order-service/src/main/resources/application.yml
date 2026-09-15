@@ -32,6 +32,12 @@ orders:
   # The shop's local time: a 14:00 cut-off means 14:00 where the courier calls.
   dispatch-zone: ${ORDER_DISPATCH_ZONE:Asia/Kolkata}
   dispatch-scan-interval-ms: ${ORDER_DISPATCH_SCAN_MS:60000}
+  # How often to ask payment-service about orders whose payment never answered.
+  # Unlike the dispatch watcher, this one is load-bearing: stop it and those
+  # orders never finish. It is still safe -- an unresolved order is never
+  # treated as paid -- so stopping it delays the answer rather than corrupting
+  # it. Watch the orders_payment_unresolved gauge.
+  payment-reconcile-interval-ms: ${ORDER_PAYMENT_RECONCILE_MS:30000}
 
 inventory:
   base-url: ${INVENTORY_BASE_URL:http://inventory-service:8081}
@@ -39,6 +45,15 @@ inventory:
   read-timeout-ms: ${INVENTORY_READ_TIMEOUT_MS:2000}
 
 payment:
+  # `stub` keeps checkout self-contained for the core profile and the test
+  # suite; `http` uses the real payment-service. Only the second can produce an
+  # unresolved payment, which is the case worth exercising.
+  gateway: ${PAYMENT_GATEWAY:stub}
+  base-url: ${PAYMENT_BASE_URL:http://payment-service:8083}
+  connect-timeout-ms: ${PAYMENT_CONNECT_TIMEOUT_MS:1000}
+  # Longer than the inventory timeout on purpose: an abandoned inventory call is
+  # free to retry, an abandoned payment call may already have taken the money.
+  read-timeout-ms: ${PAYMENT_READ_TIMEOUT_MS:5000}
   stub:
     # APPROVE or DECLINE. A stub until payment-service exists; the outcome is
     # configuration rather than a request field, because a test hook in the API
