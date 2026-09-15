@@ -109,7 +109,13 @@ impl Money {
 
     /// Subtraction that refuses to go below zero, rather than wrapping or
     /// producing a negative balance nobody asked for.
-    pub fn sub(self, other: Money) -> Result<Money, MoneyError> {
+    ///
+    /// Named after `i64::checked_sub` rather than implementing `std::ops::Sub`,
+    /// deliberately. The `-` operator has to return a `Money`, which would mean
+    /// panicking or silently clamping on an over-refund; this returns a
+    /// `Result` so the caller has to say what happens. A minus sign that can
+    /// panic in a payment service is a worse API than a longer name.
+    pub fn checked_sub(self, other: Money) -> Result<Money, MoneyError> {
         self.same_currency(other)?;
         let minor = self
             .minor
@@ -153,8 +159,8 @@ mod tests {
 
     #[test]
     fn subtraction_refuses_to_go_below_zero() {
-        assert_eq!(inr(100).sub(inr(101)), Err(MoneyError::Negative));
-        assert_eq!(inr(100).sub(inr(100)).unwrap(), inr(0));
+        assert_eq!(inr(100).checked_sub(inr(101)), Err(MoneyError::Negative));
+        assert_eq!(inr(100).checked_sub(inr(100)).unwrap(), inr(0));
     }
 
     /// The reason every operation is checked rather than bare. In release
@@ -166,8 +172,11 @@ mod tests {
         // i64::MIN has no positive counterpart, so `0 - i64::MIN` overflows
         // rather than merely going negative.
         let huge = Money::new(i64::MAX, Currency::INR).unwrap();
-        assert_eq!(most_negative_possible.sub(huge), Err(MoneyError::Negative));
-        assert!(huge.sub(huge).unwrap().is_zero());
+        assert_eq!(
+            most_negative_possible.checked_sub(huge),
+            Err(MoneyError::Negative)
+        );
+        assert!(huge.checked_sub(huge).unwrap().is_zero());
     }
 
     #[test]
@@ -175,7 +184,7 @@ mod tests {
         let rupees = inr(100);
         let dollars = Money::new(100, Currency::USD).unwrap();
         assert_eq!(
-            rupees.sub(dollars),
+            rupees.checked_sub(dollars),
             Err(MoneyError::CurrencyMismatch(Currency::INR, Currency::USD))
         );
     }

@@ -15,6 +15,12 @@ use chrono::{DateTime, Utc};
 use sqlx::{postgres::PgPool, Row};
 use uuid::Uuid;
 
+/// The migrations, embedded at compile time so no database is needed to build.
+/// Exposed here rather than run from `main` so the tests apply exactly the same
+/// schema the service does — a test suite against a hand-written schema proves
+/// the hand-written schema.
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
     #[error("database: {0}")]

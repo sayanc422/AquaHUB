@@ -217,7 +217,7 @@ impl Payment {
         // Checked subtraction, so an over-refund is an error rather than a
         // negative balance or a wrapped one.
         let balance = available
-            .sub(amount)
+            .checked_sub(amount)
             .map_err(|_| LedgerError::RefundTooLarge {
                 requested: amount,
                 available,

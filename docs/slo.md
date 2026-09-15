@@ -26,6 +26,7 @@ and not under realistic concurrency.** Treat them as the right order of magnitud
 | `order-service` resident memory | 361 MiB | same caveat as the catalog: no cgroup limit, so the heap was sized from host RAM |
 | `payment-service` resident memory | **6 MiB** | the same measurement, on the service doing comparable work in Rust |
 | `payment-service` release binary | 4.2 MiB | |
+| Tests across the repository | 42 in `payment-service` (24 unit, 18 database), 48 in `order-service`, 24 in `inventory-service` | the Java and Rust database suites need a DSN in the environment and skip without one |
 
 Not measured anywhere yet: anything in k3d, anything under sustained load, and every figure in the
 profile memory table. The JVM memory figure above is measured but not *useful* — a JVM without a

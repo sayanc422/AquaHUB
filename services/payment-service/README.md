@@ -118,10 +118,23 @@ available here, and it is a weaker guarantee that deserves to be named as one.
 ## Tests
 
 ```bash
-cargo test    # 24 tests: money, the ledger machine, the acquirer's timeout behaviour
+cargo test                       # 24 unit tests: money, the ledger machine, the acquirer
+
+createdb payments_test
+PAYMENTS_TEST_DSN='postgres://postgres@127.0.0.1:5432/payments_test' cargo test
+                                 # + 18 against a real Postgres
 ```
 
-All of them are pure or in-process; there is no database in the test suite. What that leaves
-untested is the SQL — the CHECK constraints, the append-only trigger, and the conditional update
-that stops two resolvers writing twice. Those were exercised by hand against a real Postgres and
-should have a gated integration suite like `order-service`'s. That is the honest gap here.
+The database tests cover what a unit test cannot reach, because it does not live in Rust: the CHECK
+constraints (`pending` cannot hold a balance, a balance cannot go negative, a refunded payment
+cannot keep one), the trigger that makes the ledger append-only, and the conditional update that
+decides which of two racing resolvers writes. `only_one_of_two_racing_resolvers_writes` is the one
+that earns its keep — a second entry there would be a second charge in the ledger for one charge at
+the bank.
+
+The crate is a lib plus a thin binary for this reason: a binary crate cannot be imported from
+`tests/`, so everything in it can only be tested from inside itself.
+
+**Cost:** the tests skip when `PAYMENTS_TEST_DSN` is unset, and a skipped test reports as a passing
+one. That is the same trade `order-service` makes, and it is the thing Testcontainers exists to
+avoid.

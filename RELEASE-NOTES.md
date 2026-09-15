@@ -104,10 +104,11 @@ worth knowing when reading a demo.
 
 - **Never run in k3d.** The commerce profile is now two JVMs, a Go service, a Rust service and
   Postgres on an 11 GB budget.
-- **`payment-service` has no database tests.** All 24 are pure or in-process. The CHECK constraints,
-  the append-only trigger and the conditional update that stops two resolvers writing twice were
-  exercised by hand and should have a gated integration suite like `order-service`'s. That is the
-  clearest gap this phase leaves.
+- ~~`payment-service` has no database tests.~~ **Closed** — 18 gated tests added against a real
+  Postgres, covering the CHECK constraints, the append-only trigger and the two-resolver race. The
+  crate became a lib plus a thin binary to make them possible, since a binary crate cannot be
+  imported from `tests/`. Clippy then flagged `Money::sub` as shadowing `std::ops::Sub` on the
+  newly-public API; it is `checked_sub` now, which says what it does and matches `i64::checked_sub`.
 - The saga still is not crash-safe between taking money and committing holds. Phase 6.
 
 ---

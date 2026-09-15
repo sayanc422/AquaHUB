@@ -11,18 +11,12 @@
 //! intent before the call, the `pending` state, the resolve-by-key endpoint,
 //! the reconciler — exists for that one case.
 
-mod acquirer;
-mod api;
-mod ledger;
-mod money;
-mod store;
-
-use acquirer::{Acquirer, Behaviour};
-use api::{AppState, Metrics};
+use payment_service::acquirer::{Acquirer, Behaviour};
+use payment_service::api::{self, AppState, Metrics};
+use payment_service::store::Store;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use std::time::Duration;
-use store::Store;
 
 #[tokio::main]
 async fn main() {
@@ -63,7 +57,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     // Migrations run at startup, inside the pod's startup-probe window.
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    payment_service::store::MIGRATOR.run(&pool).await?;
     tracing::info!("migrations applied");
 
     let store = Store::new(pool);

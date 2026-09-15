@@ -135,9 +135,7 @@ aquashop/
 3. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
    `docs/architecture.md` §9 and on page 7 of the PDF).
 
-   Also missing: a gated database test suite for `payment-service`, in the shape `order-service`
-   already has. Its CHECK constraints, append-only trigger and race-losing conditional update are
-   currently proven by hand only.
+   *(The `payment-service` database test suite that was listed here is done: 18 gated tests.)*
 4. **Phase 5:** `aquatics-advisor` in Python — compatibility rules, water-parameter interval
    intersection across every inhabitant of a tank, and recommendations. It is the service whose
    rules change most often and are edited by domain people, which is why it is a different language
@@ -198,7 +196,11 @@ aquashop/
   without coordination.
 - Rust earned its place with a number: 6 MiB against 361 MiB for comparable work. The exhaustive
   matching is the other half -- there is no `_ =>` anywhere in the ledger machine, deliberately.
-- payment-service has no database tests. Say so before anyone asks.
+- payment-service's constraints live in SQL, so they need a database to test. Making the crate a
+  lib plus a thin binary is what allows `tests/` to import it at all -- a binary crate cannot be.
+- The two-resolver race is the test worth keeping: two `apply` calls that both believe the payment
+  is pending, and exactly one write. A second ledger entry there is a second charge on the books
+  for one charge at the bank.
 
 ---
 
@@ -220,8 +222,7 @@ aquashop/
   manual query in `docs/runbooks/order-stuck-or-wrong.md`. Phase 6 fixes it with an outbox.
 - `payment-service`'s acquirer is a stub: no partial captures, no chargebacks, no 3-D Secure, no
   settlement files, and an in-process memory that a restart wipes.
-- `payment-service` has no database tests. Its constraints, its append-only trigger and its
-  race-losing conditional update were exercised by hand, not in CI. Clearest gap of Phase 4.
+- The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.
 
 ---
 
