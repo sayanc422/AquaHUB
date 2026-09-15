@@ -133,6 +133,31 @@ class CatalogApiTest {
     }
 
     @Test
+    void theAmericanCichlidSectionsAreNoLongerEmpty() throws Exception {
+        // They were created ACTIVE with nothing in them, which is a section a
+        // customer can walk into and find bare. Photographs arrived for four
+        // American cichlids and they are stocked now.
+        mvc.perform(get("/api/categories/cichlids-south-american"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.products.length()").value(2));
+
+        mvc.perform(get("/api/categories/cichlids/products").param("deep", "true"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(13));
+    }
+
+    @Test
+    void anOscarIsBigEnoughToEatTheCommunityTank() throws Exception {
+        // 35 cm against a neon tetra's 3.5: the advisor refuses that pairing on
+        // the size ratio alone, which only works if the adult size is honest.
+        mvc.perform(get("/api/products/oscar"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.species.maxSizeCm").value(35.0))
+           .andExpect(jsonPath("$.species.minTankLitres").value(400))
+           .andExpect(jsonPath("$.product.imageKey").value("species/oscar.jpg"));
+    }
+
+    @Test
     void mbunaCarryTheWaterParametersThatMakeThemIncompatibleWithTetras() throws Exception {
         // Not a contrivance: aquatics-advisor refuses a demasoni-and-neon tank
         // on exactly these numbers, with no rule written about either fish.

@@ -268,9 +268,12 @@ aquashop/
 - The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.
 - `aquatics-advisor` has no automated test of its HTTP layer or its catalog client, and its image is
   not distroless. Both are stated in its README rather than left to be found.
-- The catalogue has no photographs. `image_key` is populated for the six Malawi fish and seven
-  sections, and every one of those files is missing -- they render as placeholders until the shop
-  supplies its own or licensed photography.
+- Ten photographs are committed and ten products carry them. Three Malawi fish (saulosi, red zebra,
+  acei) and all seven sections still have keys pointing at files nobody has taken -- they render as
+  placeholders, which is the designed behaviour.
+- **Every photograph in the repository has unverified provenance**, recorded row by row in
+  `services/storefront/public/species/CREDITS.md`. They are there so the site can be reviewed against
+  real images; none may ship until it is the shop's own, licensed, or breeder-supplied.
 - `catalog-service`'s test suite uses Testcontainers, so it could not be executed in the session that
   wrote the tree tests. Every assertion was verified by hand against the running service instead --
   which is weaker, and is why the first CI run after this change is worth watching.

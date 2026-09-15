@@ -5,6 +5,48 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Photographs, and seven fish they brought with them
+
+Ten photographs arrived with the species named in the filenames. Only three were of fish already in
+the catalogue, so the other seven became stock — and two of them finally put something in the South
+American and Central American sections, which had been sitting empty and ACTIVE since the tree was
+built. Thirteen cichlids now, ten of them photographed.
+
+The filename is the wiring: a product's slug matches its photograph, the catalog stores
+`species/<slug>.jpg`, and nothing needs a lookup table.
+
+### Processing
+
+5.6 MB down to 1.8 MB: resized to 1600 px at most, progressive JPEG at quality 82 — 76 for the
+auratus, whose rock background compresses badly and was the one file still over the 300 KB budget —
+and **EXIF stripped**, because camera metadata carries GPS coordinates and an owner's name that a
+shop has no reason to publish.
+
+Two are below the 1200 px minimum this repository sets for itself and are recorded as needing a
+re-shoot: the Nkhomo Benga peacock at 1136 px, and the salvini at **474 px**, which is too small for
+anything but a thumbnail.
+
+### Provenance is recorded, not assumed
+
+`public/species/CREDITS.md` has one row per image, and every row currently says **unverified**. They
+are in the repository so the site can be built against real photographs instead of grey boxes; none
+has a licence on record, and each has to become the shop's own, licensed, or breeder-supplied before
+the shop takes an order.
+
+### What the new stock did to the advisor
+
+An Oscar reaches 35 cm. Put one in with neon tetras and the advisor now refuses it twice over —
+once on temperament and once on the size ratio:
+
+```
+Oscar reaches 35 cm and Neon Tetra only 3.5 cm. If it fits in the mouth, it is food.
+This is not aggression, it is feeding behaviour.
+```
+
+That rule has existed since Phase 5 and had never had a real predator to catch.
+
+---
+
 ## Photography: a key, not a URL
 
 `image_url` arrived empty with the category tree and is now `image_key` before anything was written
