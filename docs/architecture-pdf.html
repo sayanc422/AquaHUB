@@ -1,12 +1,12 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-  @page { size: 420mm 297mm; margin: 0; }
+  @page { size: 420mm 386mm; margin: 0; }
   * { box-sizing:border-box; }
   html, body { margin:0; padding:0; width:100%; background:#0f1725; color:#e6ecf5;
     font-family:"DejaVu Sans", sans-serif; font-size:15.33pt; }
-  .page { width:100%; height:386mm; padding:21.33mm 24mm; background:#0f1725;
-    page-break-after:always; position:relative; overflow:hidden; }
+  .page { width:100%; min-height:386mm; padding:21.33mm 24mm 26.67mm; background:#0f1725;
+    page-break-after:always; position:relative; }
   .page:last-child { page-break-after:auto; }
   h1 { font-size:40pt; margin:0 0 2.67mm; font-weight:700; }
   h1 .a { color:#3ddc97; }
@@ -51,18 +51,20 @@
   li { margin-bottom:2.4mm; line-height:1.45; color:#93a1bd; }
   li b { color:#e6ecf5; }
   .big { font-size:18.67pt; line-height:1.55; }
+  .small { font-size:12pt; }
+  s { color:#6d7a99; }
 </style></head><body>
 
 <!-- ------------------------------------------------------------- cover -->
 <div class="page">
-  <div style="height:69.33mm"></div>
+  <div style="height:56mm"></div>
   <div style="border-left:6px solid #3ddc97; padding-left:8mm">
     <h1>Aqua<span class="a">Shop</span> — Architecture</h1>
     <div class="sub">A polyglot Kubernetes platform for a freshwater aquarium shop.<br>
       Designed for AWS &middot; validated with <span class="mono">terraform test</span> &middot; run on k3d.</div>
   </div>
 
-  <div style="height:18.67mm"></div>
+  <div style="height:14.67mm"></div>
   <div class="panel orange" style="max-width:333.33mm">
     <div class="label orange">Read this before anything else</div>
     <p class="big">The AWS infrastructure layer in this repository has <b>never been applied to an AWS
@@ -79,13 +81,13 @@
       <b>"I built it AWS-first and ran it locally because I was paying for it myself."</b></p>
   </div>
 
-  <div style="height:10.67mm"></div>
-  <span class="pill t">PHASE 1 COMPLETE</span>&nbsp;
-  <span class="pill v">PHASES 2–7 PLANNED</span>&nbsp;
+  <div style="height:8mm"></div>
+  <span class="pill t">PHASES 1&ndash;5 COMPLETE</span>&nbsp;
+  <span class="pill t">CORE + COMMERCE RUN IN k3d</span>&nbsp;
+  <span class="pill v">PHASES 6&ndash;7 PLANNED</span>&nbsp;
   <span class="pill o">AWS: VALIDATED, NOT APPLIED</span>
 
-  <div class="foot">AquaShop architecture &middot; document version 0.1 &middot; measured figures are
-    placeholders until measured<span class="r">docs/architecture.md</span></div>
+  <div class="foot">AquaShop architecture &middot; core+commerce measured in k3d 16 Sep 2026<span class="r">docs/architecture.md</span></div>
 </div>
 
 <!-- -------------------------------------------------------- the product -->
@@ -130,21 +132,21 @@
         <table>
           <th style="width:26%">Service</th><th style="width:22%">Stack</th><th>Why this stack</th>
           <tr><td class="k">catalog-service</td><td class="mono muted">Java 21 / Spring Boot</td>
-              <td class="n">Read-heavy relational data with a rich schema; the ecosystem I know best, so the platform work is the novel part, not the language.</td></tr>
+              <td class="n">Read-heavy relational data with a rich schema; the ecosystem I know best, so the platform work is the novel part.</td></tr>
           <tr><td class="k">order-service</td><td class="mono muted">Java 21 / Spring Boot</td>
               <td class="n">Long-lived transactional orchestration; mature saga and scheduling libraries.</td></tr>
           <tr><td class="k">inventory-service</td><td class="mono muted">Go</td>
-              <td class="n">Many small concurrent hold/expire operations; goroutines and a 40 MB footprint suit a service that scales on request count, not CPU work.</td></tr>
+              <td class="n">Many small concurrent hold/expire operations; a small footprint suits a service that scales on request count.</td></tr>
           <tr><td class="k">payment-service</td><td class="mono muted">Rust / Axum</td>
-              <td class="n">Smallest surface, strictest correctness. Exhaustive compile-time matching over ledger state transitions and non-wrapping integer arithmetic. <span class="orange">Cost: slowest CI build, smallest maintainer pool.</span></td></tr>
+              <td class="n">Smallest surface, strictest correctness: exhaustive compile-time matching, non-wrapping arithmetic. <span class="orange">Cost: slowest CI, smallest maintainer pool.</span></td></tr>
           <tr><td class="k">aquatics-advisor</td><td class="mono muted">Python / FastAPI</td>
-              <td class="n">Rules and numeric range logic that changes often and is edited by domain people, not platform people.</td></tr>
+              <td class="n">Rules and range logic that changes often, edited by domain people, not platform people.</td></tr>
           <tr><td class="k">notification-service</td><td class="mono muted">Go</td>
-              <td class="n">I/O-bound fan-out to email and webhooks with per-target retry.</td></tr>
+              <td class="n"><span class="dim">Planned, not built.</span> I/O-bound fan-out to email and webhooks.</td></tr>
           <tr><td class="k">staff-portal</td><td class="mono muted">JSP / WildFly</td>
-              <td class="n">Deliberate. Containerising a slow-starting WAR — startup probes, stdout logging, ConfigMap config, graceful shutdown — is the exercise that connects this project to production work I actually do.</td></tr>
+              <td class="n"><span class="dim">Planned, not built.</span> A slow-starting WAR — the exercise that connects this to production work.</td></tr>
           <tr><td class="k">storefront</td><td class="mono muted">TypeScript / Fastify</td>
-              <td class="n">A BFF is I/O aggregation; server-rendered HTML avoids a client state layer that would add build complexity and prove nothing.</td></tr>
+              <td class="n">A BFF is I/O aggregation; server-rendered HTML avoids a client state layer that proves nothing.</td></tr>
         </table>
       </div>
     </div>
@@ -156,57 +158,66 @@
 <!-- ------------------------------------------------------ architecture -->
 <div class="page">
   <h2><span class="bar"></span>System architecture</h2>
-  <img class="diagram" src="diagrams/png/architecture.png">
+  <img class="diagram" src="diagrams/architecture.svg">
   <div class="foot">Generated from <span class="mono">docs/diagrams/generate.py</span>; committed as SVG so
-    changes appear in diffs.<span class="r">3</span></div>
+    changes appear in diffs. Six of eight services (all but notification-service and staff-portal)
+    are built and have run together in k3d.<span class="r">3</span></div>
 </div>
 
 <!-- -------------------------------------------------------- deployment -->
 <div class="page">
   <h2><span class="bar"></span>Deployment topology</h2>
-  <img class="diagram" src="diagrams/png/deployment.png">
-  <div class="foot">Left: what runs. Right: what it is designed to become, and has never
+  <img class="diagram" src="diagrams/deployment.svg">
+  <div class="foot">Left: what runs, measured 16 September 2026. Right: what it is designed to become, and has never
     been.<span class="r">4</span></div>
 </div>
 
 <!-- ---------------------------------------------------------- delivery -->
 <div class="page">
   <h2><span class="bar"></span>Delivery flow</h2>
-  <img class="diagram" src="diagrams/png/delivery-flow.png">
-  <div class="foot">Promotion is a pull request. Rollback is a revert.<span class="r">5</span></div>
+  <img class="diagram" src="diagrams/delivery-flow.svg">
+  <div class="foot">Promotion is a pull request. Rollback is a revert. Not yet built — Phase 6.<span class="r">5</span></div>
 </div>
 
 <!-- ------------------------------------------------------- memory plan -->
 <div class="page">
   <h2><span class="bar"></span>The memory budget — the constraint that shaped the design</h2>
-  <p class="muted" style="max-width:320mm">16 GB of RAM, roughly 11 GB usable inside WSL2 after
-    leaving Windows its share. The full platform does not fit at once, so the cluster is built as
-    <b>profiles</b>: named subsets brought up for a purpose. This is not a workaround bolted on at
-    the end; it is why NATS replaced Kafka, why one Postgres instance hosts per-service databases,
-    and why only one environment is materialised at a time.</p>
+  <p class="muted" style="max-width:320mm">16 GB of physical RAM on the laptop. The design targets 11 GB
+    usable inside WSL2 via a <span class="mono">.wslconfig</span> memory override, but <b class="orange">that
+    override has never been applied on this machine</b> — <span class="mono">/proc/meminfo</span> measures
+    <b class="teal">7.4 GB</b>, WSL2's unconfigured default of roughly half of host RAM. The full platform
+    does not fit at once either way, so the cluster is built as <b>profiles</b>: named subsets brought up
+    for a purpose. This is not a workaround bolted on at the end; it is why NATS replaced Kafka, why one
+    Postgres instance hosts per-service databases, and why only one environment is materialised at a time.</p>
 
   <div class="cols">
     <div class="col">
       <div class="panel teal">
         <div class="label teal">Profiles</div>
         <table>
-          <th>Profile</th><th>Adds</th><th style="width:20%">Est. total</th>
-          <tr><td class="k mono">core</td><td class="n">k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront</td><td class="teal mono">~2.6 GB</td></tr>
-          <tr><td class="k mono">commerce</td><td class="n">order, inventory, payment, advisor, NATS</td><td class="teal mono">~4.2 GB</td></tr>
-          <tr><td class="k mono">full-app</td><td class="n">notification, staff-portal (WildFly)</td><td class="teal mono">~5.2 GB</td></tr>
-          <tr><td class="k mono">platform</td><td class="n">Argo CD</td><td class="mono orange">~6.1 GB</td></tr>
-          <tr><td class="k mono">observability</td><td class="n">kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter</td><td class="mono orange">~9.2 GB</td></tr>
+          <th>Profile</th><th>Adds</th><th style="width:26%">Total</th>
+          <tr><td class="k mono">core</td><td class="n">k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront</td><td class="teal mono">1.32 GiB <span class="dim">measured</span></td></tr>
+          <tr><td class="k mono">commerce</td><td class="n">order, inventory, payment, advisor, NATS</td><td class="teal mono">~2.05 GiB <span class="dim">measured*</span></td></tr>
+          <tr><td class="k mono">full-app</td><td class="n">notification, staff-portal (WildFly)</td><td class="mono orange">~5.2 GB <span class="dim">estimate</span></td></tr>
+          <tr><td class="k mono">platform</td><td class="n">Argo CD</td><td class="mono orange">~6.1 GB <span class="dim">estimate</span></td></tr>
+          <tr><td class="k mono">observability</td><td class="n">kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter</td><td class="mono orange">~9.2 GB <span class="dim">estimate</span></td></tr>
         </table>
+        <p class="dim" style="margin:5.33mm 0 0; font-size:12pt">*NATS not deployed yet by <span class="mono">bootstrap.sh --profile commerce</span> (planned for Phase 6); the commerce figure is the four services alone. core+commerce came in well under their old estimates — core at 1.32 GiB against a ~2.6 GB estimate, commerce adding ~730 MiB against a ~4.2 GB additive estimate.</p>
         <p class="orange" style="margin:5.33mm 0 0; font-size:13.33pt">Rule enforced by the bootstrap script:
-          never build images while the observability profile is up. ~1.8 GB of headroom does not survive a
-          Maven or Cargo build, and the failure mode is the kernel OOM killer taking an unrelated pod.</p>
+          never build images while the observability profile is up. ~1.8 GB of headroom (against the
+          intended 11 GB ceiling) does not survive a Maven or Cargo build, and the failure mode is the
+          kernel OOM killer taking an unrelated pod.</p>
       </div>
-      <div class="panel">
-        <div class="label">Phase 1 measured footprint</div>
-        <p class="dim" style="margin:0">Every number above is an estimate until measured. After the first
-          <span class="mono">bootstrap.sh</span> run, record <span class="mono">kubectl top pods -A</span>
-          here and in RELEASE-NOTES.md. Placeholders are left deliberately: a measured number I did not
-          measure is the kind of claim that collapses under one follow-up question.</p>
+      <div class="panel orange">
+        <div class="label orange">A ceiling that was also never measured</div>
+        <p class="n" style="margin:0">The <span class="mono">observability</span> estimate (~9.2 GB) does
+          not fit inside the current, <b>unconfigured 7.4 GB</b> WSL2 ceiling at all — even alone, let
+          alone alongside <span class="mono">core</span>. It does fit the intended 11 GB one. This gap was
+          invisible while every figure in this table was an unmeasured estimate sitting against an
+          unmeasured ceiling; it is visible now that <span class="mono">core</span> and
+          <span class="mono">commerce</span> are real numbers. Closing it means editing
+          <span class="mono">.wslconfig</span> on the Windows side and <span class="mono">wsl --shutdown</span>
+          — not done on this machine yet.</p>
       </div>
     </div>
     <div class="col">
@@ -240,8 +251,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">Component estimates are RSS under light load in WSL2, not vendor
-    minimums.<span class="r">6</span></div>
+  <div class="foot">core and commerce are RSS measured with <span class="mono">kubectl top</span> in k3d, 16 Sep 2026; the remaining three profiles are still unmeasured estimates.<span class="r">6</span></div>
 </div>
 
 <!-- ----------------------------------------------------- local to cloud -->
@@ -291,58 +301,208 @@
     decorative.<span class="r">7</span></div>
 </div>
 
-<!-- ---------------------------------------------------------- phase one -->
+<!-- --------------------------------------------------------- phase 2-5 -->
 <div class="page">
-  <h2><span class="bar"></span>Phase 1 — what exists, what is next</h2>
+  <h2><span class="bar"></span>Phases 2&ndash;5 — what each service is built on</h2>
   <div class="cols">
     <div class="col">
       <div class="panel teal">
-        <div class="label teal">Built</div>
-        <ul>
-          <li><b>catalog-service</b> — Java 21, Spring Boot 3.3, Flyway-owned schema, Hibernate in
-            <span class="mono">validate</span> mode, DTOs separate from entities, join-fetch queries to
-            avoid N+1, actuator liveness/readiness probe groups, Prometheus registry already wired.</li>
-          <li><b>Seed data</b> — twelve species with real care parameters (temperature, pH, dGH, adult
-            size, minimum group, temperament, diet, plant safety) plus plants, hardscape, equipment and
-            food. A CHECK constraint makes a livestock row without a care profile impossible.</li>
-          <li><b>storefront</b> — TypeScript Fastify BFF, server-rendered HTML, 2 s bounded upstream
-            calls, 60 s nav cache, liveness that does <i>not</i> depend on the catalog.</li>
-          <li><b>Containers</b> — multi-stage, distroless, non-root, read-only root filesystem, dropped
-            capabilities, <span class="mono">MaxRAMPercentage</span> so the JVM sizes its heap from the
-            cgroup limit.</li>
-          <li><b>Cluster</b> — k3d with Traefik, servicelb and metrics-server disabled; ingress-nginx;
-            cert-manager; ResourceQuota and LimitRange on the namespace.</li>
-          <li><b>Bootstrap</b> — one idempotent script with a memory preflight that refuses to run
-            rather than letting the OOM killer make the decision.</li>
-        </ul>
+        <div class="label teal">Phase 2 &middot; inventory-service (Go)</div>
+        <p class="n small" style="margin:0 0 2.67mm">Stock held per physical tank, not one integer per SKU.
+          Availability = <span class="mono">on_hand &minus; &Sigma; holds WHERE expires_at &gt; now()</span> &mdash;
+          the deadline is in the query, so the reaper is bookkeeping, not load-bearing.</p>
+        <p class="n small" style="margin:0 0 2.67mm">Locks are taken in one statement, availability read in a
+          second: under READ COMMITTED a single combined statement reads a stale snapshot and oversells &mdash;
+          the concurrency test (20 goroutines, 8 fish, 2 at a time) caught exactly that.</p>
+        <p class="n small" style="margin:0">Measured locally: 13.9 MiB idle, 17.0 MiB after 200 reservations,
+          2.5 ms mean, zero oversells across 300 concurrent reservations. <b class="teal">Now also run in k3d:
+          3 MiB resident</b> &mdash; idle during the smoke test, not under sustained load.</p>
+      </div>
+      <div class="panel teal">
+        <div class="label teal">Phase 4 &middot; payment-service (Rust / Axum)</div>
+        <p class="n small" style="margin:0 0 2.67mm">Smallest surface, strictest correctness: every ledger
+          transition is an exhaustive <span class="mono">match</span> with no catch-all arm. The unknown
+          &mdash; acquirer took the money and never answered &mdash; is a state in both services, never
+          collapsed into success or failure. The intent row is written <i>before</i> the acquirer is
+          called, so a mid-call death still leaves a findable record.</p>
+        <p class="n small" style="margin:0">Measured: 6 MiB resident locally, <b class="teal">2 MiB in k3d</b>,
+          against 361/224 MiB for order-service doing comparable work. <b>18 gated database tests</b>
+          (<span class="mono">cargo test</span>, needs <span class="mono">PAYMENTS_TEST_DSN</span>) now
+          cover its CHECK constraints, append-only trigger and race-losing conditional update &mdash;
+          previously exercised only by hand. The acquirer itself is still a stub: no partial captures, no
+          chargebacks, no 3-D Secure, no settlement.</p>
       </div>
     </div>
     <div class="col">
-      <div class="panel violet">
-        <div class="label violet">Next phases</div>
+      <div class="panel teal">
+        <div class="label teal">Phase 3 &middot; order-service (Java, the checkout saga)</div>
+        <p class="n small" style="margin:0 0 2.67mm">Four steps, no distributed transaction:
+          <span class="mono">reserve &rarr; authorise &rarr; commit &rarr; confirm</span>, each with its own
+          compensation. Stock is held <i>before</i> money is taken &mdash; a declined card costs a released
+          hold; the reverse ordering costs a refund and an apology. There is no
+          <span class="mono">PAID &rarr; PAYMENT_FAILED</span> transition: the worst outcome is unreachable,
+          not just unlikely.</p>
+        <p class="n small" style="margin:0 0 2.67mm"><s>Not proven: the saga is not crash-safe.</s>
+          <b class="teal">Closed.</b> <span class="mono">SagaRecovery</span> scans for orders stuck in
+          <span class="mono">PAID</span>/<span class="mono">STOCK_RESERVED</span> and finishes them &mdash;
+          demonstrated with a real <span class="mono">kill -9</span> mid-checkout. A state scan, not an
+          outbox (ADR 0018, amends 0015).</p>
+        <p class="n small" style="margin:0"><b class="teal">Live in k3d, 16 Sep 2026:</b> a full checkout
+          through the ingress-internal saga &mdash; reserve, authorise, commit, confirm &mdash; ended
+          <span class="mono">CONFIRMED</span> with a correct dispatch window. Talks to the real
+          payment-service over HTTP; the stub gateway was retired at Phase 4.</p>
+      </div>
+      <div class="panel teal">
+        <div class="label teal">Phase 5 &middot; aquatics-advisor (Python / FastAPI)</div>
+        <p class="n small" style="margin:0 0 2.67mm">The rules change weekly, the code rarely &mdash; so
+          thresholds live in <span class="mono">rules.yaml</span> with a plain-English justification per
+          line, quoted back to the customer. It owns no species data of its own; a local copy would drift
+          the first time somebody corrects a pH range.</p>
+        <p class="n small" style="margin:0">Three verdicts, not two: a refusal (no overlap), a caution
+          (narrow overlap), or a pass. <b>Not proven:</b> nothing tests the HTTP layer or the catalog
+          client, and the image is <span class="mono">python:3.11-slim</span> rather than distroless.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">All four services above are built, tested locally, and have now run together in k3d as the <span class="mono">commerce</span> profile.<span class="r">8</span></div>
+</div>
+
+<!-- ------------------------------------------------------------ k3d run -->
+<div class="page">
+  <h2><span class="bar"></span>The first k3d run — three defects only a real build could find</h2>
+  <p class="muted" style="max-width:340mm">Every prior session verified this repository against a local
+    Postgres, never in a cluster, because no session before 16 September 2026 had a Docker daemon. This one
+    did. <span class="teal">core</span> came up first, <span class="teal">commerce</span> followed the same
+    day, and a live checkout ran the full saga in-cluster. None of the three defects below was caught by
+    review &mdash; each only exists once the actual container runs.</p>
+
+  <div class="cols">
+    <div class="col">
+      <div class="panel orange">
+        <div class="label orange">1. Every pod &middot; CreateContainerConfigError</div>
+        <p class="n" style="margin:0">All six deployments sat in <span class="mono">CreateContainerConfigError</span>
+          on <span class="mono">core</span>'s first rollout. The distroless <span class="mono">:nonroot</span>
+          images set <span class="mono">USER nonroot</span> &mdash; a name, not a UID &mdash; and
+          <span class="mono">runAsNonRoot: true</span> alone gives kubelet nothing numeric to verify without
+          running the container first. <b class="teal">Fix:</b> <span class="mono">runAsUser: 65532</span> /
+          <span class="mono">runAsGroup: 65532</span> added explicitly to every pod securityContext.</p>
+      </div>
+      <div class="panel orange">
+        <div class="label orange">2. inventory-service &middot; toolchain drift</div>
+        <p class="n" style="margin:0"><span class="mono">go.mod</span> declared <span class="mono">go
+          1.25.0</span>; the Dockerfile pinned <span class="mono">golang:1.24-bookworm</span>.
+          <span class="mono">go mod download</span> refused to run. <b class="teal">Fix:</b> bumped to
+          <span class="mono">golang:1.25-bookworm</span>.</p>
+      </div>
+      <div class="panel orange">
+        <div class="label orange">3. payment-service &middot; toolchain drift</div>
+        <p class="n" style="margin:0"><span class="mono">Cargo.lock</span> resolved <span class="mono">home
+          v0.5.12</span>, whose manifest needs Cargo's <span class="mono">edition2024</span> feature
+          (stabilized in Rust 1.85) &mdash; stricter than the crate's own declared
+          <span class="mono">rust-version = "1.82"</span>, which the pinned
+          <span class="mono">rust:1.82-bookworm</span> builder matched but could not satisfy.
+          <b class="teal">Fix:</b> bumped to <span class="mono">rust:1.90-bookworm</span>.</p>
+      </div>
+      <p class="dim small" style="margin:4mm 0 0"><span class="mono">mvn</span>/<span class="mono">go
+        build</span>/<span class="mono">cargo build</span> run locally against whatever toolchain happens
+        to be installed, so neither toolchain defect had ever been visible before &mdash; only
+        <span class="mono">docker build</span> against the pinned image actually enforces the version a
+        Dockerfile claims.</p>
+    </div>
+    <div class="col">
+      <div class="panel teal">
+        <div class="label teal">A live checkout, end to end, in-cluster</div>
+        <p class="n small" style="margin:0 0 2.67mm">From a temporary <span class="mono">curlimages/curl</span>
+          pod inside the namespace (order-service is intentionally not exposed through the public ingress):
+          create a cart, add a line (<span class="mono">INV-AMA-01</span>, Amano Shrimp &times; 2), checkout
+          with an <span class="mono">Idempotency-Key</span>.</p>
         <table>
-          <tr><td class="k">Phase 2</td><td class="n">inventory-service (Go) with tank-scoped, TTL-bounded, idempotent reservations. Ends with a hold that expires and releases stock on its own.</td></tr>
-          <tr><td class="k">Phase 3</td><td class="n">order-service and payment-service: the checkout saga with every compensation path demonstrable on demand.</td></tr>
-          <tr><td class="k">Phase 4</td><td class="n">GitOps repo, Argo CD app-of-apps, CI pipelines. Ends when a merged PR deploys with no manual kubectl.</td></tr>
-          <tr><td class="k">Phase 5</td><td class="n">Observability: OTel across all services, RED plus business metrics, burn-rate alerts on the checkout SLO, runbooks. Secrets handling replaced.</td></tr>
-          <tr><td class="k">Phase 6</td><td class="n">aquatics-advisor, notification-service, staff-portal on WildFly — the slow-start WAR exercise.</td></tr>
-          <tr><td class="k">Phase 7</td><td class="n">Terraform modules and the full local-to-cloud document; NetworkPolicies, PDBs, HPA on a custom RPS metric.</td></tr>
+          <tr><td class="k">Result</td><td class="n mono">201</td></tr>
+          <tr><td class="k">Order state</td><td class="n mono">CONFIRMED</td></tr>
+          <tr><td class="k">Reservation</td><td class="n mono">COMMITTED</td></tr>
+          <tr><td class="k">Dispatch</td><td class="n mono">2026-09-21T14:00+05:30</td></tr>
+          <tr><td class="k">Audit trail</td><td class="n mono">PENDING &rarr; STOCK_RESERVED &rarr; PAID &rarr; CONFIRMED</td></tr>
+        </table>
+        <p class="n small" style="margin:2.67mm 0 0">Dispatch window is the next Monday after the Thursday
+          cut-off &mdash; the shipping-calendar rule working against a real clock. inventory-service
+          correctly reflected the sale afterward (<span class="mono">held: 0</span>,
+          <span class="mono">onHand</span> reduced).</p>
+      </div>
+      <div class="panel">
+        <div class="label">Per-pod, measured (kubectl top, both profiles settled)</div>
+        <table>
+          <tr><td class="k">catalog-service</td><td class="n">JVM, 640Mi limit</td><td class="teal mono">215 MiB</td></tr>
+          <tr><td class="k">order-service</td><td class="n">JVM</td><td class="teal mono">224 MiB</td></tr>
+          <tr><td class="k">storefront</td><td class="n">Node</td><td class="teal mono">30 MiB</td></tr>
+          <tr><td class="k">aquatics-advisor</td><td class="n">Python/FastAPI</td><td class="teal mono">43 MiB</td></tr>
+          <tr><td class="k">inventory-service</td><td class="n">Go</td><td class="teal mono">3 MiB</td></tr>
+          <tr><td class="k">payment-service</td><td class="n">Rust</td><td class="teal mono">2 MiB</td></tr>
+          <tr><td class="k">postgres</td><td class="n"></td><td class="teal mono">59 MiB</td></tr>
+          <tr><td class="k">ingress-nginx</td><td class="n"></td><td class="teal mono">184&ndash;189 MiB</td></tr>
+        </table>
+        <p class="dim small" style="margin:2.67mm 0 0">215/224 MiB are the first honest in-cgroup JVM
+          numbers in this repository (<span class="mono">MaxRAMPercentage=70</span>, not host RAM). The two
+          smallest figures reflect idle pods during a smoke test, not sustained load.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Total node memory: core 1.32 GiB &rarr; core+commerce 2.05 GiB &mdash; commerce added ~730 MiB against a ~1.6 GB additive estimate.<span class="r">9</span></div>
+</div>
+
+<!-- ---------------------------------------------------------- status -->
+<div class="page">
+  <h2><span class="bar"></span>Status &mdash; what's built, what's measured, what's next</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="panel teal">
+        <div class="label teal">Built and exercised in k3d (16 Sep 2026)</div>
+        <ul>
+          <li><b>All six services</b> &mdash; catalog-service, storefront, inventory-service, order-service,
+            payment-service, aquatics-advisor &mdash; up together as the <span class="mono">core</span> +
+            <span class="mono">commerce</span> profiles.</li>
+          <li><b>Probes, resource limits, ingress/TLS</b> exercised in-cluster for the first time.</li>
+          <li><b>A live checkout saga</b> across three services, ending <span class="mono">CONFIRMED</span>
+            with a committed reservation and a correct dispatch window.</li>
+          <li><b>Crash recovery</b> (<span class="mono">SagaRecovery</span>, ADR 0018) demonstrated with a
+            real <span class="mono">kill -9</span> &mdash; outside k3d, not yet reproduced against the
+            in-cluster saga specifically.</li>
+          <li><b>payment-service</b>'s constraints, trigger and race-losing update now covered by 18 gated
+            database tests.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="label">Next phases</div>
+        <table>
+          <tr><td class="k">Phase 6</td><td class="n">Observability (OTel, RED + business metrics, burn-rate alerts) and the delivery layer (Argo CD app-of-apps across dev/uat/prod). order-service gets the outbox that makes its saga crash-safe in the outbox sense; NATS arrives to carry retries.</td></tr>
+          <tr><td class="k">Phase 7</td><td class="n">The full local-to-cloud document (only the Phase 1 extract exists today) and remaining Terraform hardening: NetworkPolicies, PDBs, HPA on a custom RPS metric.</td></tr>
+          <tr><td class="k">full-app</td><td class="n">notification-service and staff-portal (WildFly) &mdash; planned, no code or manifests exist yet.</td></tr>
         </table>
       </div>
+    </div>
+    <div class="col">
       <div class="panel orange">
         <div class="label orange">Known limitations, stated plainly</div>
         <ul>
           <li>Secrets are plaintext in Git at Phase 1.</li>
-          <li>Single-node cluster: PDBs, anti-affinity and drains are untested.</li>
-          <li>No environment has run concurrently with another.</li>
-          <li>The AWS layer has never been applied; module wiring is proven, AWS behaviour is not.</li>
-          <li>Every performance figure in this document set is a placeholder until measured.</li>
+          <li>Single-node cluster: PDBs, anti-affinity, node drains and multi-AZ behaviour cannot be exercised.</li>
+          <li>Only one environment is materialised at a time; none has run concurrently with another.</li>
+          <li>The AWS layer has never been applied. Module wiring is proven; AWS behaviour is not.</li>
+          <li>No sustained-load figures exist, in or out of k3d &mdash; only single-threaded smoke-test numbers.</li>
+          <li><span class="mono">full-app</span>, <span class="mono">platform</span> and
+            <span class="mono">observability</span> profiles have never run. <span class="mono">observability</span>'s
+            ~9.2 GB estimate does not fit the current, unconfigured 7.4 GB WSL2 ceiling at all &mdash; only
+            the intended 11 GB one, which requires a <span class="mono">.wslconfig</span> change not yet made.</li>
+          <li>payment-service's acquirer is a stub: no partial captures, chargebacks, 3-D Secure or settlement.</li>
+          <li>aquatics-advisor has no HTTP-layer or catalog-client tests, and ships on
+            <span class="mono">python:3.11-slim</span> rather than distroless.</li>
+          <li>The advisor's predation rule uses adult length, not mouth gape (the catalog does not record
+            it) &mdash; stated in <span class="mono">rules.yaml</span> itself.</li>
         </ul>
       </div>
     </div>
   </div>
-  <div class="foot">Each phase ends in something demonstrable. Phase 1 ends with a fish in a
-    browser.<span class="r">8</span></div>
+  <div class="foot">Each phase ends in something demonstrable. Phase 1 ended with a fish in a
+    browser; this k3d run ends with a saga in a cluster.<span class="r">10</span></div>
 </div>
 
 </body></html>

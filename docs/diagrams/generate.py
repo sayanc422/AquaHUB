@@ -134,9 +134,9 @@ def legend(x, y, items):
 def architecture():
     W, H = 1480, 1120
     s = head(W, H, "AquaShop system architecture")
-    s += title_bar("AquaShop System Architecture", "Target design. Phase 1 components are built; the rest are planned.",
+    s += title_bar("AquaShop System Architecture", "Target design. Six services are built and have run together in k3d; two remain planned.",
                    "System")
-    s += legend(1000, 44, [("BUILT — PHASE 1", TEAL), ("PLANNED", DIM)])
+    s += legend(1000, 44, [("BUILT, RUNS IN k3d", TEAL), ("PLANNED", DIM)])
 
     # --- edge panel
     s += panel(48, 120, 880, 250, "Edge and client", BLUE)
@@ -176,10 +176,10 @@ def architecture():
     s += panel(48, 558, 1384, 214, "Domain services — one database each, no shared schema", ORANGE)
     svc = [
         ("catalog-service", "Java 21 / Spring Boot", "products, species profiles", TEAL, False),
-        ("order-service", "Java 21 / Spring Boot", "checkout saga, order state", DIM, True),
-        ("inventory-service", "Go", "tank stock, TTL holds", DIM, True),
-        ("payment-service", "Rust / Axum", "auth, capture, ledger", DIM, True),
-        ("aquatics-advisor", "Python / FastAPI", "compatibility rules", DIM, True),
+        ("order-service", "Java 21 / Spring Boot", "checkout saga, order state", TEAL, False),
+        ("inventory-service", "Go", "tank stock, TTL holds", TEAL, False),
+        ("payment-service", "Rust / Axum", "auth, capture, ledger", TEAL, False),
+        ("aquatics-advisor", "Python / FastAPI", "compatibility rules", TEAL, False),
         ("notification-service", "Go", "email + webhook fan-out", DIM, True),
         ("staff-portal", "JSP / WildFly", "back-office", DIM, True),
     ]
@@ -225,36 +225,40 @@ def architecture():
 
 # ---------------------------------------------------------------- diagram 2 --
 def deployment():
-    W, H = 1480, 1060
+    W, H = 1480, 1160
     s = head(W, H, "AquaShop deployment topology")
     s += title_bar("Deployment Topology", "What actually runs, beside what it is designed to become.", "Deployment")
     s += legend(1010, 44, [("RUNS LOCALLY", TEAL), ("VALIDATED, NOT APPLIED", ORANGE)])
 
     # ---- left: local
-    s += panel(48, 120, 760, 800, "Actually running — Windows 11 / WSL2 / 16 GB", TEAL)
+    s += panel(48, 120, 760, 880, "Actually running — Windows 11 / WSL2 / 16 GB", TEAL)
     s += box(72, 158, 712, 56, "Windows 11 host", "16 GB total, ~4-5 GB reserved for Windows",
              accent=LINE, title_color=MUTED)
-    s += box(88, 230, 680, 56, "WSL2 (Ubuntu)", "~11 GB usable, capped in .wslconfig",
+    s += box(88, 230, 680, 56, "WSL2 (Ubuntu)", "7.4 GB usable, unconfigured — design targets 11 GB via .wslconfig, not yet applied",
              accent=LINE, title_color=MUTED)
     s += box(104, 302, 648, 56, "Docker Engine (native in WSL, not Docker Desktop)", "one container per k3d node",
              accent=LINE, title_color=MUTED)
-    s += box(120, 374, 616, 512, "k3d node container — k3s v1.30", "traefik: disabled | servicelb: disabled | metrics-server: disabled",
+    s += box(120, 374, 616, 606, "k3d node container — k3s v1.30", "traefik: disabled | servicelb: disabled | metrics-server: disabled",
              accent=TEAL, title_color=TEAL, fill=PANEL)
 
     s += text(144, 446, "NAMESPACE  ingress-nginx", 11.5, MUTED, weight="700", mono=True)
     s += box(144, 458, 568, 50, "ingress-nginx controller", "hostPort 80/443 -> 127.0.0.1", accent=LINE, title_color=INK)
     s += text(144, 542, "NAMESPACE  cert-manager", 11.5, MUTED, weight="700", mono=True)
     s += box(144, 554, 568, 50, "cert-manager + CA issuer", "self-signed root, in-cluster leaf", accent=LINE, title_color=INK)
-    s += text(144, 638, "NAMESPACE  aquashop-dev   (ResourceQuota 3Gi requests / 4Gi limits)", 11.5, MUTED, weight="700", mono=True)
-    s += box(144, 650, 274, 70, "storefront", "req 96Mi / lim 160Mi", accent=TEAL, title_color=TEAL)
-    s += box(438, 650, 274, 70, "catalog-service", "req 448Mi / lim 640Mi", accent=TEAL, title_color=TEAL)
-    s += box(144, 736, 568, 70, "postgres (StatefulSet, PVC on local-path)",
-             "req 192Mi / lim 320Mi — databases: catalog", accent=BLUE, title_color=BLUE)
-    s += text(144, 842, "Namespaces uat and prod exist as Argo CD Applications but sit at replicas: 0.", 11.5, ORANGE)
-    s += text(144, 862, "One environment is materialised at a time. None of them has ever run concurrently.", 11.5, ORANGE)
+    s += text(144, 638, "NAMESPACE  aquashop-dev   (ResourceQuota 3Gi requests / 4Gi limits) — core + commerce, both run", 11.5, MUTED, weight="700", mono=True)
+    s += box(144, 650, 180, 70, "storefront", "Node, 30 MiB measured", accent=TEAL, title_color=TEAL)
+    s += box(338, 650, 180, 70, "catalog-service", "JVM, 215 MiB measured", accent=TEAL, title_color=TEAL)
+    s += box(532, 650, 180, 70, "order-service", "JVM, 224 MiB measured", accent=TEAL, title_color=TEAL)
+    s += box(144, 734, 180, 70, "inventory-service", "Go, 3 MiB measured", accent=TEAL, title_color=TEAL)
+    s += box(338, 734, 180, 70, "payment-service", "Rust, 2 MiB measured", accent=TEAL, title_color=TEAL)
+    s += box(532, 734, 180, 70, "aquatics-advisor", "Python, 43 MiB measured", accent=TEAL, title_color=TEAL)
+    s += box(144, 818, 568, 70, "postgres (StatefulSet, PVC on local-path)",
+             "59 MiB measured — databases: catalog, orders, inventory, payments, advisor", accent=BLUE, title_color=BLUE)
+    s += text(144, 924, "Namespaces uat and prod exist as Argo CD Applications but sit at replicas: 0.", 11.5, ORANGE)
+    s += text(144, 944, "One environment is materialised at a time. None of them has ever run concurrently.", 11.5, ORANGE)
 
     # ---- right: AWS target
-    s += panel(832, 120, 600, 800, "Target design — AWS (never applied)", ORANGE)
+    s += panel(832, 120, 600, 880, "Target design — AWS (never applied)", ORANGE)
     s += box(856, 158, 552, 52, "Route 53  ->  ACM  ->  ALB (internet-facing)",
              "public subnets, 2 AZs", accent=ORANGE, title_color=ORANGE)
     s += box(856, 226, 552, 52, "AWS Load Balancer Controller", "reads Ingress, writes target groups (IP mode)",
@@ -287,8 +291,8 @@ def deployment():
     s += arrow(790, 500, 826, 500, ORANGE, "arrowO", dashed=True)
     s += text(808, 478, "maps to", 10, ORANGE, anchor="middle")
 
-    s += footer(W, 960,
-                "Total measured footprint: fill in from `kubectl top pods -A` after the first bootstrap. Estimate for this profile: ~2.6 GB.",
+    s += footer(W, 1060,
+                "Measured (kubectl top node, 16 Sep 2026): core alone 1.32 GiB, core + commerce together 2.05 GiB.",
                 "AquaShop  /  docs/diagrams/deployment.svg")
     s += "</svg>"
     (OUT / "deployment.svg").write_text(s, encoding="utf-8")

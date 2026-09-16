@@ -78,5 +78,5 @@ Phases 6–7 are planned. See [docs/context_summary.md](docs/context_summary.md)
 - [CLAUDE.md](CLAUDE.md) — how this project works, for any Claude Code session that opens it
 - [docs/getting-started-locally.md](docs/getting-started-locally.md) — what to install and run to get this up on your own machine
 - [docs/context_summary.md](docs/context_summary.md) — current state, decisions taken, open items
-- [docs/architecture.pdf](docs/architecture.pdf) — styled and printable, with diagrams. **Phase 1 content only**; `architecture.md` is ahead of it
+- [docs/architecture.pdf](docs/architecture.pdf) — styled and printable, with diagrams, current through the first k3d run (16 Sep 2026)
 - [docs/diagrams/](docs/diagrams/) — SVG diagrams and the script that generates them

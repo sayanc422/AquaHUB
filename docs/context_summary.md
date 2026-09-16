@@ -101,9 +101,9 @@ aquashop/
                             inventory, order, payment, advisor, ingress
   docs/
     architecture.md         full prose architecture
-    architecture.pdf        8 pages, styled, diagrams embedded  (PHASE 1 CONTENT ONLY)
-    architecture-pdf.html   source of the PDF                   (PHASE 1 CONTENT ONLY)
-    adr/                    seventeen decision records, each with its cost
+    architecture.pdf        13 pages, styled, diagrams embedded, current through the k3d run
+    architecture-pdf.html   source of the PDF
+    adr/                    nineteen decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
     runbooks/               five runbooks; four reproduced locally, one written from docs
     diagrams/generate.py    generates all three SVGs
@@ -167,15 +167,27 @@ aquashop/
    Applying it means editing `C:\Users\<you>\.wslconfig` on the Windows side and `wsl --shutdown`
    (which ends any WSL session, including this one) — not done, flagged for the user rather than
    done unilaterally.
-2. **The PDF is now the next item.** `docs/architecture-pdf.html` and `docs/architecture.pdf` still
-   carry Phase 1 content only and need regenerating from the now-current `architecture.md`. No PDF
-   renderer (wkhtmltopdf, weasyprint, a headless Chromium) is installed on this machine — that's a
-   tooling decision for the user before proceeding, not something to install unasked.
-3. **`full-app`, `platform` and `observability` profiles have never run in k3d.** No manifests exist
-   yet for `platform` (Argo CD) or `observability`; `full-app` (notification, staff-portal/WildFly)
-   has manifests but hasn't been exercised. `full-app` and `platform` remain budgets, not
-   measurements, but look like they'd fit even the unconfigured 7.4 GB ceiling; `observability` does
-   not, until the `.wslconfig` override above is applied.
+2. ~~The PDF is now the next item.~~ **Done** (16 September 2026). `docs/architecture-pdf.html`
+   was rewritten to mirror the current `architecture.md` (13 pages, up from 8, all Phase 1-only
+   content replaced) and rendered to `docs/architecture.pdf` via a headless-Chromium/puppeteer
+   script (not installed system-wide; run from a scratch Node checkout since this machine has no
+   native Linux Node.js on PATH, only a Windows interop shim that can't build native modules from a
+   WSL path). **A pre-existing template bug surfaced doing this:** the page CSS's `@page` height
+   (`297mm`) had never matched its own `.page` div height (`386mm`) — a mismatch that predates this
+   session and was invisible because no PDF had ever actually been rendered from this file before.
+   Fixed by aligning `@page` to `386mm` and letting long sections flow onto a second physical page
+   (`min-height` instead of a hard-clipped fixed height) rather than silently corrupting content.
+   The diagrams (`docs/diagrams/generate.py`) were also updated: `order-service`, `inventory-service`,
+   `payment-service` and `aquatics-advisor` now show as built/run-in-k3d rather than planned, and the
+   deployment diagram lists all six running services with their measured footprints instead of just
+   `core`.
+3. **`full-app`, `platform` and `observability` profiles have never run in k3d.** No manifests
+   *or code* exist yet for any of `platform` (Argo CD), `observability`, or `full-app`
+   (notification-service, staff-portal) — this corrects an earlier version of this document, which
+   claimed `full-app` "has manifests but hasn't been exercised"; there is nothing under
+   `services/` or `platform-repo/dev/` for either service. All three are unbuilt, not just
+   unexercised. `observability`'s ~9.2 GB estimate would not fit the unconfigured 7.4 GB WSL2
+   ceiling even once built, until the `.wslconfig` override above is applied.
 4. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
    `docs/architecture.md` §9 and on page 7 of the PDF).
 
