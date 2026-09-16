@@ -36,6 +36,8 @@ checkout (16 September 2026).
 | Pod securityContext for distroless images | `runAsUser: 65532` / `runAsGroup: 65532` set explicitly alongside `runAsNonRoot: true`, on all six deployments | The distroless `:nonroot` images set `USER nonroot` — a name, not a UID — and kubelet's `runAsNonRoot` check cannot verify a name without running the container first, so every pod sat in `CreateContainerConfigError` on the first real k3d run. Cost: couples every deployment manifest to the specific numeric UID Google's distroless images happen to use (65532); a future base-image change that picks a different UID breaks this silently until the next `kubectl apply`. |
 | `inventory-service` builder image | `golang:1.25-bookworm`, not `1.24` | `go.mod` already declared `go 1.25.0`; the Dockerfile had drifted behind it and `docker build` was the first thing to notice, because `go test`/`go build` on a dev machine use whatever local toolchain is installed. Cost: none beyond the version bump — no first-party code changed. |
 | `payment-service` builder image | `rust:1.90-bookworm`, not `1.82` (the crate's own declared `rust-version`) | `Cargo.lock` resolved a transitive dependency (`home v0.5.12`) whose manifest requires Cargo's `edition2024` feature, stabilized in 1.85 — a stricter floor than the crate's own MSRV, and invisible until the pinned builder image actually ran `cargo build`. Cost: the builder image is now well ahead of the declared `rust-version = "1.82"`, so that field is aspirational for anyone building outside Docker with an older local toolchain; nothing first-party changed. |
+| `notification-service` trigger mechanism | `order-service` pushes to it via a fire-and-forget HTTP call, not a NATS subscription ([ADR 0020](adr/0020-push-not-subscribe-until-phase-6.md)) | NATS doesn't exist until Phase 6, and `full-app` shouldn't have to wait for it. Cost: an ingest-call failure loses that notification permanently — no retry above the HTTP layer — accepted because ADR 0011 already established notification lag/loss as non-load-bearing by design. |
+| `staff-portal` scope | Read-only in v1: order lookup, stock levels, catalog browse. No stock-adjustment, species-editing, or claims workflow | None of catalog-service, inventory-service or order-service expose a write/admin endpoint today, and no DOA-claims model exists anywhere in the codebase — building those would be new backend feature work on three other services, not "stand up the full-app profile". Cost: `architecture.md`'s "staff manage tanks, stock, claims" actor description stays aspirational, stated as a known gap rather than silently under-delivered. |
 
 ## Memory profiles
 
@@ -43,15 +45,17 @@ checkout (16 September 2026).
 |---|---|---|
 | `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | **1.32 GiB measured** (`kubectl top node`, 16 Sep 2026) |
 | `commerce` | order, inventory, payment, advisor, NATS | **~2.0 GiB measured** (`core` + commerce services; NATS not deployed yet — see below) |
-| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate) |
+| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate; **built and unit-tested, three live k3d attempts all blocked before a pod deployed** — see Open items) |
 | `platform` | Argo CD | ~6.1 GB (estimate) |
 | `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB (estimate) |
 
 `core` and `commerce` are both measured now, not estimated, and both came in well under budget:
 `core` at 1.32 GiB against a ~2.6 GB estimate, `commerce` at **~2.05 GiB total** (node went from
 1322 MiB to 2052 MiB adding all four commerce services) against a ~4.2 GB *additive* estimate — i.e.
-commerce added ~730 MiB, not ~1.6 GB. `full-app`, `platform` and `observability` remain budgets: only
-`core` and `commerce` have run in k3d so far, and `commerce`'s figure does not include NATS, which
+commerce added ~730 MiB, not ~1.6 GB. `full-app`'s figure remains an unmeasured estimate — not
+because it's unbuilt (it isn't, as of 16 September 2026) but because no attempt to run it in k3d has
+gotten far enough to import an image, let alone schedule a pod; `platform` and `observability` remain
+budgets with no code behind them at all. `commerce`'s figure does not include NATS, which
 `bootstrap.sh --profile commerce` does not deploy (planned for Phase 6).
 
 Per-pod, from `kubectl top pods -A` after both profiles were up and settled:
@@ -97,13 +101,15 @@ aquashop/
     order-service/          Java 21, Spring Boot 3.3, checkout saga, dispatch calendar
     payment-service/        Rust 1.94, Axum, sqlx, append-only ledger, distroless/cc
     aquatics-advisor/       Python 3.11, FastAPI, rules in YAML, no database
+    notification-service/   Go, embedded migrations, distroless static -- built, not yet run in k3d
+    staff-portal/           JSP/Jakarta EE on WildFly, read-only -- built, not yet run in k3d
   platform-repo/dev/        namespace + quota + limitrange, postgres, catalog, storefront,
-                            inventory, order, payment, advisor, ingress
+                            inventory, order, payment, advisor, notification, staff-portal, ingress
   docs/
     architecture.md         full prose architecture
     architecture.pdf        13 pages, styled, diagrams embedded, current through the k3d run
     architecture-pdf.html   source of the PDF
-    adr/                    nineteen decision records, each with its cost
+    adr/                    twenty decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
     runbooks/               five runbooks; four reproduced locally, one written from docs
     diagrams/generate.py    generates all three SVGs
@@ -181,13 +187,30 @@ aquashop/
    `payment-service` and `aquatics-advisor` now show as built/run-in-k3d rather than planned, and the
    deployment diagram lists all six running services with their measured footprints instead of just
    `core`.
-3. **`full-app`, `platform` and `observability` profiles have never run in k3d.** No manifests
-   *or code* exist yet for any of `platform` (Argo CD), `observability`, or `full-app`
-   (notification-service, staff-portal) — this corrects an earlier version of this document, which
-   claimed `full-app` "has manifests but hasn't been exercised"; there is nothing under
-   `services/` or `platform-repo/dev/` for either service. All three are unbuilt, not just
-   unexercised. `observability`'s ~9.2 GB estimate would not fit the unconfigured 7.4 GB WSL2
-   ceiling even once built, until the `.wslconfig` override above is applied.
+3. ~~`full-app`, `platform` and `observability` profiles have never run in k3d. No manifests or code
+   exist yet for any of them.~~ **`full-app` built, 16 September 2026 — live run still blocked,
+   `platform`/`observability` still unbuilt.** `notification-service` (Go — see ADR 0020 for its
+   push-not-subscribe mechanism) and `staff-portal` (JSP/Jakarta EE on WildFly, read-only) now exist:
+   code, tests, Dockerfiles, `platform-repo/dev/{notification,staff-portal}/` manifests,
+   `bootstrap.sh --profile full-app`. Both build clean in Docker and pass their own tests;
+   `staff-portal` was additionally run standalone (clean boot ~2.8 s — not the "slow-start" the
+   architecture doc's framing implied, one data point not a load test — correct non-root UID 1000,
+   working stdout logging, graceful degradation with backends down; two real defects found and fixed
+   this way: a root-owned `standalone/` directory that crashed first boot, and deploying as
+   `staff-portal.war` instead of `ROOT.war` silently breaking every `/healthz`-shaped k8s probe path).
+   `order-service` got a small, additive `NotificationClient` (default no-op — `core`/`commerce`
+   unaffected) firing on `CONFIRMED` and on `DispatchWatcher`'s dispatch-window-open scan.
+   **`full-app` itself has not run successfully in k3d.** Three live attempts, none got past
+   deploying a single pod: two failed the memory preflight (`need_mb=6000`) outright, one passed it
+   and immediately hit an unrelated transient Helm/GitHub network timeout fetching ingress-nginx's
+   chart. A bare k3d cluster with nothing deployed yet already leaves only ~5.9–6.4 GB free out of
+   the unconfigured 7.4 GB ceiling — right at that gate, landing on both sides of it across attempts.
+   `full-app`'s real memory requirement is therefore still unmeasured, not just unmet: the run never
+   got far enough to import an image. User's call, not resolved this session: apply the `.wslconfig`
+   override (ends the current WSL session) and retry with real headroom, or leave it as a stated,
+   unresolved limitation. `platform` (Argo CD) and `observability` remain fully unbuilt — no
+   manifests or code for either. `observability`'s ~9.2 GB estimate would not fit the unconfigured
+   7.4 GB WSL2 ceiling even once built, until the `.wslconfig` override is applied.
 4. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
    `docs/architecture.md` §9 and on page 7 of the PDF).
 

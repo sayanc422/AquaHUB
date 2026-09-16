@@ -80,4 +80,22 @@ public class OrderConfig {
                 .requestFactory(bounded)
                 .build();
     }
+
+    /**
+     * Deliberately the shortest timeout in this service. Nothing waits on this
+     * call — see {@code NotificationClient}'s javadoc — so there is no reason
+     * to hold a thread open for it any longer than it takes to fail fast.
+     */
+    @Bean
+    public RestClient notificationRestClient(
+            @Value("${notification.base-url:http://notification-service:8085}") String baseUrl,
+            @Value("${notification.connect-timeout-ms:400}") int connectTimeoutMs,
+            @Value("${notification.read-timeout-ms:800}") int readTimeoutMs) {
+
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));
+        factory.setReadTimeout(Duration.ofMillis(readTimeoutMs));
+
+        return RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
+    }
 }

@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: staff-portal-config
+  namespace: aquashop-dev
+data:
+  CATALOG_BASE_URL: http://catalog-service:8080
+  INVENTORY_BASE_URL: http://inventory-service:8081
+  ORDER_BASE_URL: http://order-service:8082
+  # Matches storefront's own upstream-call discipline (CATALOG_TIMEOUT_MS).
+  BACKEND_TIMEOUT_MS: "2000"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: staff-portal
+  namespace: aquashop-dev
+  labels:
+    app: staff-portal
+spec:
+  selector:
+    app: staff-portal
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: staff-portal
+  namespace: aquashop-dev
+  labels:
+    app: staff-portal
+    aquashop.io/profile: full-app
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: staff-portal
+  template:
+    metadata:
+      labels:
+        app: staff-portal
+    spec:
+      # WildFly's own graceful shutdown (SIGTERM triggers a managed
+      # undeploy/stop, not an abrupt kill) needs real time, more than the
+      # 20s Go gets and more even than the other JVM services -- unmeasured,
+      # so this is a starting point to correct after the first real
+      # `kubectl delete pod` is timed, not a verified figure.
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        # The official quay.io/wildfly/wildfly image already runs as a
+        # non-root `jboss` user -- confirmed by actually running `id` inside
+        # the pulled image while building this, not assumed the way the
+        # distroless UID mistake happened the first time around. See the
+        # Dockerfile for how the image itself is built.
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: staff-portal
+          image: aquashop/staff-portal:PLACEHOLDER   # CI rewrites this to the git SHA
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef: { name: staff-portal-config }
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Not read-only: WildFly writes to its own standalone/data,
+            # standalone/tmp and standalone/log directories at runtime even
+            # with the console-logging change in the Dockerfile (deployment
+            # marker files, in particular). This is a real, stated
+            # difference from every distroless Go/Rust service in this
+            # platform, not an oversight -- a full application server
+            # needs a writable install directory the way a static binary
+            # does not.
+            readOnlyRootFilesystem: false
+            capabilities: { drop: ["ALL"] }
+          # WildFly's boot time in this container is not yet measured.
+          # catalog-service's JVM boot needed 30 x 5s = 150s; a full
+          # JBoss/WildFly install with a WAR deployment scan is likely to
+          # need at least that much, plausibly more, so this starts
+          # deliberately generous. Correct it after the first real
+          # `kubectl rollout status`, the same way catalog's own figure
+          # was corrected after its first real boot.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 40
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            # First estimate, not a measurement -- nothing in this platform
+            # has ever run a full application server before. A bare WildFly
+            # standalone instance is documented (upstream) as wanting on the
+            # order of a few hundred MiB at idle before this WAR's own
+            # heap; 512Mi requested / 1Gi limit is a starting point to
+            # correct after `kubectl top pods` sees it actually run, exactly
+            # like every other memory figure in this repository was
+            # corrected after first being measured.
+            requests: { cpu: 100m, memory: 512Mi }
+            limits: { memory: 1Gi }

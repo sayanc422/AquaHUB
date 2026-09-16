@@ -5,6 +5,99 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## `notification-service` and `staff-portal` built; `full-app` still won't run
+
+A prior version of `context_summary.md` claimed the `full-app` profile "has manifests but hasn't
+been exercised." That was false — there was no code, no Dockerfile, no manifest, and no `full-app`
+case in `bootstrap.sh` anywhere in the repository or its git history. This entry is what actually
+building both services, and then trying to run them, found.
+
+### What was built
+
+`notification-service` (Go), modeled on `inventory-service`'s layout: an embedded migrator with a
+Postgres advisory lock, a `notify` database/role, one `outbox` table keyed `(order_id, event_type,
+target_type)` so a retried push can't double-send, a `POST /v1/events` ingest endpoint, and a
+background sender goroutine with stub `LoggingEmailSender`/`LoggingWebhookSender` implementations —
+"email and webhook targets — external, stubbed locally" was already the documented design, matching
+`payment-service`'s own stubbed-acquirer honesty.
+
+`staff-portal` (JSP/Jakarta EE on WildFly), plain Servlets and JSP with no Spring, deliberately
+different from every other service in the repository. Read-only in v1 against order-service,
+inventory-service and catalog-service's existing APIs — no stock-adjustment, species-editing, or
+claims workflow, because none of catalog-service or inventory-service expose a write endpoint today,
+and a DOA-claims model doesn't exist anywhere in the codebase. `architecture.md`'s "staff manage
+tanks, stock, claims" actor line describes a target, not what's buildable against the current API
+surface, and the README says so rather than silently under-delivering.
+
+`order-service` got a small, additive `NotificationClient` (`http`/`noop`, default `noop` — so
+`core` and `commerce` are byte-for-byte unaffected), firing on checkout `CONFIRMED` and on
+`DispatchWatcher`'s scan. The mechanism is a direct fire-and-forget HTTP push, not a NATS
+subscription — NATS doesn't exist until Phase 6, and `full-app` shouldn't have to wait for it
+([ADR 0020](docs/adr/0020-push-not-subscribe-until-phase-6.md)). An ingest-call failure loses that
+notification permanently; this is accepted because [ADR 0011](docs/adr/0011-derived-state-over-stored-state.md)
+already established notification lag/loss as non-load-bearing by design — the dispatch watcher's own
+javadoc names "the notification service" as exactly what it's not load-bearing *for*.
+
+### The defect only running it found
+
+`DispatchWatcher.scan()` was `@Transactional`. The plan sketched calling a second `@Transactional`
+method from inside it to separate the DB write from the notification push — which is the exact
+self-invocation bug this repository already documented once (`CLAUDE.md`: "Spring's `@Transactional`
+does nothing when the method is called from inside the same class"). Fixed the same way `CheckoutSaga`
+was: the DB write moved into `OrderSteps.markDispatchable`, a genuinely separate bean, and
+`DispatchWatcher.scan()` (no longer `@Transactional` itself) fires notifications only after that call
+returns — so a notification-service outage can never affect the gauge write it exists to react to.
+
+Running `staff-portal`'s container standalone (not just building it) found two more, neither visible
+from reading the Dockerfile:
+- The build-time `embed-server` step that configures console/stdout logging left `standalone/data`
+  and friends root-owned; first real boot crashed with "Directory .../standalone/data/content is not
+  writable." Fixed with `chown -R jboss:jboss` on the whole `standalone/` tree.
+- Deploying the WAR as `staff-portal.war` put the app under `/staff-portal/*`, silently breaking
+  every `/healthz`-shaped k8s probe path this platform uses. Fixed by deploying as `ROOT.war`.
+
+One assumption corrected by measurement: `architecture.md` called this "the slow-start WAR exercise."
+A clean boot took **~2.8 s** — one data point, not a load test, but not slow either.
+
+### Measured
+
+- `mvn test` in `order-service`: 55 tests, 0 failures, 18 skipped (DB-gated, unchanged baseline) —
+  the new `NotificationClient` wiring introduced no regression.
+- `go build`/`go vet`/`go test` in `notification-service`: pass. Unit test for outbox target
+  selection; integration test gated behind `NOTIFICATION_TEST_DSN`, same skip-if-unset pattern as
+  `inventory-service`.
+- `mvn test` in `staff-portal`: 3/3 pass.
+- Every one of the three new/changed images (`order-service`, `notification-service`,
+  `staff-portal`) builds clean in Docker, standalone and in the merged tree together.
+- `staff-portal`'s base image, confirmed by actually pulling and inspecting it rather than assumed:
+  `quay.io/wildfly/wildfly:33.0.1.Final-jdk21`, non-root UID/GID **1000/1000** (`jboss`).
+
+### Still unproven — the headline number
+
+**`full-app` has not run successfully in k3d.** Three attempts, none got past deploying a single
+pod:
+
+1. Cluster created, then `--metrics` (metrics-server) failed on a transient network timeout fetching
+   its Helm chart from a GitHub release asset.
+2. Retried without `--metrics`; failed the memory preflight (`need_mb=6000`) outright — 5946 MB
+   available against a 6000 MB gate.
+3. After a clean `--destroy` and retry, passed the preflight (6387 MB available) and got as far as
+   creating the k3d cluster, then failed on the *same* transient Helm/GitHub timeout, this time
+   fetching ingress-nginx's chart.
+
+A bare k3d cluster with **nothing deployed yet** — no images imported, no pods scheduled — already
+leaves only ~5.9–6.4 GB free out of this machine's unconfigured 7.4 GB WSL2 ceiling (see the memory
+budget entry two sessions back), landing on both sides of the profile's own conservative preflight
+gate across repeated attempts within the same few minutes. `full-app`'s real memory requirement is
+therefore not just unmeasured, it's *unmeasurable* with the current setup — the run never got far
+enough to import an image, let alone find out what notification-service or staff-portal actually
+cost resident. Closing the gap means applying the `.wslconfig` override `docs/getting-started-locally.md`
+has always specified (`memory=11GB`), which requires `wsl --shutdown` and ends whatever WSL session
+is running at the time — not done this session, left as the user's call rather than forced through
+by lowering the safety gate that exists precisely to prevent an OOM-killer debugging session.
+
+---
+
 ## Both `core` and `commerce` ran in k3d for the first time
 
 Every prior session verified this repository against a local Postgres, never in a cluster, because

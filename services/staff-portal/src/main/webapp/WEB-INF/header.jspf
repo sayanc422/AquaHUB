@@ -1,0 +1,29 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AquaShop Staff Portal</title>
+  <style>
+    body { font-family: Verdana, Geneva, sans-serif; font-size: 13px; margin: 0; background: #f4f4f0; color: #222; }
+    header { background: #1d4d3a; color: #fff; padding: 10px 16px; }
+    header a { color: #d8f0e2; text-decoration: none; margin-right: 14px; font-weight: bold; }
+    header a:hover { text-decoration: underline; }
+    main { padding: 16px; max-width: 900px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+    th { background: #e6e6de; }
+    .error { background: #fbdada; border: 1px solid #d33; padding: 8px; margin: 10px 0; }
+    .muted { color: #777; }
+    form.lookup input[type=text] { padding: 4px; }
+    form.lookup input[type=submit] { padding: 4px 10px; }
+  </style>
+</head>
+<body>
+<header>
+  <a href="<%= request.getContextPath() %>/">Home</a>
+  <a href="<%= request.getContextPath() %>/orders">Orders</a>
+  <a href="<%= request.getContextPath() %>/stock">Stock</a>
+  <a href="<%= request.getContextPath() %>/catalog">Catalog</a>
+</header>
+<main>

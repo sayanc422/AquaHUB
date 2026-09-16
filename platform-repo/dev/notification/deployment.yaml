@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-config
+  namespace: aquashop-dev
+data:
+  DB_HOST: postgres.aquashop-dev.svc.cluster.local
+  DB_NAME: notify
+  DB_USER: notify
+  DB_POOL_MAX: "8"
+  SHUTDOWN_GRACE: 15s
+  # Unset: the webhook target is skipped and only the email row is queued.
+  # See services/notification-service/README.md -- both senders are stubs
+  # ("logging" not "sending") until there is a real external target to point
+  # at, per architecture.md's actor list ("email and webhook targets --
+  # external, stubbed locally").
+  # NOTIFICATION_WEBHOOK_URL: ""
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: aquashop-dev
+  labels:
+    app: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - name: http
+      port: 8085
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: aquashop-dev
+  labels:
+    app: notification-service
+    aquashop.io/profile: full-app
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8085"
+    spec:
+      # Same reasoning as inventory-service: a Go binary with a small pool
+      # drains fast, and this must still exceed SHUTDOWN_GRACE (15s).
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        # The distroless nonroot image's USER is a name, not a UID, so
+        # runAsNonRoot alone cannot be verified by kubelet without this.
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: notification-service
+          image: aquashop/notification-service:PLACEHOLDER   # CI rewrites this to the git SHA
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8085
+          envFrom:
+            - configMapRef: { name: notification-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: postgres-credentials, key: NOTIFY_PASSWORD }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          # No writable mount at all -- same as inventory-service: a static Go
+          # binary needs no /tmp. Migrations run at startup, carried by the
+          # startup probe.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 20
+            periodSeconds: 3
+          # Liveness answers from the process alone -- a database outage must
+          # not restart every healthy pod in a loop.
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            # Unmeasured -- no session has run this in k3d yet. Sized like
+            # inventory-service (the closest comparable: a small Go service
+            # with a Postgres pool and a background goroutine) as a starting
+            # estimate to be corrected after the first real boot.
+            requests: { cpu: 50m, memory: 64Mi }
+            # No CPU limit, for the same reason as every other service here: a
+            # limit is CFS throttling, which reads as latency spikes on an
+            # idle node. The namespace ResourceQuota deliberately has no
+            # limits.cpu either.
+            limits: { memory: 96Mi }

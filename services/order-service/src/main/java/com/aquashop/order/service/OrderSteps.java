@@ -11,7 +11,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -202,6 +204,29 @@ public class OrderSteps {
         events.save(new OrderEvent(orderId, from, OrderState.CONFIRMED,
                 (order.hasLivestock() ? "livestock" : "dry goods") + " dispatch window " + dispatch));
         log.info("order confirmed order={} dispatchAt={}", order.getReference(), dispatch);
+    }
+
+    /**
+     * Finds every {@code CONFIRMED} order whose dispatch window has just
+     * opened and marks the gauge. Returns what it found so {@link
+     * DispatchWatcher} can react to each one <em>after</em> this transaction
+     * has committed — see that class's javadoc for why the split matters.
+     */
+    @Transactional
+    public List<CustomerOrder> markDispatchable(Instant now) {
+        List<CustomerOrder> due = orders.findNewlyDispatchable(OrderState.CONFIRMED, now);
+        for (CustomerOrder order : due) {
+            order.setDispatchableSeenAt(now);
+            // Not a state change: the order stays CONFIRMED. Shippability is
+            // derived, so there is no transition to record -- only the fact
+            // that the window has opened.
+            events.save(new OrderEvent(order.getId(), OrderState.CONFIRMED, OrderState.CONFIRMED,
+                    "dispatch window open"));
+        }
+        if (!due.isEmpty()) {
+            orders.saveAll(due);
+        }
+        return due;
     }
 
     @Transactional

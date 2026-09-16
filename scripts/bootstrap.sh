@@ -3,13 +3,17 @@
 #
 #   ./scripts/bootstrap.sh                      bring up the `core` profile
 #   ./scripts/bootstrap.sh --profile commerce   core + inventory-service
+#   ./scripts/bootstrap.sh --profile full-app   commerce + notification-service + staff-portal
 #   ./scripts/bootstrap.sh --metrics            also install metrics-server
 #   ./scripts/bootstrap.sh --destroy            delete the cluster
 #
 # Profiles exist because 11 GB does not hold the whole platform at once. They
 # are not a workaround bolted on at the end: they are why NATS replaced Kafka,
 # why one Postgres instance hosts a database per service, and why only one
-# environment is ever materialised.
+# environment is ever materialised. That 11 GB is the *target*, reached only
+# by the `.wslconfig` memory override in docs/getting-started-locally.md; an
+# unconfigured WSL2 default measures ~7.4 GB instead (see docs/architecture.md
+# §8) -- full-app is the profile most likely to feel that gap first.
 #
 # Everything here runs against k3d. Nothing in this script touches AWS.
 set -Eeuo pipefail
@@ -31,14 +35,29 @@ preflight() {
   for t in docker k3d kubectl helm; do need "$t"; done
   docker info >/dev/null 2>&1 || die "docker engine is not reachable from this shell"
 
-  local avail_mb
+  local avail_mb total_mb
   avail_mb=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
-  log "available memory: ${avail_mb} MB"
+  total_mb=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+  log "available memory: ${avail_mb} MB (WSL2 total: ${total_mb} MB)"
   # The core profile needs ~2.6 GB. Below 4 GB free, the OOM killer will start
   # taking pods and you will debug Kubernetes for an hour to find a WSL problem.
   local need_mb=4000
   [[ "$PROFILE" == commerce ]] && need_mb=5000   # order-service is a second JVM
+  # full-app adds a Go service (small) and a full WildFly install (not small,
+  # and unmeasured in k3d as of this writing) on top of everything commerce
+  # already needs.
+  [[ "$PROFILE" == full-app ]] && need_mb=6000
   (( avail_mb > need_mb )) || die "need >${need_mb} MB free for the ${PROFILE} profile; close something or raise WSL memory in .wslconfig"
+
+  # This is a real ceiling, not a suggestion: an unconfigured WSL2 default is
+  # ~7.4 GB total (measured, not the 11 GB docs/getting-started-locally.md's
+  # .wslconfig override targets), and full-app's own estimate leaves little
+  # headroom inside that. See docs/architecture.md §8.
+  if [[ "$PROFILE" == full-app && "$total_mb" -lt 8000 ]]; then
+    warn "WSL2 total memory is ${total_mb} MB -- the .wslconfig override this profile was" \
+         "designed against (11 GB) does not appear to be applied. full-app may not fit;" \
+         "if it doesn't, that's docs/getting-started-locally.md#memory, not a bug here."
+  fi
 
   if pgrep -f 'docker build' >/dev/null 2>&1; then
     warn "a docker build is running. Builds and the full profile do not co-exist in 11 GB."
@@ -107,7 +126,7 @@ build_images() {
   local images=(aquashop/catalog-service:dev aquashop/storefront:dev)
   docker build -t aquashop/catalog-service:dev "${ROOT}/services/catalog-service"
   docker build -t aquashop/storefront:dev      "${ROOT}/services/storefront"
-  if [[ "$PROFILE" == commerce ]]; then
+  if [[ "$PROFILE" == commerce || "$PROFILE" == full-app ]]; then
     docker build -t aquashop/inventory-service:dev "${ROOT}/services/inventory-service"
     docker build -t aquashop/order-service:dev     "${ROOT}/services/order-service"
     # Slowest build in the repository by a wide margin. Cargo's dependency
@@ -116,6 +135,13 @@ build_images() {
     docker build -t aquashop/aquatics-advisor:dev  "${ROOT}/services/aquatics-advisor"
     images+=(aquashop/inventory-service:dev aquashop/order-service:dev \
              aquashop/payment-service:dev aquashop/aquatics-advisor:dev)
+  fi
+  if [[ "$PROFILE" == full-app ]]; then
+    docker build -t aquashop/notification-service:dev "${ROOT}/services/notification-service"
+    # The slowest build in the repository now: a Maven build stage plus a
+    # WildFly base image, neither of which is small.
+    docker build -t aquashop/staff-portal:dev         "${ROOT}/services/staff-portal"
+    images+=(aquashop/notification-service:dev aquashop/staff-portal:dev)
   fi
   log "importing images into k3d (no registry round-trip)"
   k3d image import -c "${CLUSTER}" "${images[@]}"
@@ -135,7 +161,7 @@ deploy() {
   log "waiting for storefront"
   kubectl -n "$NS" rollout status deployment/storefront --timeout=120s
 
-  if [[ "$PROFILE" == commerce ]]; then
+  if [[ "$PROFILE" == commerce || "$PROFILE" == full-app ]]; then
     # Applied with -f, not through the dev kustomization, because the
     # kustomization is the `core` profile. At Phase 4 Argo CD owns profiles and
     # both of these lines go away.
@@ -159,6 +185,28 @@ deploy() {
     kubectl -n "$NS" rollout status deployment/aquatics-advisor --timeout=120s
     log "waiting for order-service"
     kubectl -n "$NS" rollout status deployment/order-service --timeout=300s
+  fi
+
+  if [[ "$PROFILE" == full-app ]]; then
+    log "applying full-app profile (notification, staff-portal)"
+    kubectl apply -f "${ROOT}/platform-repo/dev/notification/"
+    kubectl apply -f "${ROOT}/platform-repo/dev/staff-portal/"
+    kubectl -n "$NS" set image deployment/notification-service notification-service=aquashop/notification-service:dev
+    kubectl -n "$NS" set image deployment/staff-portal         staff-portal=aquashop/staff-portal:dev
+    log "waiting for notification-service"
+    kubectl -n "$NS" rollout status deployment/notification-service --timeout=120s
+    # This is what flips order-service's default-noop NotificationClient on.
+    # commerce alone never sets these, so a commerce-only cluster is byte-for-
+    # byte unaffected by any of this profile's code.
+    kubectl -n "$NS" set env deployment/order-service \
+      NOTIFICATION_CLIENT=http NOTIFICATION_BASE_URL=http://notification-service:8085
+    log "waiting for order-service to pick up the notification client (triggers a rollout)"
+    kubectl -n "$NS" rollout status deployment/order-service --timeout=180s
+    # WildFly's boot time is unmeasured in this repository as of this writing --
+    # generous on purpose, matching catalog-service's own "slow JVM boot"
+    # precedent (30 x 5s). Correct this after the first real measurement.
+    log "waiting for staff-portal (WildFly boot -- this is the slow one)"
+    kubectl -n "$NS" rollout status deployment/staff-portal --timeout=600s
   fi
 }
 
@@ -192,8 +240,8 @@ main() {
     esac
   done
   case "$PROFILE" in
-    core|commerce) ;;
-    *) die "unknown profile: ${PROFILE} (core|commerce)" ;;
+    core|commerce|full-app) ;;
+    *) die "unknown profile: ${PROFILE} (core|commerce|full-app)" ;;
   esac
   log "profile: ${PROFILE}"
 

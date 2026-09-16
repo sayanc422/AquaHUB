@@ -7,6 +7,7 @@ import com.aquashop.order.domain.Cart;
 import com.aquashop.order.domain.CustomerOrder;
 import com.aquashop.order.domain.OrderLine;
 import com.aquashop.order.domain.OrderState;
+import com.aquashop.order.notification.NotificationClient;
 import com.aquashop.order.payment.PaymentDeclinedException;
 import com.aquashop.order.payment.PaymentGateway;
 import com.aquashop.order.payment.PaymentUnresolvedException;
@@ -67,15 +68,18 @@ public class CheckoutSaga {
     private final CartRepository carts;
     private final OrderSteps steps;
     private final PaymentGateway payments;
+    private final NotificationClient notifications;
     private final int holdTtlSeconds;
     private final String currency;
 
     public CheckoutSaga(CartRepository carts, OrderSteps steps, PaymentGateway payments,
+                        NotificationClient notifications,
                         @Value("${orders.hold-ttl-seconds:900}") int holdTtlSeconds,
                         @Value("${orders.currency:INR}") String currency) {
         this.carts = carts;
         this.steps = steps;
         this.payments = payments;
+        this.notifications = notifications;
         this.holdTtlSeconds = holdTtlSeconds;
         this.currency = currency;
     }
@@ -168,6 +172,8 @@ public class CheckoutSaga {
 
         // ---- step 4: when does it ship -----------------------------------
         steps.confirm(orderId);
+        notifications.notify(NotificationClient.Event.ORDER_CONFIRMED,
+                orderId.toString(), order.getReference(), order.getEmail());
         return steps.load(orderId);
     }
 
@@ -212,6 +218,8 @@ public class CheckoutSaga {
             return steps.load(orderId);
         }
         steps.confirm(orderId);
+        notifications.notify(NotificationClient.Event.ORDER_CONFIRMED,
+                orderId.toString(), order.getReference(), order.getEmail());
         return steps.load(orderId);
     }
 

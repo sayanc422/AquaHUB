@@ -65,6 +65,18 @@ payment:
     # would let anyone who can place an order choose whether to pay.
     outcome: ${PAYMENT_STUB_OUTCOME:APPROVE}
 
+notification:
+  # `noop` (default) keeps core and commerce exactly as they behaved before
+  # this client existed; `http` is only ever set by the full-app profile,
+  # which is the only profile that deploys notification-service. See ADR 0020
+  # for why this is a push, not a NATS subscription, until Phase 6.
+  client: ${NOTIFICATION_CLIENT:noop}
+  base-url: ${NOTIFICATION_BASE_URL:http://notification-service:8085}
+  # Deliberately the shortest timeouts in this service: nothing waits on this
+  # call, so there is no reason to hold a thread open for it.
+  connect-timeout-ms: ${NOTIFICATION_CONNECT_TIMEOUT_MS:400}
+  read-timeout-ms: ${NOTIFICATION_READ_TIMEOUT_MS:800}
+
 management:
   endpoints:
     web:

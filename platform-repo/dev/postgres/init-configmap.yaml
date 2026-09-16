@@ -34,3 +34,8 @@ data:
     CREATE DATABASE payments OWNER payments;
     REVOKE ALL ON DATABASE payments FROM PUBLIC;
     GRANT CONNECT ON DATABASE payments TO payments;
+
+    CREATE ROLE notify LOGIN PASSWORD 'devnotify';
+    CREATE DATABASE notify OWNER notify;
+    REVOKE ALL ON DATABASE notify FROM PUBLIC;
+    GRANT CONNECT ON DATABASE notify TO notify;

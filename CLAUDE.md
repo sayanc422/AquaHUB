@@ -12,13 +12,22 @@ Read [docs/context_summary.md](docs/context_summary.md) for current state and op
 ## The one thing to know first
 
 **Both `core` and `commerce` have now run in k3d** (16 September 2026) — the first session with a
-Docker daemon. All six services are up, a live checkout ran the full saga (reserve → authorise →
+Docker daemon. All six original services are up, a live checkout ran the full saga (reserve → authorise →
 commit → confirm) through `order-service`, `inventory-service` and `payment-service` together,
 in-cluster, and ended `CONFIRMED` with a committed reservation and a correct dispatch window. Running
-it found three real defects, all fixed: see below. `full-app`, `platform` and `observability`
-profiles have not run — those are the new first open item. Measured figures for `core` and
+it found three real defects, all fixed: see below. Measured figures for `core` and
 `commerce` are in [docs/context_summary.md](docs/context_summary.md); the whole platform (all six
 services plus k3s, ingress, cert-manager) came in at ~2 GiB, well under every prior estimate.
+
+`notification-service` and `staff-portal` are now built too — code, tests, Dockerfiles, manifests,
+`bootstrap.sh --profile full-app` — same session. Each builds and passes its own tests standalone
+(staff-portal additionally verified by actually running the container: clean boot in ~2.8 s,
+correct non-root UID, working stdout logging). But **`full-app` has not run successfully in k3d**:
+three attempts were blocked before a single pod deployed, by a memory preflight sitting right at the
+edge of this machine's unconfigured ~7.4 GB WSL2 ceiling and, once, a transient Helm/GitHub network
+timeout. `full-app`'s real memory requirement is therefore still unknown — the run never got far
+enough to import an image. `platform` and `observability` haven't run either, and have no manifests
+yet.
 
 ## How this project works
 
@@ -53,6 +62,8 @@ why the advisor's rules are a YAML file. Match that when you add code.
 | `services/payment-service` | Rust / Axum. Append-only ledger, enforced by a Postgres trigger |
 | `services/aquatics-advisor` | Python / FastAPI. Whether a tank will work. No database of its own |
 | `services/storefront` | TypeScript / Fastify. Server-rendered |
+| `services/notification-service` | Go. Email/webhook fan-out, pushed to by `order-service` (ADR 0020). Built, not yet run in k3d |
+| `services/staff-portal` | JSP / Jakarta EE on WildFly. Read-only back-office. Built, not yet run in k3d |
 | `platform-repo/dev/` | The dev overlay. Moves to its own repository at Phase 4 |
 | `docs/adr/` | One record per expensive-to-reverse decision |
 | `docs/runbooks/` | One page per failure, written to be followed at 02:00 |
@@ -97,9 +108,11 @@ why the advisor's rules are a YAML file. Match that when you add code.
 ```bash
 cd services/catalog-service  && mvn test     # needs Docker (Testcontainers) — has never run
 cd services/inventory-service && go test ./...
-cd services/order-service    && mvn test     # 55 tests
+cd services/order-service    && mvn test     # 55 tests, 18 skipped (DB-gated)
 cd services/payment-service  && cargo test   # 18 DB tests need PAYMENTS_TEST_DSN
 cd services/aquatics-advisor && python3 -m pytest    # 35 tests
+cd services/notification-service && go test ./...   # integration test needs NOTIFICATION_TEST_DSN
+cd services/staff-portal     && mvn test     # 3 tests, no DB (reads only, no DB of its own)
 ```
 
 `CatalogApiTest` requires Testcontainers and has never been executed in any session. Its numbers
@@ -110,11 +123,18 @@ of exactly that gap.
 ## Known gaps, in order of how much they matter
 
 1. `full-app`, `platform` and `observability` profiles have never run in k3d — their memory figures
-   remain estimates. `core` and `commerce` are both measured now.
+   remain estimates. `core` and `commerce` are both measured now. `full-app` has manifests and
+   passing builds/tests but three live attempts were blocked by the unconfigured WSL2 memory
+   ceiling before deploying a single pod — see `docs/context_summary.md`.
 2. Secrets are plaintext in Git. External Secrets + SOPS is planned, not built.
-3. Observability and Argo CD are budgeted profiles with no manifests behind them.
+3. Observability and Argo CD (`platform`) are budgeted profiles with no manifests behind them yet;
+   `full-app` now has manifests (notification-service, staff-portal) but is unverified in k3d.
 4. Photograph licensing: every row in `services/storefront/public/species/CREDITS.md` says
    `unverified`, and must not reach a commercial launch that way.
+5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
+   none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist
+   anywhere in the codebase — `architecture.md`'s "staff manage tanks, stock, claims" actor
+   description is a target, not what's built.
 
 ## Git
 

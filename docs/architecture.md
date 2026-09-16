@@ -9,12 +9,17 @@
 > labels because AWS is the target platform. Every place the local setup diverges from that target
 > is named in [Local to cloud](#10-local-to-cloud), not glossed over.
 
-**Status:** Phases 1–5 complete in code. All six services build, boot and have been exercised against a real Postgres — a live checkout, a
+**Status:** Phases 1–5 complete in code. All six original services build, boot and have been exercised against a real Postgres — a live checkout, a
 live compensation that returns stock when a card is declined, a live checkout that survives a payment
 provider which takes the money and never answers, and a live tank check that refuses a fish and says
 why. **The `core` and `commerce` profiles have now both run in k3d** (16 September 2026): all six
-services up, a live checkout ran the full saga in-cluster. `full-app`, `platform` and `observability`
-remain unexercised. Phases 6–7 are planned. See [context_summary.md](context_summary.md) for
+services up, a live checkout ran the full saga in-cluster. `notification-service` and `staff-portal`
+are now also built — code, tests, Dockerfiles, k8s manifests, a `bootstrap.sh --profile full-app` —
+and each builds and passes its own tests standalone, but **`full-app` itself has not yet run
+successfully in k3d**: this machine's unconfigured WSL2 memory ceiling (§8) leaves only ~5.9–6.4 GB
+free before any pod is even scheduled, which sits right at (and, on three attempts, sometimes under)
+the profile's own conservative preflight gate. `platform` and `observability` remain unexercised too.
+Phases 6–7 are planned. See [context_summary.md](context_summary.md) for
 current state, [RELEASE-NOTES.md](../RELEASE-NOTES.md) for what has been measured, and
 [adr/](adr/) for the decisions and their costs.
 
@@ -60,8 +65,8 @@ Eight services. Every language choice is justified by a property of the service.
 | `inventory-service` | Go | Tank stock, reservations, holds, TTL expiry | Many small concurrent hold/expire operations; ~40 MB footprint suits a service that scales on request count |
 | `payment-service` | Rust / Axum | Authorisation, capture, refund, ledger | Smallest surface, strictest correctness: exhaustive compile-time matching over ledger transitions, non-wrapping integer arithmetic. **Cost: slowest CI build of the eight, smallest maintainer pool.** |
 | `aquatics-advisor` | Python / FastAPI | Compatibility rules, water-parameter matching, recommendations | Rules and numeric range logic that changes often and is edited by domain people |
-| `notification-service` | Go | Email and webhook fan-out from domain events | I/O-bound fan-out with per-target retry |
-| `staff-portal` | JSP / Jakarta EE on WildFly | Internal back-office | Deliberate. Containerising a slow-starting WAR — startup probes, stdout logging, ConfigMap config, graceful shutdown — is the exercise that connects this project to production work |
+| `notification-service` | Go | Email and webhook fan-out from domain events | I/O-bound fan-out with per-target retry. **Built, unit-tested, builds clean in Docker; not yet run in k3d** (full-app profile — see §8). |
+| `staff-portal` | JSP / Jakarta EE on WildFly | Internal back-office, read-only in v1 | Deliberate. Containerising a WAR — startup probes, stdout logging, ConfigMap config, graceful shutdown — is the exercise that connects this project to production work. **Built, unit-tested, verified by running standalone** (boot took ~2.8 s, not the "slow-start" the framing implied — one data point, not a load test); **not yet run in k3d** (full-app profile — see §8). |
 | `storefront` | TypeScript / Fastify | Customer UI and backend-for-frontend | A BFF is I/O aggregation; server-rendered HTML avoids a client state layer that proves nothing |
 
 **Data ownership:** one logical database per service. No cross-service joins, no shared schema, no
@@ -306,7 +311,7 @@ databases, and why only one environment is materialised at a time.
 |---|---|---|
 | `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | **1.32 GiB measured** (`kubectl top node`, 16 Sep 2026) |
 | `commerce` | order, inventory, payment, advisor, NATS | **~2.05 GiB measured** (NATS not deployed yet; see below) |
-| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate) |
+| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate; **build/test verified, live run blocked** — see below) |
 | `platform` | Argo CD | ~6.1 GB (estimate) |
 | `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB (estimate) |
 
@@ -315,12 +320,25 @@ databases, and why only one environment is materialised at a time.
 *additive* estimate (commerce actually added ~730 MiB). `commerce`'s figure does not include NATS,
 which `bootstrap.sh --profile commerce` does not yet deploy.
 
-**The remaining three profiles are still estimates, and the `observability` estimate (~9.2 GB) does
+**`full-app` (16 September 2026): built, not measured — three live attempts, all blocked before a
+single pod deployed.** `notification-service` and `staff-portal` both build clean in Docker and pass
+their own tests (staff-portal additionally verified standalone: clean boot in ~2.8 s, correct
+non-root UID, working stdout logging, graceful behaviour with backends down). But
+`./scripts/bootstrap.sh --profile full-app` failed the memory preflight twice and only got past it
+once, immediately hitting a second, unrelated problem: a transient network timeout fetching a Helm
+chart from a GitHub release asset. A bare k3d cluster with **nothing deployed yet** — no pods, no
+images imported — already leaves only ~5.9–6.4 GB free out of the unconfigured 7.4 GB ceiling,
+right at the profile's own conservative 6 GB preflight gate; across three attempts, available memory
+landed on both sides of that line. This means `full-app`'s real requirement can't yet be measured at
+all — the run never got far enough to import an image, let alone schedule a pod.
+
+**The remaining profiles are still estimates, and `observability`'s (~9.2 GB) does
 not fit inside the current, unconfigured 7.4 GB WSL2 ceiling at all**, even alone, let alone
-alongside `core`. It does fit the intended 11 GB one. That gap was not visible while every figure in
-this table was an unmeasured estimate; it is visible now that `core` and `commerce` are real
-numbers. Closing it means applying the `.wslconfig` override above and `wsl --shutdown`, which has
-not been done on this machine yet.
+alongside `core`. It does fit the intended 11 GB one, and `full-app`'s repeated near-miss above
+suggests even `full-app` wants that headroom, not just `observability`. That gap was not visible
+while every figure in this table was an unmeasured estimate; it is visible now that `core` and
+`commerce` are real numbers and `full-app` has been attempted for real. Closing it means applying
+the `.wslconfig` override above and `wsl --shutdown`, which has not been done on this machine yet.
 
 `bootstrap.sh` enforces the rule that follows from the ceiling: never build images while the
 observability profile is up. ~1.8 GB of headroom does not survive a Maven or Cargo build.
@@ -406,12 +424,17 @@ State these plainly. They make the project more credible, not less.
 - Performance numbers under sustained load exist nowhere, in or out of k3d — only single-threaded,
   short smoke-test figures. `core` and `commerce` are now measured (not estimated) for idle/light
   load; `full-app`, `platform` and `observability` remain estimates.
-- All six services have now run in k3d (`core` + `commerce` profiles, 16 September 2026): probes,
-  resource limits, ingress/TLS, and a live checkout across `order-service`, `inventory-service` and
-  `payment-service` together, all exercised in-cluster. Not yet exercised in-cluster: sustained
+- All six original services have now run in k3d (`core` + `commerce` profiles, 16 September 2026):
+  probes, resource limits, ingress/TLS, and a live checkout across `order-service`,
+  `inventory-service` and `payment-service` together, all exercised in-cluster. `notification-service`
+  and `staff-portal` are built and independently tested but have **not** run in k3d — three attempts
+  at `./scripts/bootstrap.sh --profile full-app` were blocked before a single pod deployed, by a
+  memory preflight sitting right at the unconfigured 7.4 GB WSL2 ceiling's edge and, once, a
+  transient Helm/GitHub network timeout. Not yet exercised in-cluster: sustained
   load, a `kill -9` mid-checkout against the in-cluster saga specifically, and the
   `full-app`/`platform`/`observability` profiles — `observability`'s ~9.2 GB estimate does not fit
-  the current, unconfigured 7.4 GB WSL2 ceiling (§8); the `.wslconfig` override that targets 11 GB
+  the current, unconfigured 7.4 GB WSL2 ceiling (§8) at all, and `full-app`'s repeated near-misses
+  suggest it wants that same headroom; the `.wslconfig` override that targets 11 GB
   has not been applied on this machine.
 - ~~The checkout saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in
   `PAID` or `STOCK_RESERVED` and finishes them; demonstrated with a real `kill -9` mid-checkout. A
