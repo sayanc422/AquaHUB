@@ -69,6 +69,15 @@ public class SpeciesProfile {
     @Column(name = "plant_safe", nullable = false)
     private boolean plantSafe;
 
+    /**
+     * What kind of animal this is. A fact about the species, so it lives here
+     * rather than in whichever consumer needs it first -- aquatics-advisor uses
+     * it to stop counting a shrimp's length as though it were a fish's bioload.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "animal_group", nullable = false, length = 16)
+    private AnimalGroup animalGroup;
+
     @Column(name = "care_notes", columnDefinition = "text")
     private String careNotes;
 
@@ -76,6 +85,7 @@ public class SpeciesProfile {
 
     public enum Temperament { PEACEFUL, SEMI_AGGRESSIVE, AGGRESSIVE, TERRITORIAL }
     public enum CareLevel { BEGINNER, INTERMEDIATE, ADVANCED }
+    public enum AnimalGroup { FISH, SHRIMP, SNAIL }
 
     public Long getId() { return id; }
     public String getScientificName() { return scientificName; }
@@ -93,5 +103,6 @@ public class SpeciesProfile {
     public CareLevel getCareLevel() { return careLevel; }
     public String getDiet() { return diet; }
     public boolean isPlantSafe() { return plantSafe; }
+    public AnimalGroup getAnimalGroup() { return animalGroup; }
     public String getCareNotes() { return careNotes; }
 }

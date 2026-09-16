@@ -105,6 +105,10 @@ class Species:
     temperament: str
     diet: str
     plant_safe: bool
+    # FISH, SHRIMP or SNAIL. Defaulted so that a caller constructing a Species
+    # by hand -- every test written before invertebrates existed -- still gets
+    # the behaviour it was written against.
+    animal_group: str = "FISH"
 
     def __str__(self) -> str:
         return self.common_name

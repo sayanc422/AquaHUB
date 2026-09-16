@@ -54,6 +54,27 @@ stocking:
   hard_refusal_fraction: 1.0
   caution_fraction: 0.85
 
+  # How much of a fish's bioload an animal of the same length actually carries.
+  #
+  # `litres_per_adult_cm` is a proxy for waste production, and length only
+  # tracks waste for fish. Ten cherry shrimp are 30 cm of animal and almost no
+  # bioload: they eat biofilm, and a shrimp colony is routinely added to a tank
+  # that is already fully stocked. Counting them as 30 cm of fish made the
+  # advisor refuse four scarlet badis and ten cherry shrimp in a 40 L planted
+  # nano, which is one of the best-known good tanks in the hobby.
+  #
+  # These are deliberately not zero. A hundred shrimp in a 20 L tank IS a
+  # stocking problem, and a rule that cannot say so is no better than the one
+  # it replaced.
+  bioload_factor:
+    FISH: 1.0
+    SHRIMP: 0.1
+    SNAIL: 0.15
+  why_bioload_factor: >-
+    Shrimp and snails are counted at a fraction of a fish of the same length.
+    They eat biofilm and waste rather than prepared food, and they do not add
+    to the filter's work the way a fish of that size would.
+
 behaviour:
   # A fish that fits in another fish's mouth will eventually be in it. The
   # ratio is adult size to adult size, and it is only applied to species that

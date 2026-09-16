@@ -27,3 +27,4 @@ because the reasoning that was true at the time is the useful part.
 | [0016](0016-rules-are-data-not-code.md) | Stocking rules are data, owned by the person who keeps fish | Accepted |
 | [0017](0017-advisor-owns-no-data.md) | The advisor owns rules and no data | Accepted |
 | [0018](0018-recover-from-state-not-from-an-outbox.md) | Recover the saga from its own state, not from an outbox — amends 0015 | Accepted |
+| [0019](0019-the-catalogue-says-what-kind-of-animal-it-is.md) | The catalogue says what kind of animal it is — extends 0017 | Accepted |

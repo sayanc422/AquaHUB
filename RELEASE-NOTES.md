@@ -5,6 +5,90 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## The taxonomy is settled, and a shrimp is not a fish
+
+The category tree was built in V3 from guesswork about what the shop would sell. The owner has now
+said what it sells, so V7 replaces the guesses — and this is meant to be the last structural change
+to the tree before there are orders pointing at it. Re-parenting a category once customers have
+bookmarked it is a redirect problem; doing it now is an `UPDATE`.
+
+### What changed in the tree
+
+| | Before | After |
+|---|---|---|
+| Cichlids | African, South American, Central American, Dwarf — all siblings | African, **American** (→ Central, South), Dwarf |
+| African lakes | Malawi, Tanganyika, Victoria, *West African* | Malawi, Tanganyika, Victoria, **Other African** |
+| Catfish | "Catfish & Loaches" → Corydoras, Plecos, Loaches | **Catfish** → **Small** (Corydoras, Otocinclus, Bristlenose) / **Large** (Large Plecos, Synodontis) |
+| Loaches | under Catfish | own section under Freshwater |
+| Badidae | did not exist | new section under Freshwater |
+| Invertebrates | Live Fishes → Freshwater → "Shrimp & Snails" | **root section**, → Shrimp / Snails |
+
+The American level is the fix for a tree in which one entry contained its own siblings. The catfish
+split is the owner's ask and **a written rule rather than a judgement call**: small is an adult
+under 15 cm that is happy in 150 L or less. There is a test that reads the care profiles and fails
+if a catfish is filed on the wrong page — because a customer with a 60 L tank browses that page and
+trusts it.
+
+Loaches moved because a loach is Cobitidae, not Siluriformes. They shared a page because they share
+a shelf, which is not the same thing.
+
+Stock: 55 products, up from 36. Nineteen new — three Badidae, three corydoras, four large catfish,
+four shrimp colours, five snails.
+
+### Measured
+
+Nothing new. Every service in this repository has still only ever run against a local Postgres.
+
+### The defect this found
+
+Putting invertebrates in the catalogue broke `aquatics-advisor`, and it took running the two
+together to see it. The advisor refused **four scarlet badis and ten cherry shrimp in a 40 L planted
+nano** — one of the best-known good tanks in the hobby. It sizes a stocking by summing adult length,
+and the ten shrimp were 79% of the bioload it was refusing on.
+
+V8 adds `animal_group` (FISH / SHRIMP / SNAIL) to the species profile and the advisor applies a
+bioload factor per group. Ownership follows [ADR 0017](docs/adr/0017-advisor-owns-no-data.md): the
+catalogue owns what kind of animal it is, `rules.yaml` owns what to do about it.
+[ADR 0019](docs/adr/0019-the-catalogue-says-what-kind-of-animal-it-is.md) has the reasoning and the
+cost.
+
+The factors are not zero. A hundred shrimp in a 20 L tank is still refused — a rule that can never
+say no about invertebrates is no better than the one it replaced.
+
+**Deployment order matters and nothing enforces it.** The advisor tolerates a missing `animalGroup`
+by treating the animal as a fish, so an advisor deployed before catalogue V8 gives the old, wrong
+answer about shrimp rather than failing. Deploy the catalogue first.
+
+### Two older defects, found the same way
+
+- Three Malawi products had an `image_key` pointing at a photograph that was never delivered, so
+  those pages rendered a broken image instead of the placeholder. V5 made a promise for six fish
+  when three files arrived.
+- Two ACTIVE sections had no products and no children — tiles on the shop front opening onto an
+  empty page. They had been that way since V3 because nothing joined the tree to the products.
+  Both are now `COMING_SOON`, and there is a test that fails if a third appears.
+
+There was also a contradiction inside the test suite itself: two tests asserted different counts
+from the same endpoint. Neither had ever run — `CatalogApiTest` needs Testcontainers and no session
+has had Docker.
+
+### Verified
+
+- All eight migrations applied by Flyway from an empty database, with `ddl-auto: validate` passing.
+- Every category and product endpoint exercised against the running service; every number asserted
+  in `CatalogApiTest` checked against the live API by hand, because that suite still cannot run here.
+- 35 advisor tests green (5 new), including the nano tank, the hundred-shrimp refusal, and an oscar
+  that still eats shrimp.
+- The full V7 catalogue put through the real advisor via the real adapter.
+
+### Still unproven
+
+`CatalogApiTest` has never been executed. It is 28 tests written against numbers verified by hand
+against a running service — which is not the same thing as a green suite, and the contradiction
+found in it this round is what that difference looks like.
+
+---
+
 ## The saga survives a crash
 
 Closes the gap every release note since Phase 3 has named: the checkout saga runs inside one

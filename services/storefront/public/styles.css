@@ -39,41 +39,66 @@ footer{border-top:1px solid var(--line);color:var(--muted);font-size:.8rem;paddi
 
 /* ---- category tree -------------------------------------------------- */
 /* A tile is a doorway and a card is an object, so they do not share a look. */
-.trail { font-size: .85rem; margin: 0 0 1rem; color: #5a6b6d; display: flex; flex-wrap: wrap; gap: .35rem; }
-.trail a { color: #2a6a70; text-decoration: none; }
-.trail a:hover { text-decoration: underline; }
-.trail span { color: #9aa9aa; }
-.trail b { color: #14262a; }
+.trail { font-size: .85rem; margin: 0 0 1.25rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .35rem; }
+.trail a { color: var(--muted); text-decoration: none; }
+.trail a:hover { color: var(--teal); }
+.trail span { color: var(--line); }
+.trail b { color: var(--ink); font-weight: 600; }
 
 .tiles { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); margin-bottom: 2rem; }
+/* These were written for a light page and never revisited when the site went
+   dark: a hard-coded #fff background with #5a6b6d text, which rendered the
+   section titles as pale grey on white inside a dark layout. Everything here
+   is on the theme tokens now, so there is one place to change the palette. */
 .tile { display: flex; flex-direction: column; gap: .3rem; padding: 1rem 1.1rem 1.15rem;
-        border: 1px solid #d7e0de; border-radius: 4px; background: #fff; text-decoration: none; color: inherit; }
-a.tile:hover { border-color: #2a6a70; }
-.tile .name { font-weight: 600; font-size: 1.05rem; }
-.tile .summary { margin: 0; color: #5a6b6d; font-size: .88rem; }
-.tile .count { margin-top: auto; padding-top: .6rem; font-size: .82rem; color: #2a6a70; }
+        border: 1px solid var(--line); border-radius: 10px; background: var(--panel-solid);
+        text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+a.tile:hover { border-color: var(--teal); transform: translateY(-2px); }
+.tile .name { font-weight: 600; font-size: 1.05rem; color: var(--ink); }
+.tile .summary { margin: 0; color: var(--muted); font-size: .88rem; min-height: 2.8em; }
+.tile .count { margin-top: auto; padding-top: .6rem; font-size: .82rem; color: var(--teal); }
 
 /* Announced, not stocked. Inert on purpose: a link that goes nowhere is worse
    than no link at all. */
-.tile.soon { opacity: .55; cursor: not-allowed; background: #f2f5f4; }
-.tile.soon .count { color: #8a6a3a; font-weight: 600; }
+.tile.soon { opacity: .5; cursor: not-allowed; border-style: dashed; }
+.tile.soon:hover { transform: none; border-color: var(--line); }
+.tile.soon .count { color: var(--orange); font-weight: 600; }
 
-.shortcut { font-size: .9rem; color: #5a6b6d; border-left: 3px solid #b26a34;
-            padding: .55rem .9rem; background: #fff; margin: 0 0 1.5rem; }
-.shortcut a { color: #2a6a70; }
-.empty { border: 1px dashed #d7e0de; border-radius: 4px; padding: 2rem; text-align: center; color: #5a6b6d; }
+.shortcut { font-size: .9rem; color: var(--muted); border-left: 3px solid var(--orange);
+            padding: .55rem .9rem; background: var(--panel-solid); border-radius: 0 8px 8px 0;
+            margin: 0 0 1.5rem; }
+.shortcut a { color: var(--teal); }
+.empty { border: 1px dashed var(--line); border-radius: 10px; padding: 2rem;
+         text-align: center; color: var(--muted); }
 
 /* ---- photography ----------------------------------------------------- */
 /* An explicit aspect ratio on both the image and the placeholder, so a page
    does not reflow as photographs land -- and so a catalogue that is half
    photographed still lays out on a grid. */
 .shot { display: block; width: 100%; object-fit: cover; background: #e8edeb; }
-.card .shot { border-bottom: 1px solid #e3eae8; }
-.tile .shot { margin: -1rem -1.1rem .75rem; width: calc(100% + 2.2rem); border-bottom: 1px solid #e3eae8; }
+.card .shot { border-bottom: 1px solid var(--line); }
+.tile .shot { margin: -1rem -1.1rem .75rem; width: calc(100% + 2.2rem);
+               border-radius: 10px 10px 0 0; border-bottom: 1px solid var(--line); }
 
 /* No photograph yet. A quiet gap that says "picture goes here", rather than a
    broken-image icon that says "this site is broken". */
+/* The placeholder for a fish nobody has photographed yet.
+   It was a light diagonal hatch, which on a dark page reads as a glaring hole
+   -- the eye goes to the six missing photographs rather than to the four that
+   exist. Most of the catalogue is unphotographed, so the placeholder is the
+   most common element on the page and it has to recede, not shout. */
 .shot-none {
   background:
-    repeating-linear-gradient(45deg, #edf2f0 0 10px, #e6ecea 10px 20px);
+    linear-gradient(160deg, rgba(61,220,151,.05), rgba(139,123,247,.05)),
+    var(--panel-solid);
+  border: 1px dashed var(--line);
+  display: flex; align-items: center; justify-content: center;
 }
+.shot-none::after {
+  content: "\1F41F";            /* a fish, at low contrast */
+  font-size: 1.5rem; opacity: .18; filter: grayscale(1);
+}
+
+/* A shelf heading on the shop front, under the section tiles. */
+.shelf{font-size:1.05rem;color:var(--muted);font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;margin:2.5rem 0 1rem}

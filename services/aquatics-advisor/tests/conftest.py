@@ -50,6 +50,28 @@ NEON = species(
     max_size_cm=3.5, min_tank_litres=60, min_group_size=8,
     temperature=Interval(20.0, 26.0), ph=Interval(5.5, 7.5), dgh=Interval(2.0, 10.0),
 )
+# Invertebrates. Their numbers come from catalog-service's V7 seed, and the
+# animal_group from V8 -- which is the whole point of them being here: the
+# stocking arithmetic treats a 3 cm shrimp differently from a 3 cm fish.
+CHERRY_SHRIMP = species(
+    sku="INV-CHE-01", common_name="Cherry Shrimp", scientific_name="Neocaridina davidi",
+    max_size_cm=3.0, min_tank_litres=20, min_group_size=6,
+    temperature=Interval(18.0, 28.0), ph=Interval(6.5, 8.0), dgh=Interval(4.0, 14.0),
+    animal_group="SHRIMP",
+)
+NERITE = species(
+    sku="INV-NER-01", common_name="Nerite Snail", scientific_name="Neritina natalensis",
+    max_size_cm=2.5, min_tank_litres=20, min_group_size=1,
+    temperature=Interval(22.0, 28.0), ph=Interval(7.0, 8.5), dgh=Interval(6.0, 20.0),
+    diet="HERBIVORE", animal_group="SNAIL",
+)
+SCARLET_BADIS = species(
+    sku="FSH-BAD-01", common_name="Scarlet Badis", scientific_name="Dario dario",
+    max_size_cm=2.0, min_tank_litres=30, min_group_size=4,
+    temperature=Interval(22.0, 26.0), ph=Interval(6.5, 7.5), dgh=Interval(4.0, 12.0),
+    diet="CARNIVORE",
+)
+
 CARDINAL = species(
     sku="FSH-CAR-01", common_name="Cardinal Tetra", scientific_name="Paracheirodon axelrodi",
     max_size_cm=5.0, min_tank_litres=80, min_group_size=8,

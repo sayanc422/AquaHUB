@@ -2,6 +2,7 @@ package com.aquashop.catalog;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -12,6 +13,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -35,19 +37,25 @@ class CatalogApiTest {
     }
 
     @Autowired MockMvc mvc;
+    @Autowired JdbcTemplate jdbc;
 
     @Test
     void listsTheTopOfTheShopNotEveryCategory() throws Exception {
-        // Roots only. Returning all twenty-nine would make the caller filter,
+        // Roots only. Returning all forty-odd would make the caller filter,
         // which means the caller has to understand the tree to draw a menu.
         mvc.perform(get("/api/categories"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.length()").value(3))
+           .andExpect(jsonPath("$.length()").value(4))
            .andExpect(jsonPath("$[0].slug").value("live-fish"))
            .andExpect(jsonPath("$[0].childCount").value(2))
            // Live Fishes holds no products itself; the count is the subtree's.
            .andExpect(jsonPath("$[0].productCount").value(0))
-           .andExpect(jsonPath("$[0].totalProducts").value(18));
+           .andExpect(jsonPath("$[0].totalProducts").value(33))
+           // A shrimp is not a fish. V7 lifted them out of Live Fishes and
+           // gave them a root section of their own, between fish and plants.
+           .andExpect(jsonPath("$[1].slug").value("invertebrates"))
+           .andExpect(jsonPath("$[2].slug").value("plants"))
+           .andExpect(jsonPath("$[3].slug").value("supplies"));
     }
 
     @Test
@@ -83,7 +91,7 @@ class CatalogApiTest {
 
         mvc.perform(get("/api/categories/cichlids/products").param("deep", "true"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.length()").value(6))
+           .andExpect(jsonPath("$.length()").value(13))
            .andExpect(jsonPath("$[0].categorySlug").value("malawi"));
     }
 
@@ -92,7 +100,208 @@ class CatalogApiTest {
         mvc.perform(get("/api/categories/malawi"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.children.length()").value(0))
+           .andExpect(jsonPath("$.products.length()").value(9));
+    }
+
+    // ------------------------------------------------------------ V7 tree --
+
+    @Test
+    void americanCichlidsAreAParentOfCentralAndSouthNotTheirSibling() throws Exception {
+        // The tree V3 built had American, North American and South American as
+        // siblings, so one entry contained the other two. This is the fix.
+        mvc.perform(get("/api/categories/cichlids"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.children.length()").value(3))
+           .andExpect(jsonPath("$.children[0].slug").value("cichlids-african"))
+           .andExpect(jsonPath("$.children[1].slug").value("cichlids-american"));
+
+        mvc.perform(get("/api/categories/cichlids-american"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.children.length()").value(2))
+           .andExpect(jsonPath("$.children[0].slug").value("cichlids-central-american"))
+           .andExpect(jsonPath("$.children[1].slug").value("cichlids-south-american"));
+    }
+
+    @Test
+    void theAfricanLakesEndInACatchAllRatherThanInWestAfricaOnly() throws Exception {
+        mvc.perform(get("/api/categories/african-other"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.category.name").value("Other African Cichlids"))
+           .andExpect(jsonPath("$.category.status").value("COMING_SOON"));
+    }
+
+    /**
+     * The catfish split is a rule, not a taste: small is an adult under 15 cm
+     * that is happy in 150 L or less. A customer with a 60 L tank browses one
+     * page and trusts it, which only holds if every fish on it passes the rule.
+     * Asserted against the care profiles rather than against a list of slugs,
+     * so adding a catfish to the wrong page fails here instead of in somebody's
+     * living room.
+     */
+    @Test
+    void everyFishOnTheSmallCatfishPageFitsASmallTank() {
+        var rows = jdbc.queryForList("""
+            WITH RECURSIVE sub AS (
+              SELECT id FROM category WHERE slug = 'catfish-small'
+              UNION ALL
+              SELECT c.id FROM category c JOIN sub ON c.parent_id = sub.id)
+            SELECT p.name, s.max_size_cm, s.min_tank_litres
+              FROM product p
+              JOIN sub ON p.category_id = sub.id
+              JOIN species_profile s ON s.id = p.species_profile_id
+             WHERE s.max_size_cm >= 15 OR s.min_tank_litres > 150""");
+        assertThat(rows).as("catfish filed as small that are not").isEmpty();
+
+        var large = jdbc.queryForList("""
+            WITH RECURSIVE sub AS (
+              SELECT id FROM category WHERE slug = 'catfish-large'
+              UNION ALL
+              SELECT c.id FROM category c JOIN sub ON c.parent_id = sub.id)
+            SELECT p.name, s.max_size_cm, s.min_tank_litres
+              FROM product p
+              JOIN sub ON p.category_id = sub.id
+              JOIN species_profile s ON s.id = p.species_profile_id
+             WHERE s.max_size_cm < 15 AND s.min_tank_litres <= 150""");
+        assertThat(large).as("catfish filed as large that are not").isEmpty();
+    }
+
+    @Test
+    void loachesAreNoLongerFiledUnderCatfish() throws Exception {
+        // Cobitidae, not Siluriformes. They shared a page because they share a
+        // shelf, which is not the same thing.
+        mvc.perform(get("/api/categories/loaches"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.breadcrumb.length()").value(2))
+           .andExpect(jsonPath("$.breadcrumb[1].slug").value("freshwater"))
+           .andExpect(jsonPath("$.products.length()").value(1));
+    }
+
+    @Test
+    void badidaeHaveASectionBecauseTheyFitNowhereElse() throws Exception {
+        mvc.perform(get("/api/categories/badidae"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.products.length()").value(3));
+
+        mvc.perform(get("/api/products/scarlet-badis"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.species.scientificName").value("Dario dario"))
+           .andExpect(jsonPath("$.species.maxSizeCm").value(2.0))
+           // It will not eat flake, which is the single most useful fact about
+           // it and the reason most of them die in their first month.
+           .andExpect(jsonPath("$.species.diet").value("CARNIVORE"));
+    }
+
+    @Test
+    void invertebratesAreARootSectionWithShrimpAndSnails() throws Exception {
+        mvc.perform(get("/api/categories/invertebrates"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.breadcrumb.length()").value(0))
+           .andExpect(jsonPath("$.children.length()").value(2))
+           .andExpect(jsonPath("$.children[0].slug").value("inverts-shrimp"))
+           .andExpect(jsonPath("$.children[1].slug").value("inverts-snails"));
+
+        mvc.perform(get("/api/categories/inverts-shrimp"))
+           .andExpect(status().isOk())
            .andExpect(jsonPath("$.products.length()").value(6));
+        mvc.perform(get("/api/categories/inverts-snails"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.products.length()").value(5));
+    }
+
+    /**
+     * Red Cherry, Blue Dream, Blue Velvet and Yellow are one species in four
+     * colours. Four species_profile rows would claim otherwise -- and would
+     * contradict the advice the shop gives, which is to keep one colour per
+     * tank precisely because they interbreed.
+     */
+    @Test
+    void theNeocaridinaColoursShareOneCareProfile() {
+        Integer profiles = jdbc.queryForObject(
+            "SELECT count(*) FROM species_profile WHERE scientific_name = 'Neocaridina davidi'",
+            Integer.class);
+        assertThat(profiles).isEqualTo(1);
+
+        Integer colours = jdbc.queryForObject("""
+            SELECT count(*) FROM product p
+              JOIN species_profile s ON s.id = p.species_profile_id
+             WHERE s.scientific_name = 'Neocaridina davidi'""", Integer.class);
+        assertThat(colours).isEqualTo(4);
+    }
+
+    /**
+     * An ACTIVE leaf with no products is a tile on the shop front that opens an
+     * empty page. Two of them sat there from V3 until V7 because nothing joined
+     * the tree to the products; this is the assertion that would have said so.
+     */
+    @Test
+    void noSectionIsOpenForBrowsingWithNothingInIt() {
+        var dead = jdbc.queryForList("""
+            SELECT c.slug FROM category c
+             WHERE c.status = 'ACTIVE'
+               AND NOT EXISTS (SELECT 1 FROM category k WHERE k.parent_id   = c.id)
+               AND NOT EXISTS (SELECT 1 FROM product  p WHERE p.category_id = c.id)""");
+        assertThat(dead).as("ACTIVE sections with no children and no products").isEmpty();
+    }
+
+    /**
+     * image_key is a promise that a photograph exists, and the convention is
+     * `species/<product slug>.jpg` so that nobody needs a lookup table. V5 made
+     * that promise for six Malawi fish when only three files ever arrived, and
+     * three product pages rendered a broken image rather than the placeholder
+     * until V7 cleared them.
+     *
+     * This cannot check the files: they live in the storefront's `public/`
+     * directory, in a different service, and a test that reached across that
+     * boundary would be asserting on somebody else's deployment. What it can
+     * check is the convention and the count -- ten photographs have been
+     * delivered, and ten is what the catalogue should claim.
+     */
+    @Test
+    void anImageKeyFollowsTheSlugConventionAndNothingClaimsMore() {
+        var rows = jdbc.queryForList(
+            "SELECT slug, image_key FROM product WHERE image_key IS NOT NULL ORDER BY slug");
+        assertThat(rows).hasSize(10);
+        assertThat(rows).allSatisfy(r ->
+            assertThat(r.get("image_key")).isEqualTo("species/" + r.get("slug") + ".jpg"));
+    }
+
+    /**
+     * A shrimp is not a small fish, and the catalogue is where that fact lives.
+     *
+     * aquatics-advisor sizes a stocking by summing adult length, which is a
+     * fair proxy for a fish and badly wrong for an invertebrate. Running the V7
+     * catalogue through the advisor had it refuse four scarlet badis and ten
+     * cherry shrimp in a 40 L nano -- the shrimp were 79% of the bioload it
+     * refused on. The advisor owns what to do about it; the catalogue owns
+     * which animal it is.
+     */
+    @Test
+    void aSpeciesSaysWhatKindOfAnimalItIs() throws Exception {
+        mvc.perform(get("/api/products/cherry-shrimp"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.species.animalGroup").value("SHRIMP"));
+        mvc.perform(get("/api/products/nerite-snail"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.species.animalGroup").value("SNAIL"));
+        mvc.perform(get("/api/products/oscar"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.species.animalGroup").value("FISH"));
+    }
+
+    @Test
+    void everySpeciesHasAnAnimalGroupRatherThanADefault() {
+        // V8 adds the column with a DEFAULT so it does not have to enumerate
+        // forty rows, then drops the default -- a species added without
+        // deciding what it is should fail, not silently become a fish.
+        var withoutDefault = jdbc.queryForList("""
+            SELECT column_default FROM information_schema.columns
+             WHERE table_name = 'species_profile' AND column_name = 'animal_group'
+               AND column_default IS NOT NULL""");
+        assertThat(withoutDefault).as("animal_group still has a DEFAULT").isEmpty();
+
+        Integer groups = jdbc.queryForObject(
+            "SELECT count(DISTINCT animal_group) FROM species_profile", Integer.class);
+        assertThat(groups).isEqualTo(3);
     }
 
     @Test
@@ -139,7 +348,11 @@ class CatalogApiTest {
         // American cichlids and they are stocked now.
         mvc.perform(get("/api/categories/cichlids-south-american"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.products.length()").value(2));
+           .andExpect(jsonPath("$.products.length()").value(2))
+           // One level deeper than it used to be: V7 put American Cichlids
+           // between this page and Cichlids.
+           .andExpect(jsonPath("$.breadcrumb.length()").value(4))
+           .andExpect(jsonPath("$.breadcrumb[3].slug").value("cichlids-american"));
 
         mvc.perform(get("/api/categories/cichlids/products").param("deep", "true"))
            .andExpect(status().isOk())

@@ -8,7 +8,10 @@ arithmetic and none of the judgement.
 from advisor.domain import Inhabitant, Interval, Verdict
 from advisor.rules import assess
 
-from tests.conftest import BETTA, CARDINAL, CORY, DANIO, GUPPY, KUHLI, NEON, PLECO, species
+from tests.conftest import (
+    BETTA, CARDINAL, CHERRY_SHRIMP, CORY, DANIO, GUPPY, KUHLI, NEON, NERITE,
+    PLECO, SCARLET_BADIS, species,
+)
 
 
 def tank(litres, *pairs):
@@ -241,3 +244,95 @@ def test_every_finding_names_a_rule_that_exists_in_the_file(rules):
         assert section in rules.raw, f"{finding.rule} names no section of rules.yaml"
         assert finding.detail.endswith((".", "!")), finding.detail
         assert finding.species, finding.rule
+
+
+# --------------------------------------------------------- invertebrates
+
+def test_a_shrimp_colony_does_not_fill_a_nano_tank(rules):
+    """Four scarlet badis and ten cherry shrimp in a 40 L planted nano.
+
+    This is one of the most common good tanks in the hobby, and before shrimp
+    carried an animal group the advisor refused it -- the ten shrimp were 30 of
+    the 38 cm it was measuring, so 79% of the bioload it refused on came from
+    animals that barely have one. Found by running the real V7 catalogue
+    through the advisor rather than by reading the rule.
+    """
+    result = assess(40, [Inhabitant(SCARLET_BADIS, 4), Inhabitant(CHERRY_SHRIMP, 10)], rules)
+    assert result.verdict is not Verdict.REFUSED
+    assert not [f for f in result.findings if f.rule == "stocking.capacity"]
+
+
+def test_a_hundred_shrimp_in_a_nano_is_still_too_many(rules):
+    """The factor is small, not zero.
+
+    A rule that can never say no about invertebrates is no more use than one
+    that always does. Three hundred centimetres of shrimp is a real stocking
+    problem and the advisor still has to see it.
+    """
+    result = assess(20, [Inhabitant(CHERRY_SHRIMP, 100)], rules)
+    assert result.verdict is Verdict.REFUSED
+    assert any(f.rule == "stocking.capacity" for f in result.findings)
+
+
+def test_a_snail_counts_for_more_than_a_shrimp_and_less_than_a_fish(rules):
+    """Ordering, asserted against the arithmetic rather than the constants.
+
+    Same length, same quantity, same tank: the only thing that differs is what
+    kind of animal it is, and the recommended volume has to reflect that.
+    """
+    same_size_fish = species(max_size_cm=3.0, min_tank_litres=20)
+
+    def needed(sp):
+        # 160 L is chosen so the fish case lands just over the caution
+        # threshold: 40 x 3 cm at 1.2 L/cm is 144 L, and 144/160 = 0.9 against
+        # a caution_fraction of 0.85. Nothing here is refused, so the only
+        # thing separating the three is the bioload factor.
+        return assess(160, [Inhabitant(sp, 40)], rules)
+
+    fish = needed(same_size_fish)
+    shrimp = needed(CHERRY_SHRIMP)
+    snail = needed(NERITE)
+
+    assert any(f.rule == "stocking.capacity" for f in fish.findings)
+    # The same count of shrimp or snails is nowhere near it.
+    assert not [f for f in shrimp.findings if f.rule == "stocking.capacity"]
+    assert not [f for f in snail.findings if f.rule == "stocking.capacity"]
+
+
+def test_an_unknown_animal_group_is_treated_as_a_fish(rules):
+    """A catalog that has not deployed V8 yet must not make the advice laxer.
+
+    The adapter defaults a missing group to FISH, and the rule defaults an
+    unrecognised one the same way. Wrong in the strict direction is the right
+    way round: over-cautioning is a customer buying a bigger tank, and the
+    alternative is telling somebody their tank is fine when it is not.
+    """
+    unknown = species(max_size_cm=3.0, min_tank_litres=20, animal_group="CEPHALOPOD")
+    known_fish = species(max_size_cm=3.0, min_tank_litres=20)
+    assert (assess(200, [Inhabitant(unknown, 40)], rules).verdict
+            is assess(200, [Inhabitant(known_fish, 40)], rules).verdict)
+
+
+def test_a_shrimp_small_enough_to_be_eaten_is_still_flagged(rules):
+    """The bioload factor changes the arithmetic, not the predation rule.
+
+    A cherry shrimp in with something that can swallow it is still a bad idea,
+    and softening the stocking maths must not have softened that too. The fish
+    is an oscar, with the real catalogue's numbers: 35 cm against the shrimp's
+    3, which is well past the 2.5 predation ratio.
+
+    Note which fish is NOT used here. A bristlenose pleco is 13 cm and could
+    physically take a shrimp, and the advisor says nothing about that pairing --
+    it is peaceful and it rasps wood, so the predation rule deliberately does
+    not apply to it. That restriction is a known gap recorded in rules.yaml, not
+    an oversight, and the right fish to prove predation still works is one the
+    rule was written for.
+    """
+    oscar = species(
+        sku="FSH-SAM-02", common_name="Oscar", scientific_name="Astronotus ocellatus",
+        max_size_cm=35.0, min_tank_litres=400, temperament="AGGRESSIVE",
+        diet="CARNIVORE", plant_safe=False,
+    )
+    result = assess(400, [Inhabitant(CHERRY_SHRIMP, 10), Inhabitant(oscar, 1)], rules)
+    assert result.verdict is Verdict.REFUSED
+    assert any(f.rule == "behaviour.predation" for f in result.findings)

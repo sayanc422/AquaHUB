@@ -137,4 +137,9 @@ def _to_species(sku: str, payload: dict) -> Species:
         temperament=profile["temperament"],
         diet=profile["diet"],
         plant_safe=bool(profile["plantSafe"]),
+        # Tolerated as missing rather than required: a catalog that has not yet
+        # deployed V8 should degrade to treating everything as a fish, which is
+        # the behaviour the advisor had yesterday, rather than returning 500 to
+        # a customer asking whether their tank will work.
+        animal_group=str(profile.get("animalGroup") or "FISH"),
     )

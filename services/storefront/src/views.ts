@@ -145,9 +145,22 @@ export function categoryPage(
 }
 
 export function homePage(nav: CategoryView[], featured: ProductSummary[]) {
+  // The sections first, then a handful of stock beneath them.
+  //
+  // The route has always fetched both and this view rendered only the second
+  // half, so the shop front was a flat alphabetical product list with the
+  // sections reachable from the nav bar alone. That is the opposite of how the
+  // catalogue is built: it is a tree six levels deep precisely so a customer
+  // can arrive knowing "I want a cichlid" and walk down to one. Six products in
+  // alphabetical order gives them nowhere to start.
+  //
+  // Same `tile` as every other level of the tree, so a COMING_SOON section is
+  // greyed out here exactly as Saltwater is one level down.
   return layout('Home', nav, `
     <h1>Freshwater livestock, plants and hardscape</h1>
     <p class="lede">Every living animal we sell carries a full care profile. Read it before you buy.</p>
+    <section class="tiles">${nav.map(tile).join('')}</section>
+    <h2 class="shelf">In the shop now</h2>
     <section class="grid">${featured.map(card).join('')}</section>`);
 }
 

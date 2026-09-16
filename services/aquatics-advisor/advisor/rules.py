@@ -134,7 +134,18 @@ def check_capacity(tank_litres: float, inhabitants: list[Inhabitant], rules: Rul
         return findings
 
     per_cm = rules.num("stocking", "litres_per_adult_cm")
-    needed = sum(i.species.max_size_cm * i.quantity * per_cm for i in inhabitants)
+
+    def bioload(i: Inhabitant) -> float:
+        # An unknown group counts as a fish. Being wrong in the strict
+        # direction is the right way round for stocking advice: it over-cautions
+        # rather than telling somebody a tank is fine when it is not.
+        try:
+            factor = rules.num("stocking", "bioload_factor", i.species.animal_group)
+        except KeyError:
+            factor = 1.0
+        return i.species.max_size_cm * i.quantity * per_cm * factor
+
+    needed = sum(bioload(i) for i in inhabitants)
 
     # A species' own minimum is a floor the arithmetic cannot argue with: a
     # 13 cm pleco does not fit in a 30 L tank however few of them there are.
