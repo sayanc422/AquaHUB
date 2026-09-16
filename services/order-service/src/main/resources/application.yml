@@ -38,6 +38,11 @@ orders:
   # treated as paid -- so stopping it delays the answer rather than corrupting
   # it. Watch the orders_payment_unresolved gauge.
   payment-reconcile-interval-ms: ${ORDER_PAYMENT_RECONCILE_MS:30000}
+  # How long an order may sit at one step before the recovery scan treats it as
+  # abandoned by a dead process. Must exceed the slowest checkout that could
+  # still be in flight, or recovery races the request already finishing the job.
+  stuck-after-ms: ${ORDER_STUCK_AFTER_MS:120000}
+  recovery-scan-interval-ms: ${ORDER_RECOVERY_SCAN_MS:60000}
 
 inventory:
   base-url: ${INVENTORY_BASE_URL:http://inventory-service:8081}

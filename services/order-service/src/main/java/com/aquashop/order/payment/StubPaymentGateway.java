@@ -68,6 +68,13 @@ public class StubPaymentGateway implements PaymentGateway {
 
     @Override
     public PaymentOutcome resolve(String idempotencyKey) {
+        if (outcome == Outcome.UNRESOLVED) {
+            // A provider that will not answer an authorisation will not answer
+            // a lookup either. Without this the stub could never produce
+            // StillUnresolved, and the one path that exists for "we do not
+            // know" would be untestable through it.
+            return new PaymentOutcome.StillUnresolved();
+        }
         String ref = authorised.get(idempotencyKey);
         return ref == null
                 ? new PaymentOutcome.NotTaken("the stub gateway has no record of this key")
@@ -83,6 +90,13 @@ public class StubPaymentGateway implements PaymentGateway {
         }
         log.info("stub refund ref={} amount={} reason={}", paymentRef, amountMinor, reason);
     }
+
+    /**
+     * Forget every authorisation. Models a process that died before the card
+     * was ever charged, which the real gateway expresses by simply having no
+     * record of the key.
+     */
+    public void forget() { authorised.clear(); }
 
     public Outcome getOutcome() { return outcome; }
     public void setOutcome(Outcome outcome) { this.outcome = outcome; }

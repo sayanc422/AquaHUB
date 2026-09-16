@@ -26,3 +26,4 @@ because the reasoning that was true at the time is the useful part.
 | [0015](0015-write-the-intent-before-the-call.md) | Write the intent before the external call, not after | Accepted |
 | [0016](0016-rules-are-data-not-code.md) | Stocking rules are data, owned by the person who keeps fish | Accepted |
 | [0017](0017-advisor-owns-no-data.md) | The advisor owns rules and no data | Accepted |
+| [0018](0018-recover-from-state-not-from-an-outbox.md) | Recover the saga from its own state, not from an outbox — amends 0015 | Accepted |

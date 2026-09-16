@@ -130,13 +130,24 @@ returns on its own when the hold expires, within `ORDER_HOLD_TTL_SECONDS` (defau
 Do not release it by hand unless it is outside that window. If it is, the runbook for the stock side
 is [stock-looks-wrong.md](stock-looks-wrong.md).
 
-## The gap to know about before someone asks
+## "An order stopped half way through"
 
-The saga runs inside one request and is **not crash-safe**. If order-service dies between taking the
-money and committing the holds, the holds expire by themselves — the stock comes back — but the
-refund never happens, and only the event trail records how far the saga got. Nothing scans for it.
+The system now handles this itself. `SagaRecovery` scans every minute for orders that have sat in
+`PAID` or `STOCK_RESERVED` longer than `ORDER_STUCK_AFTER_MS` (default two minutes) and finishes
+them — committing the holds, or refunding if the holds expired while the order was stuck, or asking
+payment-service when the charge is unknown.
 
-Until the outbox arrives at Phase 6, the check is manual:
+```bash
+kubectl -n aquashop-dev logs deploy/order-service | grep SagaRecovery
+kubectl -n aquashop-dev exec deploy/storefront -- \
+  wget -qO- http://order-service:8082/actuator/metrics/orders_stuck
+```
+
+`orders_stuck` is the gauge that has to come back to zero. If it is climbing, the recovery is
+running and failing — read the logs — rather than not running.
+
+The manual query below still works, and is worth knowing for the case where the recovery itself is
+the thing that is broken:
 
 ```bash
 kubectl -n aquashop-dev exec -it statefulset/postgres -- psql -U orders -d orders -c "

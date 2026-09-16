@@ -3,7 +3,7 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of the Phase 5 build session (15 September 2026).
+**Last updated:** end of the saga-recovery session (16 September 2026).
 
 ---
 
@@ -25,6 +25,7 @@ It is the state of the work, not a restatement of the brief.*
 | Checkout ordering | Reserve stock, then take money, then commit | A declined card costs a released hold; the reverse ordering costs a refund and an apology. Cost: stock is held for customers who never complete, and the saga needs a compensation on the stock side that must be idempotent, out-of-transaction and non-masking. |
 | Saga bookkeeping | Each reservation is committed in its own transaction as it is taken | A rollback across the loop erases the record of holds that already exist elsewhere, and the compensation then releases nothing. Cost: one round trip per line instead of one per checkout. |
 | Waiting states | Derived from the clock, never stored | Generalises the reservation-expiry rule: no scheduled job is load-bearing. Cost: the value cannot be indexed directly, and the API must expose both stored state and derived state or it is lying by omission. |
+| Saga crash recovery | A scan over order state, NOT an outbox (amends the Phase 4 plan) | The intention is already stored: an order in PAID with a payment ref and no dispatch window IS the record. An outbox would duplicate the order row. Cost: a third load-bearing scheduled job, and a threshold that must exceed the slowest in-flight checkout. |
 | Unknown payment outcomes | A state in both services, never collapsed into success or failure | Releasing holds on a timeout sells stock while the customer's money is gone; confirming promises an unpaid order. Cost: two reconcilers that ARE load-bearing, and a state customers see ("we are checking with your bank"). |
 | Payment durability | The intent row is written before the acquirer is called | A charge-then-record design loses the record of every charge it dies during. Cost: two round trips instead of one, and a table of `pending` rows to scan. |
 | Stocking rules | Data in a YAML file with a justification per threshold, not code | The rules change weekly and belong to whoever keeps fish. Cost: a YAML file is not type-checked, and one list of SKUs (fin-nippers) is really data that belongs on the catalog's species profile. |
@@ -260,9 +261,9 @@ aquashop/
 - All six services have now run outside k3d, against a local Postgres — including a live checkout
   across `order-service` and `inventory-service` together. None has run *in* k3d, so the probes,
   resource limits, ingress and TLS path remain written-and-reviewed, not exercised.
-- The checkout saga is not crash-safe. A process death between taking money and committing holds
-  returns the stock (the holds expire) but loses the refund. Nothing scans for it; the check is a
-  manual query in `docs/runbooks/order-stuck-or-wrong.md`. Phase 6 fixes it with an outbox.
+- ~~The checkout saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in PAID
+  or STOCK_RESERVED and finishes them; demonstrated with a real `kill -9` mid-checkout. It is a
+  state scan rather than an outbox -- see `docs/adr/0018-*`, which amends 0015.
 - `payment-service`'s acquirer is a stub: no partial captures, no chargebacks, no 3-D Secure, no
   settlement files, and an in-process memory that a restart wipes.
 - The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.

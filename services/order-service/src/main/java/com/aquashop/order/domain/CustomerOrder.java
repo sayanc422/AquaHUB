@@ -139,6 +139,7 @@ public class CustomerOrder {
     public Instant getDispatchableSeenAt() { return dispatchableSeenAt; }
     public String getFailureReason() { return failureReason; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
     public List<OrderLine> getLines() { return lines; }
     public List<OrderReservation> getReservations() { return reservations; }
 

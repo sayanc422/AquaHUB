@@ -182,6 +182,24 @@ public class CheckoutSaga {
      */
     public CustomerOrder resumeAfterPayment(UUID orderId, String paymentRef) {
         steps.recordPayment(orderId, paymentRef, null);
+        return finishCheckout(orderId, paymentRef);
+    }
+
+    /**
+     * Steps 3 and 4 for an order whose money is already taken and recorded.
+     *
+     * <p>Separate from {@link #resumeAfterPayment} because there are two ways to
+     * arrive here and only one of them still needs the payment written down.
+     * The reconciler resolves an unknown payment and must then record it;
+     * {@link SagaRecovery} finds an order that is <em>already</em> {@code PAID}
+     * and must not try to record it again -- the state machine would refuse that
+     * transition, correctly, and the recovery would look like a bug.
+     *
+     * <p>Safe to run twice: committing a reservation that is already committed
+     * is a no-op in inventory-service, and an order past {@code PAID} is
+     * filtered out before it reaches here.
+     */
+    public CustomerOrder finishCheckout(UUID orderId, String paymentRef) {
         CustomerOrder order = steps.load(orderId);
         try {
             steps.commitEveryReservation(orderId);

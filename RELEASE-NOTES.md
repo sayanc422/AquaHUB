@@ -5,6 +5,82 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## The saga survives a crash
+
+Closes the gap every release note since Phase 3 has named: the checkout saga runs inside one
+request, and a process death between taking the money and committing the holds left the money taken
+and the order unfinished. The holds expired on their own so the stock came back, but **the refund
+never happened**, and the only thing that found those orders was a person running a SQL query out of
+a runbook.
+
+### Not an outbox
+
+[ADR 0015](docs/adr/0015-write-the-intent-before-the-call.md) said this would be fixed with an
+outbox table, by analogy with `payment-service`. On building it, the analogy does not hold, and
+[ADR 0018](docs/adr/0018-recover-from-state-not-from-an-outbox.md) amends it.
+
+An outbox records an intention that is otherwise nowhere on disk — payment-service's problem exactly,
+where a charge at the acquirer has no counterpart here until the intent row exists. In order-service
+the intention is already stored in full: an order in `PAID` with a payment reference and no dispatch
+window **is** the record of "money taken, work unfinished". A parallel table would duplicate the
+order row and then need keeping consistent with it.
+
+What was missing was never the record. It was something to read the record and act.
+
+### Two ways to be stuck
+
+| State | What happened | What recovery does |
+|---|---|---|
+| `PAID` | money taken, holds not committed | finish the saga — commit, or refund if the holds expired meanwhile |
+| `STOCK_RESERVED` | died during authorisation, so the charge is unknown | ask payment-service: captured → finish; not taken → release and fail; **still unknown → hand to `PAYMENT_UNRESOLVED`** |
+
+The recovery does not guess. An answer it cannot get goes to the state that already exists for that
+answer.
+
+### Demonstrated with an actual SIGKILL
+
+Not a simulated crash. A checkout was started against an inventory service rigged to block on
+commit, the order-service JVM was killed with `kill -9` while the request was in flight, and the
+database was left in exactly the state the gap describes:
+
+```
+AQ-060FE3CF71  state=PAID  paymentRef=pay_4d63f4c6b45b4d388c95  dispatch=NOT SET
+hold  FSH-MAL-02  state=HELD
+order-service API: 000
+```
+
+Charged, unfinished, nothing running. After a restart, with nobody touching anything:
+
+```
+WARN  SagaRecovery - resuming a checkout that never finished: order=AQ-060FE3CF71 stuck for 21s
+INFO  SagaRecovery - order AQ-060FE3CF71 finished, dispatch 2026-09-16T08:30:00Z
+
+AQ-060FE3CF71  state=CONFIRMED  dispatch=2026-09-16 08:30:00+00
+hold  FSH-MAL-02  state=COMMITTED
+```
+
+### Two bugs found on the way
+
+**The stub payment gateway could never say "still unknown".** Its `resolve` looked only at whether
+it had a record of the key, so the one path that exists for an unresolvable payment was untestable
+through it. A provider that will not answer an authorisation will not answer a lookup either.
+
+**A rewound order kept its holds committed.** The first version of the test simulated the crash by
+resetting only the order's state, which left the reservations `COMMITTED` — so the commit step had
+nothing to do, quietly succeeded, and the refund path could never be reached. A real crash leaves
+the holds `HELD`.
+
+Also worth recording: the first run of the live demonstration did nothing at all, because the jar
+being run had been compiled and tested but never repackaged. The running artefact was older than the
+code under test.
+
+### Tests
+
+55 in `order-service`, up from 48. Seven cover recovery, including that running it twice changes
+nothing the second time, and that a confirmed order is left alone however old it is.
+
+---
+
 ## Photographs, and seven fish they brought with them
 
 Ten photographs arrived with the species named in the filenames. Only three were of fish already in
