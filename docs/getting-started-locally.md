@@ -65,7 +65,50 @@ image add up.
 
 ---
 
-## 2. Run it
+## 2. Who runs Docker, and who can see it
+
+Worth being explicit, because it changes how we work together.
+
+**A Claude Code session on the web cannot reach your machine.** It runs in an isolated, ephemeral
+container in Anthropic's cloud. It clones this repository from GitHub and that is the entire
+connection — there is no network path from it to your laptop, your WSL instance, or the Docker
+daemon inside it. Installing Docker Engine locally does not make it visible to a web session, and
+nothing you can configure will.
+
+**Do not expose the Docker socket over TCP to work around this.** Binding `dockerd` to
+`tcp://0.0.0.0:2375`, or forwarding it through a tunnel, hands anyone who reaches that port
+root-equivalent control of the host — the daemon runs as root and will happily mount your
+filesystem into a container. It is one of the most reliably exploited misconfigurations there is.
+There is no version of that idea worth doing for this project.
+
+So there are two honest ways to work:
+
+### Run Claude Code locally (recommended)
+
+Install the CLI on the machine that has Docker, and run it from inside your clone:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+cd ~/AquaHUB          # wherever you cloned it
+claude
+```
+
+That session has your Docker daemon, your k3d cluster, your `kubectl` context and your files. It
+can run `./scripts/bootstrap.sh`, watch it fail, read the pod logs and fix it — the loop this
+repository has never once been through. See <https://code.claude.com/docs> for the current install
+options if npm is not how you want to do it.
+
+### Or the copy-paste loop
+
+Run the commands yourself and paste the output into a web session. Slower, and the debugging is
+worse because the session is guessing at state it cannot inspect, but it works and needs nothing
+installed beyond Docker.
+
+For the first `bootstrap.sh` run, local is worth it. After that, either is fine.
+
+---
+
+## 3. Run it
 
 ```bash
 ./scripts/bootstrap.sh                      # core:     Postgres, catalog-service, storefront
@@ -86,7 +129,7 @@ repository by a wide margin.
 
 ---
 
-## 3. Observability — not yet, and not needed
+## 4. Observability — not yet, and not needed
 
 **You do not need to install anything for observability, and there is nothing to install.**
 
@@ -105,7 +148,7 @@ Actuator health and metrics endpoints on the Java services, and `/healthz` on th
 
 ---
 
-## 4. The one measurement worth sending back
+## 5. The one measurement worth sending back
 
 Every memory figure in this repository except one is an estimate. `kubectl top` is how they become
 measurements — but `scripts/k3d-cluster.yaml` disables k3s's bundled metrics-server, because ~50 MB
@@ -127,7 +170,7 @@ without the per-pod breakdown.
 
 ---
 
-## 5. What to send back when it breaks
+## 6. What to send back when it breaks
 
 It probably will — this script has never run. The useful things:
 
@@ -151,7 +194,7 @@ Known likely failures, in rough order of probability:
 
 ---
 
-## 6. Inputs that have nothing to do with Docker
+## 7. Inputs that have nothing to do with Docker
 
 These are blocked on you, not on a cluster:
 
@@ -179,6 +222,7 @@ These are blocked on you, not on a cluster:
 | Question | Answer |
 |---|---|
 | Install Docker Engine? | Yes. Engine in WSL2, not Docker Desktop. It is the only hard blocker. |
+| Can a web session use that Docker? | No, and nothing makes it possible. Run Claude Code locally, or paste output back. |
 | Anything else to install? | `k3d`, `kubectl`, `helm`. ~11 GB RAM, ~20 GB disk. |
 | Anything for observability? | No. It is not built, and the shop runs without it. |
 | First command | `./scripts/bootstrap.sh` |
