@@ -25,7 +25,12 @@ expected. `localtest.me` resolves to 127.0.0.1, so no `/etc/hosts` edit is neede
 
 Requirements: Docker Engine in WSL2 (not Docker Desktop), `k3d`, `kubectl`, `helm`, and more than
 4 GB of free memory. The script checks the last one and refuses to run rather than letting the OOM
-killer make the decision.
+killer make the decision. Add `--metrics` to install metrics-server, without which `kubectl top`
+— and therefore every measured memory figure — is unavailable.
+
+**Setting this up for the first time: [docs/getting-started-locally.md](docs/getting-started-locally.md).**
+It covers what to install, what to run, why observability is not part of it yet, and what to send
+back when the script fails — which it may, because it has never been executed.
 
 ## Status
 
@@ -70,6 +75,7 @@ Phases 6–7 are planned. See [docs/context_summary.md](docs/context_summary.md)
 - [docs/slo.md](docs/slo.md) — objectives, the consequence of missing each, and which numbers are measured
 - [docs/runbooks/](docs/runbooks/) — one page per failure, written to be followed at 02:00
 - [RELEASE-NOTES.md](RELEASE-NOTES.md) — per phase: what was built, what was measured, what is unproven
+- [docs/getting-started-locally.md](docs/getting-started-locally.md) — what to install and run to get this up on your own machine
 - [docs/context_summary.md](docs/context_summary.md) — current state, decisions taken, open items
 - [docs/architecture.pdf](docs/architecture.pdf) — styled and printable, with diagrams. **Phase 1 content only**; `architecture.md` is ahead of it
 - [docs/diagrams/](docs/diagrams/) — SVG diagrams and the script that generates them

@@ -39,13 +39,18 @@ It is the state of the work, not a restatement of the brief.*
 |---|---|---|
 | `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | ~2.6 GB |
 | `commerce` | order, inventory, payment, advisor, NATS | ~4.2 GB |
-
-`inventory-service` measures 13.9 MiB resident idle and 17.0 MiB after 200 reservations — but
-against a local Postgres on a build container, not in k3d. It is the only service in the repository
-with any measured figure at all.
 | `full-app` | notification, staff-portal (WildFly) | ~5.2 GB |
 | `platform` | Argo CD | ~6.1 GB |
 | `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB |
+
+Only `core` and `commerce` are built. `full-app`, `platform` and `observability` are planned
+profiles with no manifests behind them yet, so their figures are budgets, not estimates of
+something that exists.
+
+`inventory-service` measures 13.9 MiB resident idle and 17.0 MiB after 200 reservations — but
+against a local Postgres on a build container, not in k3d. It is the only service in the repository
+with any measured figure at all. Replacing the rest requires `kubectl top`, which requires
+metrics-server, which `scripts/bootstrap.sh --metrics` installs.
 
 Hard rule, enforced in `bootstrap.sh`: never build images while the observability profile is up.
 ~1.8 GB of headroom does not survive a Maven or Cargo build, and the failure mode is the kernel

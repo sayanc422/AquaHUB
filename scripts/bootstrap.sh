@@ -3,6 +3,7 @@
 #
 #   ./scripts/bootstrap.sh                      bring up the `core` profile
 #   ./scripts/bootstrap.sh --profile commerce   core + inventory-service
+#   ./scripts/bootstrap.sh --metrics            also install metrics-server
 #   ./scripts/bootstrap.sh --destroy            delete the cluster
 #
 # Profiles exist because 11 GB does not hold the whole platform at once. They
@@ -15,6 +16,7 @@ set -Eeuo pipefail
 
 CLUSTER=aquashop
 PROFILE=core
+METRICS=no
 NS=aquashop-dev
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST=aquashop.localtest.me
@@ -51,6 +53,27 @@ create_cluster() {
     k3d cluster create --config "${ROOT}/scripts/k3d-cluster.yaml"
   fi
   kubectl config use-context "k3d-${CLUSTER}" >/dev/null
+}
+
+# k3s ships metrics-server and scripts/k3d-cluster.yaml disables it, because the
+# ~50 MB it costs buys nothing on a cluster nobody autoscales. But `kubectl top`
+# is the only way to replace this repository's estimated memory figures with
+# measured ones, so it is an opt-in rather than a deletion.
+#
+# --kubelet-insecure-tls is required on k3d: the kubelet serves a self-signed
+# certificate that metrics-server has no way to verify. On EKS this flag is not
+# set, and must not be.
+install_metrics() {
+  [[ "$METRICS" == yes ]] || return 0
+  log "installing metrics-server (opt-in; needed for 'kubectl top')"
+  helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ >/dev/null 2>&1 || true
+  helm repo update >/dev/null
+  helm upgrade --install metrics-server metrics-server/metrics-server \
+    --namespace kube-system \
+    --set 'args={--kubelet-insecure-tls}' \
+    --set resources.requests.memory=32Mi \
+    --set resources.limits.memory=96Mi \
+    --wait --timeout 3m
 }
 
 install_platform() {
@@ -151,7 +174,10 @@ verify() {
   echo
   log "open https://${HOST}/  (self-signed certificate: the browser warning is expected)"
   log "measured footprint:"
-  kubectl top pods -A 2>/dev/null || warn "metrics-server is disabled; use 'docker stats' for the node total"
+  if ! kubectl top pods -A 2>/dev/null; then
+    warn "metrics-server is not installed, so there are no measured figures."
+    warn "Re-run with --metrics to install it, or use 'docker stats' for the node total."
+  fi
 }
 
 destroy() { log "deleting cluster"; k3d cluster delete "$CLUSTER"; }
@@ -161,6 +187,7 @@ main() {
     case "$1" in
       --destroy) destroy; exit 0 ;;
       --profile) PROFILE="${2:-}"; shift 2 ;;
+      --metrics) METRICS=yes; shift ;;
       *) die "unknown argument: $1" ;;
     esac
   done
@@ -172,6 +199,7 @@ main() {
 
   preflight
   create_cluster
+  install_metrics
   install_platform
   build_images
   deploy
