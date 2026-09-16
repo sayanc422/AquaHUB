@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1.7
 # ---------- build ----------
-FROM rust:1.82-bookworm AS build
+FROM rust:1.90-bookworm AS build
+# Not rust-version from Cargo.toml (1.82, the MSRV for this crate's own code):
+# Cargo.lock resolved a transitive dependency (home v0.5.12) whose manifest
+# requires the edition2024 Cargo feature, stabilized in 1.85. The builder
+# needs to be new enough for the lockfile, which is a stricter floor than the
+# crate's own MSRV.
 WORKDIR /build
 # Dependency layer first. A Rust dependency build is the slowest step in this
 # repository by a wide margin, and Cargo.toml changes far less often than src.

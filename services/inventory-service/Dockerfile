@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ---------- build ----------
-FROM golang:1.24-bookworm AS build
+FROM golang:1.25-bookworm AS build
 WORKDIR /build
 # dependency layer first: go.mod/go.sum rarely change, src changes every commit
 COPY go.mod go.sum ./

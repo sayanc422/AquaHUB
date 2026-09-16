@@ -3,7 +3,8 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of the first k3d run, `core` profile (16 September 2026).
+**Last updated:** end of the first k3d run, `core` + `commerce` profiles and a live in-cluster
+checkout (16 September 2026).
 
 ---
 
@@ -33,38 +34,48 @@ It is the state of the work, not a restatement of the brief.*
 | Catalogue shape | A tree: category.parent_id, with status ACTIVE/COMING_SOON/HIDDEN | A shop is browsed by narrowing. Cost: five levels means five clicks, so every level needs a "browse all" escape hatch, and counts have to be subtree counts or every branch tile reads zero. |
 | CPU limits | Requests only on JVM services; memory limits always | A CPU limit means CFS throttling — the container is stopped for the rest of each 100 ms period, which reads as latency spikes on an idle-looking node. Memory is limited because memory is not compressible. Cost: a runaway pod can starve neighbours; ResourceQuota is the backstop. |
 | Pod securityContext for distroless images | `runAsUser: 65532` / `runAsGroup: 65532` set explicitly alongside `runAsNonRoot: true`, on all six deployments | The distroless `:nonroot` images set `USER nonroot` — a name, not a UID — and kubelet's `runAsNonRoot` check cannot verify a name without running the container first, so every pod sat in `CreateContainerConfigError` on the first real k3d run. Cost: couples every deployment manifest to the specific numeric UID Google's distroless images happen to use (65532); a future base-image change that picks a different UID breaks this silently until the next `kubectl apply`. |
+| `inventory-service` builder image | `golang:1.25-bookworm`, not `1.24` | `go.mod` already declared `go 1.25.0`; the Dockerfile had drifted behind it and `docker build` was the first thing to notice, because `go test`/`go build` on a dev machine use whatever local toolchain is installed. Cost: none beyond the version bump — no first-party code changed. |
+| `payment-service` builder image | `rust:1.90-bookworm`, not `1.82` (the crate's own declared `rust-version`) | `Cargo.lock` resolved a transitive dependency (`home v0.5.12`) whose manifest requires Cargo's `edition2024` feature, stabilized in 1.85 — a stricter floor than the crate's own MSRV, and invisible until the pinned builder image actually ran `cargo build`. Cost: the builder image is now well ahead of the declared `rust-version = "1.82"`, so that field is aspirational for anyone building outside Docker with an older local toolchain; nothing first-party changed. |
 
 ## Memory profiles
 
 | Profile | Adds | Total |
 |---|---|---|
 | `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | **1.32 GiB measured** (`kubectl top node`, 16 Sep 2026) |
-| `commerce` | order, inventory, payment, advisor, NATS | ~4.2 GB (estimate) |
+| `commerce` | order, inventory, payment, advisor, NATS | **~2.0 GiB measured** (`core` + commerce services; NATS not deployed yet — see below) |
 | `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate) |
 | `platform` | Argo CD | ~6.1 GB (estimate) |
 | `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB (estimate) |
 
-`core` is measured, not estimated: it came in well under the ~2.6 GB budget. Node total was
-1322 MiB (17% of the 7.4 GiB host) with metrics-server, ingress-nginx, cert-manager and CoreDNS all
-running alongside it. Per-pod, from `kubectl top pods -A`:
+`core` and `commerce` are both measured now, not estimated, and both came in well under budget:
+`core` at 1.32 GiB against a ~2.6 GB estimate, `commerce` at **~2.05 GiB total** (node went from
+1322 MiB to 2052 MiB adding all four commerce services) against a ~4.2 GB *additive* estimate — i.e.
+commerce added ~730 MiB, not ~1.6 GB. `full-app`, `platform` and `observability` remain budgets: only
+`core` and `commerce` have run in k3d so far, and `commerce`'s figure does not include NATS, which
+`bootstrap.sh --profile commerce` does not deploy (planned for Phase 6).
+
+Per-pod, from `kubectl top pods -A` after both profiles were up and settled:
 
 | Pod | CPU | Memory |
 |---|---|---|
-| `catalog-service` (JVM, 640Mi limit) | 5m | 203 MiB |
-| `storefront` (Node) | 1m | 27 MiB |
-| `postgres` | 5m | 46 MiB |
-| `ingress-nginx-controller` | 3m | 184 MiB |
-| `cert-manager` (+ webhook, cainjector) | 6m | 53 MiB |
-| `metrics-server` | 5m | 19 MiB |
+| `catalog-service` (JVM, 640Mi limit) | 3m | 215 MiB |
+| `order-service` (JVM, limit TBD) | 7m | 224 MiB |
+| `storefront` (Node) | 1m | 30 MiB |
+| `aquatics-advisor` (Python/FastAPI) | 3m | 43 MiB |
+| `inventory-service` (Go) | 1m | 3 MiB |
+| `payment-service` (Rust) | 1m | 2 MiB |
+| `postgres` | 6m | 59 MiB |
+| `ingress-nginx-controller` | — | 184–189 MiB |
+| `cert-manager` (+ webhook, cainjector) | — | ~53 MiB |
+| `metrics-server` | — | ~19–21 MiB |
 
-`catalog-service`'s 203 MiB is the first honest JVM number in this repository — measured under its
-actual 640Mi cgroup limit with `MaxRAMPercentage=70`, not against host RAM the way the 338 MiB and
-361 MiB figures below were. `commerce`, `full-app`, `platform` and `observability` remain budgets:
-only `core` has run in k3d so far.
-
-`inventory-service` still separately measures 13.9 MiB resident idle and 17.0 MiB after 200
-reservations, but against a local Postgres on a build container, not in k3d — that number is now the
-second-most-trustworthy in the repository, not the only measured one.
+`catalog-service`'s 215 MiB and `order-service`'s 224 MiB are the first honest JVM numbers in this
+repository — measured under their actual cgroup limits with `MaxRAMPercentage=70`, not against host
+RAM the way the 338 MiB and 361 MiB figures below were. `payment-service`'s 2 MiB and `inventory-service`'s 3 MiB in-cluster are even lower than
+`inventory-service`'s previously-measured 13.9 MiB idle / 17.0 MiB after 200 reservations (against a
+local Postgres on a build container, not in k3d) — consistent with the "Rust earned its place with a
+number" argument in the Phase 4 notes, and a reminder that these two services were effectively idle
+during the smoke-test window below, not under sustained load.
 
 Hard rule, enforced in `bootstrap.sh`: never build images while the observability profile is up.
 ~1.8 GB of headroom does not survive a Maven or Cargo build, and the failure mode is the kernel
@@ -140,29 +151,58 @@ aquashop/
 
 ## Open items, in order
 
-1. **Run `./scripts/bootstrap.sh --profile commerce` and record real numbers for the commerce
-   services.** `core` is done — see Memory profiles above and the k3d-run notes below. `commerce`
-   (inventory, order, payment, advisor and the checkout saga, together, in-cluster) has never run in
-   k3d, so its memory figures, its probes, and whether the same `runAsUser` fix is sufficient for all
-   four remaining services are still unverified. This machine has 7.4 GiB total RAM against the
-   `commerce` preflight's 5000 MB floor — tighter than `core`'s was, worth watching.
-
-   Once commerce numbers land, replace the remaining estimates in `docs/architecture.md`, the PDF
-   source, and `RELEASE-NOTES.md`.
-2. **Bring the PDF up to date.** `docs/architecture-pdf.html` still carries Phase 1 content only;
-   `docs/architecture.md` is now ahead of it. Regenerate after the numbers from item 1 land, so the
-   PDF is rebuilt once rather than twice.
-3. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
+1. **Bring `docs/architecture.md`, the PDF source, and `RELEASE-NOTES.md` up to date with the
+   measured `core` + `commerce` numbers.** Both profiles are done — see Memory profiles above and the
+   k3d-run notes below. These three documents still carry the old estimates.
+2. **Regenerate the PDF** (`docs/architecture-pdf.html` still carries Phase 1 content only) after
+   item 1 lands, so it is rebuilt once rather than twice.
+3. **`full-app`, `platform` and `observability` profiles have never run in k3d.** No manifests exist
+   yet for `platform` (Argo CD) or `observability`; `full-app` (notification, staff-portal/WildFly)
+   has manifests but hasn't been exercised. All three remain budgets, not measurements.
+4. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
    `docs/architecture.md` §9 and on page 7 of the PDF).
 
    *(The `payment-service` database test suite that was listed here is done: 18 gated tests.)*
-4. **Phase 6:** observability and the delivery layer — the OTel collector, Tempo, a
+5. **Phase 6:** observability and the delivery layer — the OTel collector, Tempo, a
    kube-prometheus-stack, and then Argo CD with the app-of-apps across dev, uat and prod. This is
    also where `order-service` gets the outbox that makes its saga crash-safe, and where NATS arrives
-   to carry the retries. Ends with a trace that follows one customer action from the storefront
-   through the checkout saga to the ledger.
+   to carry the retries (the `commerce` profile above ran without NATS — nothing in the current path
+   needs it yet). Ends with a trace that follows one customer action from the storefront through the
+   checkout saga to the ledger.
 
 ---
+
+### First commerce-profile k3d run — notes worth carrying forward (16 September 2026)
+
+- `./scripts/bootstrap.sh --profile commerce` brought up all six services together in-cluster for the
+  first time: `catalog-service`, `storefront`, `inventory-service`, `order-service`,
+  `payment-service`, `aquatics-advisor`, alongside `postgres`. Two more build-time defects surfaced,
+  both toolchain-vs-lockfile drift, neither caught by any prior local run because local runs use
+  whatever toolchain happens to be installed rather than the pinned Docker image:
+  - `inventory-service`: `go.mod` declared `go 1.25.0`; the Dockerfile pinned `golang:1.24-bookworm`.
+    `go mod download` refused to run. Fixed by bumping the Dockerfile to `golang:1.25-bookworm`.
+  - `payment-service`: `Cargo.lock` resolved `home v0.5.12`, whose own manifest requires Cargo's
+    `edition2024` feature (stabilized in Rust 1.85); the Dockerfile pinned `rust:1.82-bookworm`,
+    matching the crate's declared `rust-version` but not what the lockfile actually needed. Fixed by
+    bumping the Dockerfile to `rust:1.90-bookworm`. The crate's own `rust-version = "1.82"` is now a
+    floor for the first-party code, not a guarantee that `cargo build` succeeds with it.
+- **A live checkout ran the full saga in-cluster for the first time**, from outside the ingress (a
+  temporary `curlimages/curl` pod inside the namespace, since `order-service` is intentionally not
+  exposed through the public ingress — only the storefront and `inventory-service` are meant to call
+  it): create a cart, add a line (`INV-AMA-01`, Amano Shrimp × 2), checkout with an
+  `Idempotency-Key`. Result: `201`, order state `CONFIRMED`, reservation state `COMMITTED`,
+  `paymentRef` set, dispatch window `2026-09-21T14:00+05:30` (the next Monday after the Thursday
+  16 Sep cutoff — the shipping calendar rule working correctly against a real clock). The order-event
+  audit trail showed exactly the documented state machine: `PENDING → STOCK_RESERVED → PAID →
+  CONFIRMED`, each transition timestamped a fraction of a second apart. `inventory-service` correctly
+  reflected the sale afterward (`held: 0`, `onHand` reduced by the purchased quantity).
+- Total node memory for `core` + `commerce` together: 2052 MiB, up from `core` alone's 1322 MiB — so
+  the four commerce services together cost ~730 MiB, not the ~1.6 GB the additive estimate implied.
+- One pre-existing note confirmed still true: `order-service`'s README documents a `StubPaymentGateway`
+  gated by `PAYMENT_STUB_OUTCOME`, but the running service logs `payment gateway: payment-service over
+  HTTP` — it already talks to the real `payment-service` over HTTP, not the stub. The README section
+  describing the stub is about an earlier phase and is now misleading; worth a follow-up edit, not
+  done in this session since it's a docs-accuracy nit, not a runtime defect.
 
 ### First k3d run — notes worth carrying forward (16 September 2026)
 
@@ -297,13 +337,13 @@ aquashop/
   phases but cannot be exercised.
 - The AWS layer has never been applied.
 - No performance number is measured under sustained load for anything, in or out of k3d.
-- `inventory-service` has never run in the cluster, and nothing calls `release` on a failed payment
-  yet. Compensation arrives with Phase 3.
-- All six services have run outside k3d, against a local Postgres — including a live checkout across
-  `order-service` and `inventory-service` together. **`catalog-service` and `storefront` have now run
-  *in* k3d** (`core` profile, 16 September 2026) — probes, resource limits, ingress and TLS path are
-  exercised for those two. The four `commerce` services (`inventory`, `order`, `payment`, `advisor`)
-  have not run in the cluster and remain written-and-reviewed only.
+- All six services have run outside k3d, against a local Postgres, **and now all six have run *in*
+  k3d** (`core` + `commerce` profiles, 16 September 2026) — probes, resource limits, ingress/TLS
+  (for `catalog-service`/`storefront`), and a live checkout across `order-service`,
+  `inventory-service` and `payment-service` together are all exercised in-cluster. Not yet exercised
+  in-cluster: sustained load, a `kill -9` mid-checkout against the in-cluster saga specifically (the
+  crash-recovery demonstration below was outside k3d), and the `full-app`/`platform`/`observability`
+  profiles.
 - ~~The checkout saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in PAID
   or STOCK_RESERVED and finishes them; demonstrated with a real `kill -9` mid-checkout. It is a
   state scan rather than an outbox -- see `docs/adr/0018-*`, which amends 0015.

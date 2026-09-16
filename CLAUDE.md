@@ -11,24 +11,27 @@ Read [docs/context_summary.md](docs/context_summary.md) for current state and op
 
 ## The one thing to know first
 
-**The `core` profile has now run in k3d** (16 September 2026) — the first session with a Docker
-daemon. `catalog-service` and `storefront` are up, Flyway ran its 8 migrations against Postgres
-inside the cluster, and both `https://aquashop.localtest.me/` and `/api/categories` answer 200
-through ingress-nginx with the self-signed cert. Running it found a real defect: see below.
-`commerce` (inventory, order, payment, advisor together, in-cluster) has *not* run yet — that is
-now the first open item. Every memory figure for `commerce` and above is still an estimate; `core`'s
-are now measured, in [docs/context_summary.md](docs/context_summary.md).
+**Both `core` and `commerce` have now run in k3d** (16 September 2026) — the first session with a
+Docker daemon. All six services are up, a live checkout ran the full saga (reserve → authorise →
+commit → confirm) through `order-service`, `inventory-service` and `payment-service` together,
+in-cluster, and ended `CONFIRMED` with a committed reservation and a correct dispatch window. Running
+it found three real defects, all fixed: see below. `full-app`, `platform` and `observability`
+profiles have not run — those are the new first open item. Measured figures for `core` and
+`commerce` are in [docs/context_summary.md](docs/context_summary.md); the whole platform (all six
+services plus k3s, ingress, cert-manager) came in at ~2 GiB, well under every prior estimate.
 
 ## How this project works
 
 **Verify by running, not by reading.** Every defect of consequence in this repository was found by
 running something: the oversell race, the premature payment void, two backwards advisor rules, a
 lazy-loading 500, a saga that could not survive a crash, an advisor that refused one of the
-best-known good tanks in the hobby, and — first time in k3d — a `runAsNonRoot: true` pod
-securityContext that kubelet could not verify because the distroless images' `USER nonroot` is a
-name, not a UID (`CreateContainerConfigError` on every service; fixed by adding `runAsUser: 65532`
-/ `runAsGroup: 65532` to all six deployments). Several had been reviewed and looked fine. If you
-change behaviour, start the service and exercise it.
+best-known good tanks in the hobby, and — first time in k3d — three build/deploy defects that no
+amount of review had caught: a `runAsNonRoot: true` pod securityContext that kubelet could not
+verify because the distroless images' `USER nonroot` is a name, not a UID; `inventory-service`'s
+`go.mod` requiring Go 1.25 while its Dockerfile pinned 1.24; and `payment-service`'s Cargo.lock
+resolving a transitive dependency that needs Cargo's `edition2024` feature, unavailable on the
+pinned Rust 1.82. All three only surface when the image is actually built and run. Several had been
+reviewed and looked fine. If you change behaviour, start the service and exercise it.
 
 **State the cost of every decision.** ADRs carry a `## Cost` section and it is never empty. A
 decision with no downside has not been thought about.
@@ -79,6 +82,12 @@ why the advisor's rules are a YAML file. Match that when you add code.
   is not enough — kubelet cannot verify a `USER nonroot` (a name) without running the container, and
   every service hits `CreateContainerConfigError` until the numeric UID is spelled out in the pod
   securityContext. All six `platform-repo/dev/*/deployment.yaml` files carry this now.
+- **A Dockerfile's pinned toolchain version is a claim that gets stale silently.** `go.mod`'s `go`
+  directive and `Cargo.lock`'s resolved transitive dependencies can both drift ahead of what a
+  Dockerfile pins, and `mvn`/`go build`/`cargo build` inside CI or a local dev shell won't catch it
+  — only building the actual image does. `inventory-service` (`golang:1.25-bookworm`) and
+  `payment-service` (`rust:1.90-bookworm`, needed for Cargo's `edition2024` feature) both had to be
+  bumped past what their own manifests declare as MSRV once this ran for the first time.
 
 ## Testing
 
@@ -97,8 +106,8 @@ of exactly that gap.
 
 ## Known gaps, in order of how much they matter
 
-1. Only the `core` profile has run in k3d. `commerce` (inventory, order, payment, advisor, and the
-   checkout saga together, in-cluster) has not — its memory figures are still estimates.
+1. `full-app`, `platform` and `observability` profiles have never run in k3d — their memory figures
+   remain estimates. `core` and `commerce` are both measured now.
 2. Secrets are plaintext in Git. External Secrets + SOPS is planned, not built.
 3. Observability and Argo CD are budgeted profiles with no manifests behind them.
 4. Photograph licensing: every row in `services/storefront/public/species/CREDITS.md` says
