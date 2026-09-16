@@ -5,6 +5,103 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Both `core` and `commerce` ran in k3d for the first time
+
+Every prior session verified this repository against a local Postgres, never in a cluster, because
+no session before this one had a Docker daemon. This one did. `core` came up first, `commerce`
+followed the same day, and a live checkout ran the full saga in-cluster — the first time any of it
+has happened somewhere other than a build container.
+
+### What broke, and what it means
+
+Three defects surfaced, none of them caught by any amount of review, because none of them can be —
+they only exist once the actual container runs:
+
+- **Every pod** (all six `platform-repo/dev/*/deployment.yaml` files carry the same pattern) sat in
+  `CreateContainerConfigError` on `core`'s first rollout. The distroless `:nonroot` base images set
+  `USER nonroot` — a name, not a UID — and `runAsNonRoot: true` alone gives kubelet nothing numeric
+  to verify without running the container first. Fixed by adding `runAsUser: 65532` /
+  `runAsGroup: 65532` (Google's distroless nonroot UID) to the pod securityContext in all six
+  deployments.
+- **`inventory-service`**: `go.mod` had drifted ahead of its own Dockerfile — `go 1.25.0` declared,
+  `golang:1.24-bookworm` pinned as the builder. `go mod download` refused to run. Bumped to
+  `golang:1.25-bookworm`.
+- **`payment-service`**: `Cargo.lock` resolved a transitive dependency (`home v0.5.12`) whose own
+  manifest requires Cargo's `edition2024` feature, stabilized in Rust 1.85 — a stricter floor than
+  the crate's declared `rust-version = "1.82"`, which the pinned `rust:1.82-bookworm` builder
+  matched but couldn't satisfy. Bumped to `rust:1.90-bookworm`.
+
+The toolchain defects are the more interesting pair: `mvn`/`go build`/`cargo build` run locally
+against whatever toolchain happens to be installed, so neither one had ever been visible before —
+only `docker build` against the pinned image actually enforces the version a Dockerfile claims.
+
+### A live checkout, end to end, in-cluster
+
+From a temporary `curlimages/curl` pod inside the namespace (`order-service` is intentionally not
+exposed through the public ingress): create a cart, add a line (`INV-AMA-01`, Amano Shrimp × 2),
+checkout with an `Idempotency-Key`. Result: `201`, order state `CONFIRMED`, reservation state
+`COMMITTED`, `paymentRef` set, dispatch window `2026-09-21T14:00+05:30` — the next Monday after the
+Thursday cutoff, the shipping-calendar rule working against a real clock rather than a test double.
+The order-event audit trail showed exactly the documented state machine, `PENDING → STOCK_RESERVED
+→ PAID → CONFIRMED`, each transition a fraction of a second apart, and `inventory-service`
+correctly reflected the sale afterward (`held: 0`, `onHand` reduced by the purchased quantity).
+
+### Measured
+
+`kubectl top node` / `kubectl top pods -A`, both profiles up and settled:
+
+| Profile | Total node memory |
+|---|---|
+| `core` | **1.32 GiB** (against a ~2.6 GB estimate) |
+| `core` + `commerce` | **2052 MiB** (against a ~4.2 GB *additive* estimate for commerce — commerce actually added ~730 MiB) |
+
+| Pod | CPU | Memory |
+|---|---|---|
+| `catalog-service` (JVM, 640Mi limit) | 3m | 215 MiB |
+| `order-service` (JVM) | 7m | 224 MiB |
+| `storefront` (Node) | 1m | 30 MiB |
+| `aquatics-advisor` (Python/FastAPI) | 3m | 43 MiB |
+| `inventory-service` (Go) | 1m | 3 MiB |
+| `payment-service` (Rust) | 1m | 2 MiB |
+| `postgres` | 6m | 59 MiB |
+| `ingress-nginx-controller` | — | 184–189 MiB |
+| `cert-manager` (+ webhook, cainjector) | — | ~53 MiB |
+| `metrics-server` | — | ~19–21 MiB |
+
+`catalog-service`'s 215 MiB and `order-service`'s 224 MiB are the first honest JVM numbers in this
+repository — measured under their actual cgroup limits with `MaxRAMPercentage=70`, not against host
+RAM. `payment-service`'s 2 MiB and `inventory-service`'s 3 MiB are lower again than their own
+previous local-container figures (2 MiB and 3 MiB in-cluster vs. 6 MiB and 13.9–17.0 MiB
+respectively) — both pods were effectively idle during the smoke-test window, not under sustained
+load, so this is a floor, not a load-bearing number.
+
+`commerce`'s figure does not include NATS, which `bootstrap.sh --profile commerce` does not deploy
+(planned for Phase 6).
+
+### A ceiling that was also never measured
+
+The design has always targeted 11 GB usable inside WSL2 via a `.wslconfig` memory override
+([getting-started-locally.md](docs/getting-started-locally.md#memory)). That override has never
+been applied on this machine: `/proc/meminfo` measures **7.4 GB**, WSL2's unconfigured default of
+roughly half of host RAM. `core` + `commerce` fit inside it with room to spare, but the
+`observability` profile's ~9.2 GB estimate does not fit the unconfigured 7.4 GB ceiling at all —
+only the intended 11 GB one. This was invisible while every number in the profile table was an
+unmeasured estimate sitting against an unmeasured ceiling; it is visible now that two of the five
+profile figures are real.
+
+### Still unproven
+
+- `full-app`, `platform` and `observability` profiles have never run in k3d. No manifests exist yet
+  for `platform` (Argo CD) or `observability`; `full-app` has manifests but hasn't been exercised.
+- No sustained load, in or out of the cluster, for anything.
+- A `kill -9` mid-checkout has been demonstrated for the saga's crash recovery, but outside k3d —
+  not yet reproduced against the in-cluster saga specifically.
+- ~~`order-service`'s README still documents a `StubPaymentGateway`...~~ **Corrected.** The README
+  described only the stub; it now documents both `PaymentGateway` implementations and the
+  `PAYMENT_GATEWAY` toggle, and that every k3d deployment sets `http`.
+
+---
+
 ## The taxonomy is settled, and a shrimp is not a fish
 
 The category tree was built in V3 from guesswork about what the shop would sell. The owner has now

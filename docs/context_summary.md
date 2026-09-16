@@ -151,14 +151,31 @@ aquashop/
 
 ## Open items, in order
 
-1. **Bring `docs/architecture.md`, the PDF source, and `RELEASE-NOTES.md` up to date with the
-   measured `core` + `commerce` numbers.** Both profiles are done — see Memory profiles above and the
-   k3d-run notes below. These three documents still carry the old estimates.
-2. **Regenerate the PDF** (`docs/architecture-pdf.html` still carries Phase 1 content only) after
-   item 1 lands, so it is rebuilt once rather than twice.
+1. ~~Bring `docs/architecture.md` and `RELEASE-NOTES.md` up to date with the measured `core` +
+   `commerce` numbers.~~ **Done** (16 September 2026). Both now carry the measured figures, the
+   three k3d defects and fixes, the live-checkout walkthrough, and corrected "never run in k3d" /
+   "no database tests" / "saga not crash-safe" claims that had gone stale since Phases 4, 5 and the
+   ADR 0018 crash-recovery close. `CLAUDE.md` and `docs/getting-started-locally.md` picked up the
+   same corrections in passing. `order-service/README.md`'s stale `StubPaymentGateway`-only
+   description was also fixed (see next point).
+   **New finding while doing this:** the `.wslconfig` memory override that
+   `docs/getting-started-locally.md` has always instructed (`memory=11GB`) has never actually been
+   applied on this machine — `/proc/meminfo` measures **7.4 GB**, not 11 GB. `core` + `commerce`
+   fit fine either way, but the `observability` profile's ~9.2 GB estimate does not fit the
+   *unconfigured* 7.4 GB ceiling at all, only the intended 11 GB one. This was invisible while every
+   figure in the memory table was an unmeasured estimate sitting against an unmeasured ceiling.
+   Applying it means editing `C:\Users\<you>\.wslconfig` on the Windows side and `wsl --shutdown`
+   (which ends any WSL session, including this one) — not done, flagged for the user rather than
+   done unilaterally.
+2. **The PDF is now the next item.** `docs/architecture-pdf.html` and `docs/architecture.pdf` still
+   carry Phase 1 content only and need regenerating from the now-current `architecture.md`. No PDF
+   renderer (wkhtmltopdf, weasyprint, a headless Chromium) is installed on this machine — that's a
+   tooling decision for the user before proceeding, not something to install unasked.
 3. **`full-app`, `platform` and `observability` profiles have never run in k3d.** No manifests exist
    yet for `platform` (Argo CD) or `observability`; `full-app` (notification, staff-portal/WildFly)
-   has manifests but hasn't been exercised. All three remain budgets, not measurements.
+   has manifests but hasn't been exercised. `full-app` and `platform` remain budgets, not
+   measurements, but look like they'd fit even the unconfigured 7.4 GB ceiling; `observability` does
+   not, until the `.wslconfig` override above is applied.
 4. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
    `docs/architecture.md` §9 and on page 7 of the PDF).
 

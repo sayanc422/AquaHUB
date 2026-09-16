@@ -12,7 +12,9 @@
 **Status:** Phases 1–5 complete in code. All six services build, boot and have been exercised against a real Postgres — a live checkout, a
 live compensation that returns stock when a card is declined, a live checkout that survives a payment
 provider which takes the money and never answers, and a live tank check that refuses a fish and says
-why. **None of them has run in k3d.** Phases 6–7 are planned. See [context_summary.md](context_summary.md) for
+why. **The `core` and `commerce` profiles have now both run in k3d** (16 September 2026): all six
+services up, a live checkout ran the full saga in-cluster. `full-app`, `platform` and `observability`
+remain unexercised. Phases 6–7 are planned. See [context_summary.md](context_summary.md) for
 current state, [RELEASE-NOTES.md](../RELEASE-NOTES.md) for what has been measured, and
 [adr/](adr/) for the decisions and their costs.
 
@@ -151,8 +153,10 @@ from, because the fish exist and the person reconciling the count is standing in
 after 200 reservations, 2.5 ms mean reservation, and zero oversells across 300 concurrent
 reservations against 95 units of stock. See [slo.md](slo.md).
 
-**Not proven:** the service has never run in k3d. Its probes, limits and ConfigMap wiring are
-written and reviewed, not exercised.
+**Now also run in k3d** (16 September 2026, `commerce` profile): 3 MiB resident in-cluster —
+lower still than the local-container figures above, though the pod was effectively idle during the
+smoke-test window, not under sustained load. Probes, limits and ConfigMap wiring are exercised;
+sustained load in-cluster is not.
 
 ---
 
@@ -209,10 +213,15 @@ Monday — a waiting state that no event ends, only the clock. `dispatchable` is
 (`now() >= dispatch_at`) and never stored, and the dispatch watcher is not load-bearing — the same
 rule as inventory's reaper, generalised in [ADR 0011](adr/0011-derived-state-over-stored-state.md).
 
-**Not proven:** the saga is not crash-safe. If the process dies between taking the money and
-committing the holds, the holds expire by themselves — the stock returns — but the refund never
-happens. An outbox fixes it, at Phase 6 with NATS. `payment-service` does not exist yet; a stub
-stands in, and it cannot time out, which is the failure a real provider is mostly designed around.
+~~**Not proven:** the saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in
+`PAID` or `STOCK_RESERVED` and finishes them; demonstrated with a real `kill -9` mid-checkout. It is
+a state scan rather than an outbox ([ADR 0018](adr/0018-recover-from-state-not-from-an-outbox.md),
+which amends 0015). `order-service` now talks to the real `payment-service` over HTTP, not the stub
+described above — the stub was retired when Phase 4 landed. The saga has also now run end to end
+in k3d (16 September 2026, `commerce` profile): a live checkout through the ingress-internal
+`curlimages/curl` pod reserved, authorised, committed and confirmed, ending `CONFIRMED` with a
+correct dispatch window. Not yet exercised in-cluster: a crash mid-checkout against the in-cluster
+saga specifically — the `kill -9` demonstration above ran outside k3d.
 
 ---
 
@@ -249,8 +258,10 @@ delays the answer rather than corrupting it.
 argument for the language choice, as a number rather than a belief.
 
 **Not proven:** the acquirer is a stub — no partial captures, no chargebacks, no 3-D Secure, no
-settlement. And `payment-service` has no database tests at all: its constraints, its append-only
-trigger and its race-losing conditional update were exercised by hand.
+settlement. Its constraints, append-only trigger and race-losing conditional update now have 18
+gated database tests (`cargo test`, needs `PAYMENTS_TEST_DSN`) rather than being exercised only by
+hand. Measured in-cluster (16 September 2026, `commerce` profile): 2 MiB resident, though the pod
+was effectively idle during the smoke-test window, not under sustained load.
 
 ---
 
@@ -282,22 +293,34 @@ input is free-form customer data.
 
 ## 8. The memory budget
 
-16 GB of RAM, roughly 11 GB usable inside WSL2. The full platform does not fit at once, so the
-cluster is built as **profiles**: named subsets brought up for a purpose. This is not a workaround
+16 GB of physical RAM on the laptop; the design targets 11 GB usable inside WSL2 via a
+`.wslconfig` memory override ([getting-started-locally.md](getting-started-locally.md#memory)),
+but that override has not been applied on this machine — `/proc/meminfo` measures **7.4 GB**, WSL2's
+default of roughly half of host RAM. The `observability` profile's ~9.2 GB estimate does not fit
+that unconfigured ceiling; it does fit the intended 11 GB one. The full platform does not fit at
+once either way, so the cluster is built as **profiles**: named subsets brought up for a purpose. This is not a workaround
 added at the end — it is why NATS replaced Kafka, why one Postgres instance hosts per-service
 databases, and why only one environment is materialised at a time.
 
-| Profile | Adds | Est. total |
+| Profile | Adds | Total |
 |---|---|---|
-| `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | ~2.6 GB |
-| `commerce` | order, inventory, payment, advisor, NATS | ~4.2 GB |
-| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB |
-| `platform` | Argo CD | ~6.1 GB |
-| `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB |
+| `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | **1.32 GiB measured** (`kubectl top node`, 16 Sep 2026) |
+| `commerce` | order, inventory, payment, advisor, NATS | **~2.05 GiB measured** (NATS not deployed yet; see below) |
+| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate) |
+| `platform` | Argo CD | ~6.1 GB (estimate) |
+| `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB (estimate) |
 
-**Every figure above is an estimate until measured.** After the first `bootstrap.sh` run, replace
-them with `kubectl top pods -A` output. A measured number that was never measured is exactly the
-claim that collapses under one follow-up question.
+`core` and `commerce` are measured, not estimated, and both came in well under their old estimates:
+`core` at 1.32 GiB against a ~2.6 GB estimate, `commerce` at ~2.05 GiB total against a ~4.2 GB
+*additive* estimate (commerce actually added ~730 MiB). `commerce`'s figure does not include NATS,
+which `bootstrap.sh --profile commerce` does not yet deploy.
+
+**The remaining three profiles are still estimates, and the `observability` estimate (~9.2 GB) does
+not fit inside the current, unconfigured 7.4 GB WSL2 ceiling at all**, even alone, let alone
+alongside `core`. It does fit the intended 11 GB one. That gap was not visible while every figure in
+this table was an unmeasured estimate; it is visible now that `core` and `commerce` are real
+numbers. Closing it means applying the `.wslconfig` override above and `wsl --shutdown`, which has
+not been done on this machine yet.
 
 `bootstrap.sh` enforces the rule that follows from the ceiling: never build images while the
 observability profile is up. ~1.8 GB of headroom does not survive a Maven or Cargo build.
@@ -380,16 +403,23 @@ State these plainly. They make the project more credible, not less.
 - Single-node cluster: PDBs, anti-affinity, node drains and multi-AZ behaviour cannot be exercised.
 - Only one environment is materialised at a time; none has run concurrently with another.
 - The AWS layer has never been applied. Module wiring is proven; AWS behaviour is not.
-- Performance numbers exist only from a local Postgres on a build container — never in k3d, never
-  under sustained load. Every figure in the profile memory table is still an estimate.
-- No service has ever run in the cluster. The commerce profile now asks an 11 GB budget to hold two
-  JVMs, a Go service, Postgres and the platform at once, and that has not been tried.
-- The checkout saga is not crash-safe: a process death between taking money and committing holds
-  loses the refund, though the stock returns on its own when the holds expire. `payment-service`
-  solves the same problem for itself with an intent row; `order-service` gets it at Phase 6.
-- `payment-service` has no database tests. Its CHECK constraints, append-only trigger and
-  race-losing conditional update were exercised by hand, not in CI.
-- The card acquirer is stubbed. No partial captures, no chargebacks, no 3-D Secure, no settlement.
+- Performance numbers under sustained load exist nowhere, in or out of k3d — only single-threaded,
+  short smoke-test figures. `core` and `commerce` are now measured (not estimated) for idle/light
+  load; `full-app`, `platform` and `observability` remain estimates.
+- All six services have now run in k3d (`core` + `commerce` profiles, 16 September 2026): probes,
+  resource limits, ingress/TLS, and a live checkout across `order-service`, `inventory-service` and
+  `payment-service` together, all exercised in-cluster. Not yet exercised in-cluster: sustained
+  load, a `kill -9` mid-checkout against the in-cluster saga specifically, and the
+  `full-app`/`platform`/`observability` profiles — `observability`'s ~9.2 GB estimate does not fit
+  the current, unconfigured 7.4 GB WSL2 ceiling (§8); the `.wslconfig` override that targets 11 GB
+  has not been applied on this machine.
+- ~~The checkout saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in
+  `PAID` or `STOCK_RESERVED` and finishes them; demonstrated with a real `kill -9` mid-checkout. A
+  state scan rather than an outbox — see [ADR 0018](adr/0018-recover-from-state-not-from-an-outbox.md),
+  which amends 0015.
+- `payment-service`'s acquirer is a stub: no partial captures, no chargebacks, no 3-D Secure, no
+  settlement, and an in-process memory that a restart wipes. It now has 18 gated database tests
+  covering its CHECK constraints, append-only trigger and race-losing conditional update.
 - `aquatics-advisor` has no test covering its HTTP layer or its catalog client, and ships on
   `python:3.11-slim` rather than distroless — a shell and a package manager in the image.
 - The advisor's predation rule uses adult length because the catalog does not record mouth gape. It

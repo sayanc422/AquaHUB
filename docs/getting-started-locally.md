@@ -1,9 +1,9 @@
 # Getting AquaShop running locally
 
 Everything in this repository has been verified by running the services directly against a local
-Postgres. **Nothing has ever run in k3d** — no session so far has had a Docker daemon. So
-`scripts/bootstrap.sh` is written, reviewed and has never been executed. That is the single
-biggest unknown in the project, and it is the one thing you can remove.
+Postgres, and — as of 16 September 2026 — the `core` and `commerce` profiles have both run in k3d
+via `scripts/bootstrap.sh`, including a live checkout saga in-cluster. `full-app`, `platform` and
+`observability` have not; see [context_summary.md](context_summary.md) for what remains open.
 
 This page is the short list of what to install and what to run.
 

@@ -62,13 +62,18 @@ rather than a conversation.
 
 ## Payment
 
-`PaymentGateway` is the port payment-service will plug into. Until then `StubPaymentGateway` stands
-in, and its outcome is **configuration** (`PAYMENT_STUB_OUTCOME=APPROVE|DECLINE`), not a field on the
-request: a test hook in the API would let anyone who can place an order choose whether to pay.
+`PaymentGateway` is a port with two implementations, chosen by `PAYMENT_GATEWAY=stub|http`
+(`stub` unless set). `StubPaymentGateway` is a test double whose outcome is **configuration**
+(`PAYMENT_STUB_OUTCOME=APPROVE|DECLINE`), not a field on the request — a test hook in the API would
+let anyone who can place an order choose whether to pay. `HttpPaymentGateway` calls the real
+`payment-service` over HTTP at `PAYMENT_BASE_URL`, and is what every `platform-repo/dev/order/`
+k3d deployment sets (`PAYMENT_GATEWAY=http`) — a live checkout in `commerce` profile runs against
+the real service, not the stub.
 
 The stub's limits, stated rather than discovered: no ledger, no idempotency of its own, no network,
-and no outcome between "declined" and "authorised". Nothing here demonstrates that the saga survives
-a payment provider *timing out*, which is the failure a real one spends most of its design on.
+and no outcome between "declined" and "authorised". Only `HttpPaymentGateway` demonstrates that the
+saga survives a payment provider *timing out*, which is the failure a real one spends most of its
+design on.
 
 ## API
 

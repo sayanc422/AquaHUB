@@ -76,8 +76,11 @@ why the advisor's rules are a YAML file. Match that when you add code.
 - **No `limits.cpu` in the ResourceQuota.** A quota counting `limits.cpu` makes a CPU limit
   mandatory, and with a LimitRange default every JVM is silently CFS-throttled. This reversed
   ADR 0006 once already.
-- **Memory profiles are load-bearing.** ~11 GB does not hold the whole platform. Never build images
-  while the observability profile is up.
+- **Memory profiles are load-bearing.** The design targets 11 GB usable inside WSL2 via the
+  `.wslconfig` override in `docs/getting-started-locally.md`, but that override has never been
+  applied on this machine — `/proc/meminfo` measures ~7.4 GB, WSL2's unconfigured default. The
+  `observability` profile's ~9.2 GB estimate does not fit that unconfigured ceiling at all; it does
+  fit the intended 11 GB one. Never build images while the observability profile is up.
 - **A distroless `nonroot` image needs `runAsUser: 65532` explicitly.** `runAsNonRoot: true` alone
   is not enough — kubelet cannot verify a `USER nonroot` (a name) without running the container, and
   every service hits `CreateContainerConfigError` until the numeric UID is spelled out in the pod
