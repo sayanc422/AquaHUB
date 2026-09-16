@@ -85,18 +85,62 @@ So there are two honest ways to work:
 
 ### Run Claude Code locally (recommended)
 
-Install the CLI on the machine that has Docker, and run it from inside your clone:
+**A Windows install and a WSL install are two separate installations.** Installing Claude Code on
+Windows does not give you a `claude` inside your WSL distribution, and a Windows-side `claude`
+cannot run the Docker Engine you installed inside WSL. The docs are explicit: for WSL you install
+and launch `claude` *inside the WSL terminal*, not from PowerShell or CMD.
+
+So install it in WSL as well — having both is fine, they don't conflict:
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-cd ~/AquaHUB          # wherever you cloned it
-claude
+# inside the WSL terminal, not PowerShell
+curl -fsSL https://claude.ai/install.sh | bash
+claude --version
 ```
 
-That session has your Docker daemon, your k3d cluster, your `kubectl` context and your files. It
-can run `./scripts/bootstrap.sh`, watch it fail, read the pod logs and fix it — the loop this
-repository has never once been through. See <https://code.claude.com/docs> for the current install
-options if npm is not how you want to do it.
+Same login, same subscription. WSL 2 also supports
+[sandboxing](https://code.claude.com/docs/en/sandboxing), which native Windows does not.
+
+**Clone the repository onto the Linux filesystem, not `/mnt/c/`.** This matters more than it looks:
+
+```bash
+cd ~ && git clone https://github.com/sayanc422/AquaHUB.git   # ~/AquaHUB — good
+# NOT /mnt/c/Users/you/AquaHUB — cross-filesystem, and slow
+```
+
+Reading Windows files from WSL crosses a filesystem boundary, and the penalty is bad enough that
+Claude Code's own troubleshooting page lists it: search returns *fewer results than it should*,
+silently, while `claude doctor` still reports Search as OK. On a repository this size that means
+Claude quietly failing to find files. Docker, Maven and Cargo are all much slower across `/mnt/c`
+too.
+
+If you already cloned on the Windows side, clone again inside WSL and work there.
+
+That WSL session has your Docker daemon, your k3d cluster, your `kubectl` context and your files.
+It can run `./scripts/bootstrap.sh`, watch it fail, read the pod logs and fix it — the loop this
+repository has never been through.
+
+### What does and does not sync
+
+| | Syncs | How |
+|---|---|---|
+| Code, migrations, docs | Yes | Git. It is the only channel. |
+| Conversation history | No | Per-machine, in `~/.claude.json` |
+| Settings, permissions, allowed tools | No | Per-machine, in `~/.claude/`. Windows and WSL each have their own |
+| `CLAUDE.md` in the repo | Yes | It is a tracked file, so it is the way to carry standing instructions between sessions |
+
+The working rule: **pull before you start, push when you stop, and only one session at a time on a
+given branch.** A web session and a local session both committing to the same branch will conflict,
+and neither can see the other's uncommitted work.
+
+```bash
+git pull origin claude/clever-shannon-ivtkw6     # before starting, always
+# ... work ...
+git push -u origin claude/clever-shannon-ivtkw6  # before switching to the other session
+```
+
+Note there is no `main` on this repository yet. `claude/clever-shannon-ivtkw6` is the only branch
+and is the remote default, so a plain `git clone` checks it out.
 
 ### Or the copy-paste loop
 

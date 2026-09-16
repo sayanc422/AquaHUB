@@ -75,6 +75,7 @@ Phases 6–7 are planned. See [docs/context_summary.md](docs/context_summary.md)
 - [docs/slo.md](docs/slo.md) — objectives, the consequence of missing each, and which numbers are measured
 - [docs/runbooks/](docs/runbooks/) — one page per failure, written to be followed at 02:00
 - [RELEASE-NOTES.md](RELEASE-NOTES.md) — per phase: what was built, what was measured, what is unproven
+- [CLAUDE.md](CLAUDE.md) — how this project works, for any Claude Code session that opens it
 - [docs/getting-started-locally.md](docs/getting-started-locally.md) — what to install and run to get this up on your own machine
 - [docs/context_summary.md](docs/context_summary.md) — current state, decisions taken, open items
 - [docs/architecture.pdf](docs/architecture.pdf) — styled and printable, with diagrams. **Phase 1 content only**; `architecture.md` is ahead of it
