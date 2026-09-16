@@ -68,6 +68,10 @@ spec:
       terminationGracePeriodSeconds: 20
       securityContext:
         runAsNonRoot: true
+        # See catalog/deployment.yaml: the distroless nonroot image's USER is a
+        # name, not a UID, so runAsNonRoot alone cannot be verified by kubelet.
+        runAsUser: 65532
+        runAsGroup: 65532
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: inventory-service

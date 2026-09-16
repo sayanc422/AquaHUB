@@ -56,6 +56,12 @@ spec:
       terminationGracePeriodSeconds: 45
       securityContext:
         runAsNonRoot: true
+        # The distroless nonroot images set `USER nonroot`, a name, not a UID.
+        # Kubelet's runAsNonRoot check needs a numeric UID to verify without
+        # running the container -- omitting this is CreateContainerConfigError,
+        # found by running the pod, not by reading the manifest.
+        runAsUser: 65532
+        runAsGroup: 65532
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: catalog-service

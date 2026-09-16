@@ -3,7 +3,7 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of the saga-recovery session (16 September 2026).
+**Last updated:** end of the first k3d run, `core` profile (16 September 2026).
 
 ---
 
@@ -32,25 +32,39 @@ It is the state of the work, not a restatement of the brief.*
 | Advisor storage | None. It reads species profiles from catalog-service | A local copy is a second source of truth that drifts on the first correction. Cost: it cannot answer at all when the catalog is down, and a SKU lookup costs an extra hop. |
 | Catalogue shape | A tree: category.parent_id, with status ACTIVE/COMING_SOON/HIDDEN | A shop is browsed by narrowing. Cost: five levels means five clicks, so every level needs a "browse all" escape hatch, and counts have to be subtree counts or every branch tile reads zero. |
 | CPU limits | Requests only on JVM services; memory limits always | A CPU limit means CFS throttling — the container is stopped for the rest of each 100 ms period, which reads as latency spikes on an idle-looking node. Memory is limited because memory is not compressible. Cost: a runaway pod can starve neighbours; ResourceQuota is the backstop. |
+| Pod securityContext for distroless images | `runAsUser: 65532` / `runAsGroup: 65532` set explicitly alongside `runAsNonRoot: true`, on all six deployments | The distroless `:nonroot` images set `USER nonroot` — a name, not a UID — and kubelet's `runAsNonRoot` check cannot verify a name without running the container first, so every pod sat in `CreateContainerConfigError` on the first real k3d run. Cost: couples every deployment manifest to the specific numeric UID Google's distroless images happen to use (65532); a future base-image change that picks a different UID breaks this silently until the next `kubectl apply`. |
 
-## Memory profiles (estimates until measured)
+## Memory profiles
 
-| Profile | Adds | Est. total |
+| Profile | Adds | Total |
 |---|---|---|
-| `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | ~2.6 GB |
-| `commerce` | order, inventory, payment, advisor, NATS | ~4.2 GB |
-| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB |
-| `platform` | Argo CD | ~6.1 GB |
-| `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB |
+| `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | **1.32 GiB measured** (`kubectl top node`, 16 Sep 2026) |
+| `commerce` | order, inventory, payment, advisor, NATS | ~4.2 GB (estimate) |
+| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate) |
+| `platform` | Argo CD | ~6.1 GB (estimate) |
+| `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB (estimate) |
 
-Only `core` and `commerce` are built. `full-app`, `platform` and `observability` are planned
-profiles with no manifests behind them yet, so their figures are budgets, not estimates of
-something that exists.
+`core` is measured, not estimated: it came in well under the ~2.6 GB budget. Node total was
+1322 MiB (17% of the 7.4 GiB host) with metrics-server, ingress-nginx, cert-manager and CoreDNS all
+running alongside it. Per-pod, from `kubectl top pods -A`:
 
-`inventory-service` measures 13.9 MiB resident idle and 17.0 MiB after 200 reservations — but
-against a local Postgres on a build container, not in k3d. It is the only service in the repository
-with any measured figure at all. Replacing the rest requires `kubectl top`, which requires
-metrics-server, which `scripts/bootstrap.sh --metrics` installs.
+| Pod | CPU | Memory |
+|---|---|---|
+| `catalog-service` (JVM, 640Mi limit) | 5m | 203 MiB |
+| `storefront` (Node) | 1m | 27 MiB |
+| `postgres` | 5m | 46 MiB |
+| `ingress-nginx-controller` | 3m | 184 MiB |
+| `cert-manager` (+ webhook, cainjector) | 6m | 53 MiB |
+| `metrics-server` | 5m | 19 MiB |
+
+`catalog-service`'s 203 MiB is the first honest JVM number in this repository — measured under its
+actual 640Mi cgroup limit with `MaxRAMPercentage=70`, not against host RAM the way the 338 MiB and
+361 MiB figures below were. `commerce`, `full-app`, `platform` and `observability` remain budgets:
+only `core` has run in k3d so far.
+
+`inventory-service` still separately measures 13.9 MiB resident idle and 17.0 MiB after 200
+reservations, but against a local Postgres on a build container, not in k3d — that number is now the
+second-most-trustworthy in the repository, not the only measured one.
 
 Hard rule, enforced in `bootstrap.sh`: never build images while the observability profile is up.
 ~1.8 GB of headroom does not survive a Maven or Cargo build, and the failure mode is the kernel
@@ -126,19 +140,15 @@ aquashop/
 
 ## Open items, in order
 
-1. **Run `./scripts/bootstrap.sh` and record real numbers.** Still the first item, and still
-   blocked on a machine with Docker. Every profile memory figure remains an estimate.
-   Replace them from `kubectl top pods -A` in `docs/architecture.md`, the PDF source, and
-   `RELEASE-NOTES.md`.
+1. **Run `./scripts/bootstrap.sh --profile commerce` and record real numbers for the commerce
+   services.** `core` is done — see Memory profiles above and the k3d-run notes below. `commerce`
+   (inventory, order, payment, advisor and the checkout saga, together, in-cluster) has never run in
+   k3d, so its memory figures, its probes, and whether the same `runAsUser` fix is sufficient for all
+   four remaining services are still unverified. This machine has 7.4 GiB total RAM against the
+   `commerce` preflight's 5000 MB floor — tighter than `core`'s was, worth watching.
 
-   Partly advanced: all five services have now been built and run *outside* k3d, against a local
-   Postgres — including all three commerce services together — and the numbers are in
-   `RELEASE-NOTES.md` and `docs/slo.md`. That has found five real defects across the phases, but it
-   is not the same thing as running in the cluster. In particular the JVM figures (338 MiB and
-   361 MiB) were measured with **no cgroup limit**, so the heap was sized from host RAM; they say
-   nothing about whether the 640Mi limits are right, and the first `kubectl top` will be the first
-   honest JVM number. `payment-service`'s 6 MiB does not have that problem, which is itself part of
-   the argument for it.
+   Once commerce numbers land, replace the remaining estimates in `docs/architecture.md`, the PDF
+   source, and `RELEASE-NOTES.md`.
 2. **Bring the PDF up to date.** `docs/architecture-pdf.html` still carries Phase 1 content only;
    `docs/architecture.md` is now ahead of it. Regenerate after the numbers from item 1 land, so the
    PDF is rebuilt once rather than twice.
@@ -151,6 +161,33 @@ aquashop/
    also where `order-service` gets the outbox that makes its saga crash-safe, and where NATS arrives
    to carry the retries. Ends with a trace that follows one customer action from the storefront
    through the checkout saga to the ledger.
+
+---
+
+### First k3d run — notes worth carrying forward (16 September 2026)
+
+- `core` profile: cluster up, both images built and imported, `catalog-service` and `storefront`
+  rolled out, both answering 200 through `https://aquashop.localtest.me/` and `ingress-nginx` with
+  the self-signed CA. First time this repository has run in a cluster rather than against a bare
+  local Postgres.
+- The defect: every pod (not just catalog and storefront — all six `platform-repo/dev/*` manifests
+  carry the same pattern) sat in `CreateContainerConfigError`. The distroless `:nonroot` base images
+  set `USER nonroot`, a name; `runAsNonRoot: true` alone gives kubelet nothing numeric to check
+  without running the container. Fix: `runAsUser: 65532` / `runAsGroup: 65532` (Google's distroless
+  nonroot UID) added explicitly to the pod securityContext in all six deployments. Caught by running
+  the pod, exactly the way this project expects defects to surface — review of the YAML alone would
+  not have caught it, because `runAsNonRoot: true` reads as complete.
+- A `PLACEHOLDER` image tag is checked into every deployment manifest by design (`# CI rewrites this
+  to the git SHA`); the first ReplicaSet briefly tries to pull `aquashop/<service>:PLACEHOLDER` from
+  Docker Hub and fails with `ErrImagePull` before `bootstrap.sh`'s own `kubectl set image` step
+  supersedes it. Cosmetic on a from-scratch bootstrap; on a rolling update against a real registry it
+  would not happen at all, since CI would have already rewritten the tag.
+- Flyway ran its 8 migrations against Postgres inside the cluster on first boot, cleanly — no repeat
+  of the Phase 1 mapping defects, which were fixed long before this session.
+- `kubectl top` (via metrics-server, installed with `--metrics`) gives the first honest node-level
+  number: 1.32 GiB for the whole `core` profile including k3s system pods, cert-manager,
+  ingress-nginx, CoreDNS and metrics-server itself — comfortably under the ~2.6 GB estimate that
+  stood in for it until now.
 
 
 ### Phase 1 verification notes — worth carrying forward
@@ -259,13 +296,14 @@ aquashop/
 - Single-node cluster: PodDisruptionBudgets, anti-affinity and node drains are configured in later
   phases but cannot be exercised.
 - The AWS layer has never been applied.
-- No performance number is measured for anything except `inventory-service`, and that only against
-  a local Postgres on a build container — never in k3d, never under sustained load.
+- No performance number is measured under sustained load for anything, in or out of k3d.
 - `inventory-service` has never run in the cluster, and nothing calls `release` on a failed payment
   yet. Compensation arrives with Phase 3.
-- All six services have now run outside k3d, against a local Postgres — including a live checkout
-  across `order-service` and `inventory-service` together. None has run *in* k3d, so the probes,
-  resource limits, ingress and TLS path remain written-and-reviewed, not exercised.
+- All six services have run outside k3d, against a local Postgres — including a live checkout across
+  `order-service` and `inventory-service` together. **`catalog-service` and `storefront` have now run
+  *in* k3d** (`core` profile, 16 September 2026) — probes, resource limits, ingress and TLS path are
+  exercised for those two. The four `commerce` services (`inventory`, `order`, `payment`, `advisor`)
+  have not run in the cluster and remain written-and-reviewed only.
 - ~~The checkout saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in PAID
   or STOCK_RESERVED and finishes them; demonstrated with a real `kill -9` mid-checkout. It is a
   state scan rather than an outbox -- see `docs/adr/0018-*`, which amends 0015.

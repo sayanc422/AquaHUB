@@ -11,20 +11,24 @@ Read [docs/context_summary.md](docs/context_summary.md) for current state and op
 
 ## The one thing to know first
 
-**Nothing in this repository has ever run in k3d.** No session has had a Docker daemon.
-`scripts/bootstrap.sh` is written, reviewed and unexecuted. Every service has been verified by
-running it directly against a local Postgres, and every memory figure except one is an estimate.
-
-If you are in a session that *does* have Docker, that is the highest-value thing you can do. See
-[docs/getting-started-locally.md](docs/getting-started-locally.md).
+**The `core` profile has now run in k3d** (16 September 2026) — the first session with a Docker
+daemon. `catalog-service` and `storefront` are up, Flyway ran its 8 migrations against Postgres
+inside the cluster, and both `https://aquashop.localtest.me/` and `/api/categories` answer 200
+through ingress-nginx with the self-signed cert. Running it found a real defect: see below.
+`commerce` (inventory, order, payment, advisor together, in-cluster) has *not* run yet — that is
+now the first open item. Every memory figure for `commerce` and above is still an estimate; `core`'s
+are now measured, in [docs/context_summary.md](docs/context_summary.md).
 
 ## How this project works
 
 **Verify by running, not by reading.** Every defect of consequence in this repository was found by
 running something: the oversell race, the premature payment void, two backwards advisor rules, a
 lazy-loading 500, a saga that could not survive a crash, an advisor that refused one of the
-best-known good tanks in the hobby. Several had been reviewed and looked fine. If you change
-behaviour, start the service and exercise it.
+best-known good tanks in the hobby, and — first time in k3d — a `runAsNonRoot: true` pod
+securityContext that kubelet could not verify because the distroless images' `USER nonroot` is a
+name, not a UID (`CreateContainerConfigError` on every service; fixed by adding `runAsUser: 65532`
+/ `runAsGroup: 65532` to all six deployments). Several had been reviewed and looked fine. If you
+change behaviour, start the service and exercise it.
 
 **State the cost of every decision.** ADRs carry a `## Cost` section and it is never empty. A
 decision with no downside has not been thought about.
@@ -71,6 +75,10 @@ why the advisor's rules are a YAML file. Match that when you add code.
   ADR 0006 once already.
 - **Memory profiles are load-bearing.** ~11 GB does not hold the whole platform. Never build images
   while the observability profile is up.
+- **A distroless `nonroot` image needs `runAsUser: 65532` explicitly.** `runAsNonRoot: true` alone
+  is not enough — kubelet cannot verify a `USER nonroot` (a name) without running the container, and
+  every service hits `CreateContainerConfigError` until the numeric UID is spelled out in the pod
+  securityContext. All six `platform-repo/dev/*/deployment.yaml` files carry this now.
 
 ## Testing
 
@@ -89,7 +97,8 @@ of exactly that gap.
 
 ## Known gaps, in order of how much they matter
 
-1. Nothing has run in k3d. Every memory figure is an estimate.
+1. Only the `core` profile has run in k3d. `commerce` (inventory, order, payment, advisor, and the
+   checkout saga together, in-cluster) has not — its memory figures are still estimates.
 2. Secrets are plaintext in Git. External Secrets + SOPS is planned, not built.
 3. Observability and Argo CD are budgeted profiles with no manifests behind them.
 4. Photograph licensing: every row in `services/storefront/public/species/CREDITS.md` says
