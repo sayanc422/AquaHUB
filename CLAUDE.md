@@ -89,10 +89,12 @@ why the advisor's rules are a YAML file. Match that when you add code.
   mandatory, and with a LimitRange default every JVM is silently CFS-throttled. This reversed
   ADR 0006 once already.
 - **Memory profiles are load-bearing.** The design targets 11 GB usable inside WSL2 via the
-  `.wslconfig` override in `docs/getting-started-locally.md`, but that override has never been
-  applied on this machine — `/proc/meminfo` measures ~7.4 GB, WSL2's unconfigured default. The
-  `observability` profile's ~9.2 GB estimate does not fit that unconfigured ceiling at all; it does
-  fit the intended 11 GB one. Never build images while the observability profile is up.
+  `.wslconfig` override in `docs/getting-started-locally.md`. That file now exists on this machine
+  (`C:\Users\sayan\.wslconfig`, written 17 September 2026) but isn't applied yet — needs
+  `wsl --shutdown`, which ends the session that runs it, so it's the user's call on timing.
+  `/proc/meminfo` still measures ~7.4 GB until that happens. The `observability` profile's ~9.2 GB
+  estimate does not fit that unconfigured ceiling at all; it does fit the intended 11 GB one. Never
+  build images while the observability profile is up.
 - **A distroless `nonroot` image needs `runAsUser: 65532` explicitly.** `runAsNonRoot: true` alone
   is not enough — kubelet cannot verify a `USER nonroot` (a name) without running the container, and
   every service hits `CreateContainerConfigError` until the numeric UID is spelled out in the pod

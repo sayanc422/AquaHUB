@@ -299,9 +299,11 @@ input is free-form customer data.
 ## 8. The memory budget
 
 16 GB of physical RAM on the laptop; the design targets 11 GB usable inside WSL2 via a
-`.wslconfig` memory override ([getting-started-locally.md](getting-started-locally.md#memory)),
-but that override has not been applied on this machine — `/proc/meminfo` measures **7.4 GB**, WSL2's
-default of roughly half of host RAM. The `observability` profile's ~9.2 GB estimate does not fit
+`.wslconfig` memory override ([getting-started-locally.md](getting-started-locally.md#memory)).
+That file now exists on this machine (`C:\Users\sayan\.wslconfig`, written 17 September 2026), but
+applying it needs `wsl --shutdown`, which ends whatever WSL session runs it — not done as of this
+writing, so `/proc/meminfo` still measures **7.4 GB**, WSL2's unconfigured default of roughly half
+of host RAM. The `observability` profile's ~9.2 GB estimate does not fit
 that unconfigured ceiling; it does fit the intended 11 GB one. The full platform does not fit at
 once either way, so the cluster is built as **profiles**: named subsets brought up for a purpose. This is not a workaround
 added at the end — it is why NATS replaced Kafka, why one Postgres instance hosts per-service
@@ -342,8 +344,9 @@ for the full account.
 not fit inside the current, unconfigured 7.4 GB WSL2 ceiling at all**, even alone, let alone
 alongside `core`. It does fit the intended 11 GB one. That gap was not visible
 while every figure in this table was an unmeasured estimate; it is visible now that `core`,
-`commerce` and `full-app` are all real numbers. Closing it means applying
-the `.wslconfig` override above and `wsl --shutdown`, which has not been done on this machine yet.
+`commerce` and `full-app` are all real numbers. Closing it means running `wsl --shutdown` to apply
+the `.wslconfig` file above (already written; not yet applied), which has not been done yet since it
+ends whatever WSL session runs it.
 
 `bootstrap.sh` enforces the rule that follows from the ceiling: never build images while the
 observability profile is up. ~1.8 GB of headroom does not survive a Maven or Cargo build.
@@ -433,15 +436,20 @@ State these plainly. They make the project more credible, not less.
   2026): probes, resource limits, ingress/TLS, and a live checkout across `order-service`,
   `inventory-service`, `payment-service` and `notification-service` together, all exercised
   in-cluster — the notification push in particular was watched end to end, from `order-service`'s
-  `HttpNotificationClient` call through to a stub email logged as delivered. `full-app` took three
+  `HttpNotificationClient` call through to a stub email logged as delivered. `full-app` took four
   attempts: two blocked by a memory preflight sitting right at the unconfigured 7.4 GB WSL2 ceiling's
-  edge, a third that passed the preflight but hit a real rollout deadlock (§8) fixed by hand, not yet
-  fixed in the manifest. Not yet exercised in-cluster: sustained
-  load, a `kill -9` mid-checkout against the in-cluster saga specifically, `staff-portal` through the
-  public ingress rather than `kubectl port-forward`, and the `platform`/`observability` profiles —
+  edge, a third that passed the preflight but hit a real rollout deadlock, fixed both by hand and in
+  the manifest (§8, RELEASE-NOTES). `staff-portal` is now reachable through the public ingress too,
+  at `https://staff.aquashop.localtest.me/` — a separate host rather than a `/staff` path prefix
+  under the main one, because `staff-portal` deploys as `ROOT.war` (its JSPs' links are
+  root-relative, `/orders` not `/staff/orders`) and a path prefix would break every link past the
+  first page. Not yet exercised in-cluster: sustained
+  load, a `kill -9` mid-checkout against the in-cluster saga specifically, and the
+  `platform`/`observability` profiles —
   `observability`'s ~9.2 GB estimate does not fit
   the current, unconfigured 7.4 GB WSL2 ceiling (§8) at all; the `.wslconfig` override that targets 11 GB
-  has not been applied on this machine.
+  has been written but not yet applied (needs `wsl --shutdown`, which ends whatever session runs it —
+  not done as of this writing).
 - ~~The checkout saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in
   `PAID` or `STOCK_RESERVED` and finishes them; demonstrated with a real `kill -9` mid-checkout. A
   state scan rather than an outbox — see [ADR 0018](adr/0018-recover-from-state-not-from-an-outbox.md),

@@ -5,6 +5,38 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## `staff-portal` reachable through the public ingress; `.wslconfig` written
+
+Small follow-up to the entry below, same day.
+
+`staff-portal` is now reachable at `https://staff.aquashop.localtest.me/` — a **separate host**,
+not a `/staff` path prefix under `aquashop.localtest.me`. The reason is structural, not a style
+choice: `staff-portal` deploys as `ROOT.war` (context path `""`), which is what lets its
+`/healthz`/`/readyz` probes work without a prefix — and its JSPs render links via
+`request.getContextPath()`, which is always empty for `ROOT`, so every link on every page is
+root-relative (`/orders`, not `/staff/orders`). A path-prefixed ingress route with a rewrite would
+correctly serve the *first* page and then break every link on it, since the browser would navigate
+straight out of the prefix on the next click. `*.localtest.me` already resolves any subdomain to
+`127.0.0.1`, so the fix cost one new `Ingress` rule and one extra hostname on the existing
+`cert-manager` certificate — no `/etc/hosts` edit, no second certificate. Verified: `/`, `/healthz`,
+`/readyz`, `/orders`, `/stock`, `/catalog` all `200` through the new host, storefront's own routes
+unaffected, one certificate covering both hostnames.
+
+Also written this session, at the user's request: `C:\Users\sayan\.wslconfig`
+(`memory=11GB`/`processors=4`/`swap=4GB`, the exact settings `docs/getting-started-locally.md` has
+always specified). Not yet applied — that needs `wsl --shutdown`, which ends whatever WSL session
+runs it, left for the user to do on their own schedule rather than forced mid-session.
+
+### Still unproven
+
+- No sustained load against any of the eight services together.
+- `platform` (Argo CD) and `observability` remain fully unbuilt.
+- `staff-portal`'s rollout-deadlock manifest fix is written but not yet re-verified against a fresh
+  reproduction.
+- The `.wslconfig` override is written but not applied; `/proc/meminfo` still measures ~7.4 GB.
+
+---
+
 ## `full-app` ran in k3d for the first time
 
 The previous entry ended with `full-app` blocked before a single pod deployed, three times in a row,
@@ -89,14 +121,14 @@ observed end to end for the first time.
 `/healthz` and `/readyz` both `200`, and all three of its pages (`/orders`, `/stock`, `/catalog`)
 rendered `200` against live backend data.
 
-### Still unproven
+### Still unproven (as of this entry — see the entry above for what's since closed)
 
 - Not yet exposed through the ingress — checked via `kubectl port-forward` only, matching
   `order-service`'s own pattern of staying internal-only by design.
 - No sustained load against any of the eight services together.
 - `platform` (Argo CD) and `observability` remain fully unbuilt.
-- The rollout-deadlock defect above is worked around by hand, not fixed in the manifest or
-  `bootstrap.sh` — the next fresh deploy will reproduce it.
+- The rollout-deadlock defect above is worked around by hand in the cluster; a manifest fix
+  (`maxUnavailable: 1, maxSurge: 0`) is written but not yet re-verified against a fresh reproduction.
 
 ---
 

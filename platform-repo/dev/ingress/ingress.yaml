@@ -9,7 +9,10 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-    - hosts: [aquashop.localtest.me]
+    # Both hostnames on one certificate/secret: cert-manager issues a single
+    # cert covering the SAN list, and *.localtest.me already resolves any
+    # subdomain to 127.0.0.1 with no /etc/hosts edit needed for either.
+    - hosts: [aquashop.localtest.me, staff.aquashop.localtest.me]
       secretName: aquashop-tls
   rules:
     - host: aquashop.localtest.me       # localtest.me resolves to 127.0.0.1, no /etc/hosts edit
@@ -28,4 +31,27 @@ spec:
             backend:
               service:
                 name: catalog-service
+                port: { number: 8080 }
+    # A separate host, not a /staff path prefix under the same host. staff-portal
+    # deploys as ROOT.war (its JSPs' links use request.getContextPath(), which
+    # is always "" for ROOT -- required so the k8s liveness/readiness probes,
+    # which hit / healthz directly against the pod, don't need a prefix either).
+    # A path-prefixed route would need an nginx rewrite-target for the first
+    # request, then break on the second: every link the page renders is
+    # root-relative ("/orders", not "/staff/orders"), so the browser would
+    # navigate straight out of the prefix. A subdomain sidesteps the whole
+    # problem -- ingress-nginx matches purely on Host, staff-portal never sees
+    # a path it doesn't already expect.
+    #
+    # Internal-only in the AWS target design: staff is not customer-facing, and
+    # this ALB-equivalent would not route to it in production. Exposed here
+    # for local demo convenience only, the same caveat /api above already states.
+    - host: staff.aquashop.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: staff-portal
                 port: { number: 8080 }

@@ -3,8 +3,8 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** end of the first k3d run, `core` + `commerce` profiles and a live in-cluster
-checkout (16 September 2026).
+**Last updated:** `full-app` measured in k3d (2234 MiB) and `staff-portal` exposed through the
+ingress (17 September 2026).
 
 ---
 
@@ -242,11 +242,25 @@ aquashop/
    itself came in at 456 MiB against its own 1 Gi limit, comfortable headroom. A live checkout
    confirmed the whole notification path end to end: `order-service`'s `HttpNotificationClient`
    pushed `ORDER_CONFIRMED` to `notification-service` (`202`), which queued and "delivered" (stub
-   sender) a logged email four seconds later. `staff-portal` was checked via `kubectl port-forward`
-   only, not yet through the public ingress; all three of its pages rendered correctly against live
-   backend data. `platform` (Argo CD) and `observability` remain fully unbuilt — no
+   sender) a logged email four seconds later.
+
+   **`staff-portal` is now reachable through the public ingress**, at
+   `https://staff.aquashop.localtest.me/` — a separate host, not a `/staff` path prefix under
+   `aquashop.localtest.me`: `staff-portal` deploys as `ROOT.war` (required so its liveness/readiness
+   probes need no path prefix), so its JSPs render root-relative links (`/orders`, not
+   `/staff/orders`); a path-prefixed route would work for the first page and break every link past
+   it. `*.localtest.me` already resolves any subdomain, so this needed no `/etc/hosts` change — one
+   `Ingress` rule and cert-manager's existing `ClusterIssuer` covering the extra hostname in the same
+   certificate. All three pages verified rendering correctly through it. Same caveat as the existing
+   `/api` path: exposed here for local demo convenience, not part of the AWS target's public traffic
+   path — staff tooling would sit behind something other than the customer-facing ALB there.
+
+   `platform` (Argo CD) and `observability` remain fully unbuilt — no
    manifests or code for either. `observability`'s ~9.2 GB estimate would not fit the unconfigured
-   7.4 GB WSL2 ceiling even once built, until the `.wslconfig` override is applied.
+   7.4 GB WSL2 ceiling even once built. **The `.wslconfig` override has now been written**
+   (`C:\Users\sayan\.wslconfig`, `memory=11GB`/`processors=4`/`swap=4GB`, 17 September 2026) but not
+   yet applied — that needs `wsl --shutdown` from PowerShell, which ends whatever WSL session runs
+   it, so it's the user's call on timing rather than something to force mid-session.
 4. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in
    `docs/architecture.md` §9 and on page 7 of the PDF).
 
