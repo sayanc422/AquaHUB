@@ -267,10 +267,18 @@ aquashop/
    *(The `payment-service` database test suite that was listed here is done: 18 gated tests.)*
 5. **Phase 6:** observability and the delivery layer — the OTel collector, Tempo, a
    kube-prometheus-stack, and then Argo CD with the app-of-apps across dev, uat and prod. This is
-   also where `order-service` gets the outbox that makes its saga crash-safe, and where NATS arrives
-   to carry the retries (the `commerce` profile above ran without NATS — nothing in the current path
-   needs it yet). Ends with a trace that follows one customer action from the storefront through the
-   checkout saga to the ledger.
+   also where NATS arrives (the `commerce`/`full-app` profiles above both ran without it — nothing
+   in the current path needs it yet), and where `notification-service` moves from the fire-and-forget
+   HTTP push in [ADR 0020](adr/0020-push-not-subscribe-until-phase-6.md) to a real subscription.
+   **Correction to a claim that stood here before:** this is *not* where `order-service` "gets the
+   outbox that makes its saga crash-safe" — that gap is already closed, without an outbox, by
+   `SagaRecovery`'s state-scan recovery ([ADR 0018](adr/0018-recover-from-state-not-from-an-outbox.md),
+   which amends 0015 for exactly this reason). ADR 0018's own Consequences section says what an
+   outbox is actually still for here: "When this service starts publishing domain events to other
+   systems, a published event genuinely has no other home... That is the messaging phase" — i.e. an
+   outbox belongs to *reliably publishing to NATS*, once NATS exists, not to saga crash-recovery,
+   which needed no outbox at all. Phase 6 ends with a trace that follows one customer action from the
+   storefront through the checkout saga to the ledger.
 
 ---
 

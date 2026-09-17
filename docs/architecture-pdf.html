@@ -473,7 +473,7 @@
       <div class="panel">
         <div class="label">Next phases</div>
         <table>
-          <tr><td class="k">Phase 6</td><td class="n">Observability (OTel, RED + business metrics, burn-rate alerts) and the delivery layer (Argo CD app-of-apps across dev/uat/prod). order-service gets the outbox that makes its saga crash-safe in the outbox sense; NATS arrives to carry retries.</td></tr>
+          <tr><td class="k">Phase 6</td><td class="n">Observability (OTel, RED + business metrics, burn-rate alerts) and the delivery layer (Argo CD app-of-apps across dev/uat/prod). NATS arrives, and notification-service moves from ADR 0020's fire-and-forget HTTP push to a real subscription. Saga crash-recovery is already closed without an outbox (ADR 0018); an outbox still arrives here, but for reliably publishing domain events to NATS, not for crash-safety.</td></tr>
           <tr><td class="k">Phase 7</td><td class="n">The full local-to-cloud document (only the Phase 1 extract exists today) and remaining Terraform hardening: NetworkPolicies, PDBs, HPA on a custom RPS metric.</td></tr>
           <tr><td class="k">full-app</td><td class="n">notification-service and staff-portal (WildFly) &mdash; planned, no code or manifests exist yet.</td></tr>
         </table>
