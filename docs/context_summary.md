@@ -235,8 +235,10 @@ aquashop/
    completed within seconds) and then for real in the manifest:
    `platform-repo/dev/staff-portal/deployment.yaml` now uses `maxUnavailable: 1, maxSurge: 0`, so the
    old pod is torn down before the new one is created rather than requiring both to exist
-   simultaneously. **Not yet re-verified against a fresh reproduction** — confirming it means tearing
-   down the now-working demo cluster, not done in favour of leaving it up.
+   simultaneously. **Re-verified the same day**, without touching the other seven services: deleted
+   just `staff-portal`'s Deployment/Service/ConfigMap and reapplied them fresh into the still-full
+   namespace — the exact original conditions — and the rollout completed cleanly on the first
+   attempt, no manual intervention.
 
    **Measured: 2234 MiB total** (`kubectl top node`), against a ~5.2 GB estimate — `staff-portal`
    itself came in at 456 MiB against its own 1 Gi limit, comfortable headroom. A live checkout

@@ -27,12 +27,29 @@ Also written this session, at the user's request: `C:\Users\sayan\.wslconfig`
 always specified). Not yet applied — that needs `wsl --shutdown`, which ends whatever WSL session
 runs it, left for the user to do on their own schedule rather than forced mid-session.
 
+**The rollout-deadlock fix from the entry below was re-verified, without touching the demo.** Rather
+than tear down the whole cluster, only `staff-portal`'s own Deployment, Service and ConfigMap were
+deleted and reapplied fresh — reproducing the exact original condition (a brand-new object, created
+with the manifest's placeholder tag, landing in a namespace where the other seven services already
+hold most of the `ResourceQuota`). With `maxUnavailable: 1, maxSurge: 0` in place, the rollout
+completed cleanly on the first attempt, no manual intervention: the old placeholder-tagged
+ReplicaSet scaled to `0/0/0` immediately, the new one reached `1/1/1` within seconds, and both
+`https://aquashop.localtest.me/` and `https://staff.aquashop.localtest.me/` kept answering `200`
+throughout.
+
+Also found and fixed in passing: `docs/context_summary.md` and `docs/architecture-pdf.html` both
+still claimed Phase 6 gives `order-service` "the outbox that makes its saga crash-safe" — that gap
+was already closed, without an outbox, by `SagaRecovery`'s state scan
+([ADR 0018](docs/adr/0018-recover-from-state-not-from-an-outbox.md), which explicitly amends 0015
+for this exact reason). ADR 0018's own Consequences section already says what an outbox is still
+for: reliably publishing domain events once NATS exists, not saga crash-recovery. Fixed both, and
+regenerated `architecture.pdf` from the corrected HTML.
+
 ### Still unproven
 
 - No sustained load against any of the eight services together.
 - `platform` (Argo CD) and `observability` remain fully unbuilt.
-- `staff-portal`'s rollout-deadlock manifest fix is written but not yet re-verified against a fresh
-  reproduction.
+- The `.wslconfig` override is written but not applied; `/proc/meminfo` still measures ~7.4 GB.
 - The `.wslconfig` override is written but not applied; `/proc/meminfo` still measures ~7.4 GB.
 
 ---

@@ -336,9 +336,11 @@ always superseded before anyone notices) never became eligible for removal, and 
 sharing it) left no room for the new pod's own `1 Gi` request. Fixed by hand in the running cluster
 (deleting the stuck ReplicaSet freed the reservation) and then for real in the manifest —
 `platform-repo/dev/staff-portal/deployment.yaml` now uses `maxUnavailable: 1, maxSurge: 0`, tearing
-the old pod down before creating the new one instead of requiring both at once. Not yet re-verified
-against a fresh reproduction (would mean tearing down the now-working cluster) — see RELEASE-NOTES
-for the full account.
+the old pod down before creating the new one instead of requiring both at once. **Re-verified same
+day** without disturbing the other seven services: deleted just `staff-portal`'s own Deployment,
+Service and ConfigMap and reapplied them fresh into the still-full namespace — the exact original
+conditions — and the rollout completed cleanly on the first attempt. See RELEASE-NOTES for the full
+account.
 
 **`platform` and `observability` remain estimates, and `observability`'s (~9.2 GB) does
 not fit inside the current, unconfigured 7.4 GB WSL2 ceiling at all**, even alone, let alone

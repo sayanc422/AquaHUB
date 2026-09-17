@@ -26,9 +26,11 @@ preflight and then hit a genuine rollout deadlock — `staff-portal`'s `maxUnava
 kept a permanently-`ImagePullBackOff`'d placeholder pod alive forever, and its stuck quota reservation
 starved the real pod's own request. Fixed by hand in the cluster (deleted the stuck ReplicaSet) and
 then for real in `platform-repo/dev/staff-portal/deployment.yaml` (`maxUnavailable: 1, maxSurge: 0`
-now, so the old pod is torn down before the new one is created) — **not yet re-verified against a
-fresh reproduction**, since that means tearing down the now-working cluster. See RELEASE-NOTES
-for the full account. `platform` and `observability` haven't run and have no manifests yet.
+now, so the old pod is torn down before the new one is created) — **re-verified same day**: deleted
+just `staff-portal`'s own objects and reapplied fresh into the still-full namespace, reproducing the
+exact original conditions. Clean single-attempt rollout, no manual intervention needed. See
+RELEASE-NOTES for the full account. `platform` and `observability` haven't run and have no
+manifests yet.
 
 ## How this project works
 
@@ -127,8 +129,6 @@ of exactly that gap.
 
 1. `platform` and `observability` profiles have never run in k3d and have no manifests — their
    memory figures remain estimates. `core`, `commerce` and `full-app` are all measured now.
-   `staff-portal`'s rollout-deadlock fix (see above and RELEASE-NOTES) is in the manifest but not
-   yet re-verified against a fresh reproduction.
 2. Secrets are plaintext in Git. External Secrets + SOPS is planned, not built.
 3. Observability and Argo CD (`platform`) are budgeted profiles with no manifests behind them yet.
 4. Photograph licensing: every row in `services/storefront/public/species/CREDITS.md` says
