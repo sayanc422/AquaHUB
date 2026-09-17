@@ -45,41 +45,60 @@ checkout (16 September 2026).
 |---|---|---|
 | `core` | k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront | **1.32 GiB measured** (`kubectl top node`, 16 Sep 2026) |
 | `commerce` | order, inventory, payment, advisor, NATS | **~2.0 GiB measured** (`core` + commerce services; NATS not deployed yet — see below) |
-| `full-app` | notification, staff-portal (WildFly) | ~5.2 GB (estimate; **built and unit-tested, three live k3d attempts all blocked before a pod deployed** — see Open items) |
+| `full-app` | notification, staff-portal (WildFly) | **2234 MiB measured** (`kubectl top node`, 17 Sep 2026) |
 | `platform` | Argo CD | ~6.1 GB (estimate) |
 | `observability` | kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter | ~9.2 GB (estimate) |
 
-`core` and `commerce` are both measured now, not estimated, and both came in well under budget:
-`core` at 1.32 GiB against a ~2.6 GB estimate, `commerce` at **~2.05 GiB total** (node went from
-1322 MiB to 2052 MiB adding all four commerce services) against a ~4.2 GB *additive* estimate — i.e.
-commerce added ~730 MiB, not ~1.6 GB. `full-app`'s figure remains an unmeasured estimate — not
-because it's unbuilt (it isn't, as of 16 September 2026) but because no attempt to run it in k3d has
-gotten far enough to import an image, let alone schedule a pod; `platform` and `observability` remain
-budgets with no code behind them at all. `commerce`'s figure does not include NATS, which
-`bootstrap.sh --profile commerce` does not deploy (planned for Phase 6).
+`core`, `commerce` and `full-app` are all measured now, not estimated, and all three came in well
+under budget: `core` at 1.32 GiB against a ~2.6 GB estimate, `commerce` at **~2.05 GiB total** (node
+went from 1322 MiB to 2052 MiB adding all four commerce services) against a ~4.2 GB *additive*
+estimate — i.e. commerce added ~730 MiB, not ~1.6 GB — and `full-app` at **2234 MiB total** against
+a ~5.2 GB estimate. `platform` and `observability` remain budgets with no code behind them at all.
+`commerce`'s figure does not include NATS, which `bootstrap.sh --profile commerce` does not deploy
+(planned for Phase 6).
 
-Per-pod, from `kubectl top pods -A` after both profiles were up and settled:
+**`full-app` took three attempts across two days (16–17 September 2026) to get a real number.** The
+first two failed the memory preflight outright. The third passed it and got seven of eight pods up,
+then `staff-portal` hung until it exceeded its 600 s rollout deadline — not a memory-pressure defect
+in the way the first two attempts were, but a rollout-mechanics deadlock: `staff-portal`'s
+`maxSurge: 1, maxUnavailable: 0` strategy kept its old pod (permanently stuck in `ImagePullBackOff`
+on the manifest's placeholder image tag, cosmetic on every other service since it's normally
+superseded within seconds) alive forever, and that pod's `1 Gi` `limits.memory` reservation against
+the namespace `ResourceQuota` (4 Gi total, eight services now sharing it) starved the new pod's own
+`1 Gi` request. Fixed by hand — deleting the stuck ReplicaSet freed the reservation and the real
+rollout completed within seconds — but **not fixed in the manifest**; the next fresh deploy of
+`staff-portal` into a fullish namespace will reproduce it. See RELEASE-NOTES for the full account and
+what a real fix looks like (`maxUnavailable: 1` for this specific service, or never applying the
+placeholder tag to begin with).
+
+Per-pod, from `kubectl top pods -A` with all eight `full-app` services up and settled:
 
 | Pod | CPU | Memory |
 |---|---|---|
-| `catalog-service` (JVM, 640Mi limit) | 3m | 215 MiB |
-| `order-service` (JVM, limit TBD) | 7m | 224 MiB |
-| `storefront` (Node) | 1m | 30 MiB |
-| `aquatics-advisor` (Python/FastAPI) | 3m | 43 MiB |
-| `inventory-service` (Go) | 1m | 3 MiB |
+| `staff-portal` (WildFly, 1Gi limit) | 5m | **456 MiB** |
+| `order-service` (JVM) | 4m | 229 MiB |
+| `catalog-service` (JVM, 640Mi limit) | 3m | 217 MiB |
+| `aquatics-advisor` (Python/FastAPI) | 5m | 43 MiB |
+| `storefront` (Node) | 1m | 32 MiB |
+| `postgres` | 3m | 60 MiB |
+| `ingress-nginx-controller` | 2m | 186 MiB |
+| `inventory-service` (Go) | 1m | 5 MiB |
+| `notification-service` (Go) | 1m | **5 MiB** |
 | `payment-service` (Rust) | 1m | 2 MiB |
-| `postgres` | 6m | 59 MiB |
-| `ingress-nginx-controller` | — | 184–189 MiB |
-| `cert-manager` (+ webhook, cainjector) | — | ~53 MiB |
-| `metrics-server` | — | ~19–21 MiB |
 
-`catalog-service`'s 215 MiB and `order-service`'s 224 MiB are the first honest JVM numbers in this
-repository — measured under their actual cgroup limits with `MaxRAMPercentage=70`, not against host
-RAM the way the 338 MiB and 361 MiB figures below were. `payment-service`'s 2 MiB and `inventory-service`'s 3 MiB in-cluster are even lower than
-`inventory-service`'s previously-measured 13.9 MiB idle / 17.0 MiB after 200 reservations (against a
-local Postgres on a build container, not in k3d) — consistent with the "Rust earned its place with a
-number" argument in the Phase 4 notes, and a reminder that these two services were effectively idle
-during the smoke-test window below, not under sustained load.
+`staff-portal`'s 456 MiB is the first real number for a full JBoss/WildFly install in this
+repository — comfortable headroom against its 1 Gi limit, not a tight fit, and a long way from what
+the ~5.2 GB profile estimate ever implied about this one pod specifically. `notification-service`'s
+5 MiB matches `inventory-service`'s own figure almost exactly, both small Go services doing
+comparable I/O-bound work. `catalog-service`'s 217 MiB and `order-service`'s 229 MiB are consistent
+with their `core`/`commerce`-profile figures below (215/224 MiB) — the first honest JVM numbers in
+this repository, measured under their actual cgroup limits with `MaxRAMPercentage=70`, not against
+host RAM the way the 338 MiB and 361 MiB figures further below were. `payment-service`'s 2 MiB and
+`inventory-service`'s 5 MiB in-cluster are even lower than `inventory-service`'s previously-measured
+13.9 MiB idle / 17.0 MiB after 200 reservations (against a local Postgres on a build container, not
+in k3d) — consistent with the "Rust earned its place with a number" argument in the Phase 4 notes,
+and a reminder that these two services were effectively idle during the smoke-test window, not under
+sustained load.
 
 Hard rule, enforced in `bootstrap.sh`: never build images while the observability profile is up.
 ~1.8 GB of headroom does not survive a Maven or Cargo build, and the failure mode is the kernel
@@ -101,8 +120,8 @@ aquashop/
     order-service/          Java 21, Spring Boot 3.3, checkout saga, dispatch calendar
     payment-service/        Rust 1.94, Axum, sqlx, append-only ledger, distroless/cc
     aquatics-advisor/       Python 3.11, FastAPI, rules in YAML, no database
-    notification-service/   Go, embedded migrations, distroless static -- built, not yet run in k3d
-    staff-portal/           JSP/Jakarta EE on WildFly, read-only -- built, not yet run in k3d
+    notification-service/   Go, embedded migrations, distroless static -- runs in k3d, 5 MiB measured
+    staff-portal/           JSP/Jakarta EE on WildFly, read-only -- runs in k3d, 456 MiB measured
   platform-repo/dev/        namespace + quota + limitrange, postgres, catalog, storefront,
                             inventory, order, payment, advisor, notification, staff-portal, ingress
   docs/
@@ -188,27 +207,44 @@ aquashop/
    deployment diagram lists all six running services with their measured footprints instead of just
    `core`.
 3. ~~`full-app`, `platform` and `observability` profiles have never run in k3d. No manifests or code
-   exist yet for any of them.~~ **`full-app` built, 16 September 2026 — live run still blocked,
+   exist yet for any of them.~~ **`full-app` built and now running in k3d (16–17 September 2026);
    `platform`/`observability` still unbuilt.** `notification-service` (Go — see ADR 0020 for its
-   push-not-subscribe mechanism) and `staff-portal` (JSP/Jakarta EE on WildFly, read-only) now exist:
+   push-not-subscribe mechanism) and `staff-portal` (JSP/Jakarta EE on WildFly, read-only) exist:
    code, tests, Dockerfiles, `platform-repo/dev/{notification,staff-portal}/` manifests,
    `bootstrap.sh --profile full-app`. Both build clean in Docker and pass their own tests;
-   `staff-portal` was additionally run standalone (clean boot ~2.8 s — not the "slow-start" the
-   architecture doc's framing implied, one data point not a load test — correct non-root UID 1000,
-   working stdout logging, graceful degradation with backends down; two real defects found and fixed
-   this way: a root-owned `standalone/` directory that crashed first boot, and deploying as
-   `staff-portal.war` instead of `ROOT.war` silently breaking every `/healthz`-shaped k8s probe path).
-   `order-service` got a small, additive `NotificationClient` (default no-op — `core`/`commerce`
-   unaffected) firing on `CONFIRMED` and on `DispatchWatcher`'s dispatch-window-open scan.
-   **`full-app` itself has not run successfully in k3d.** Three live attempts, none got past
-   deploying a single pod: two failed the memory preflight (`need_mb=6000`) outright, one passed it
-   and immediately hit an unrelated transient Helm/GitHub network timeout fetching ingress-nginx's
-   chart. A bare k3d cluster with nothing deployed yet already leaves only ~5.9–6.4 GB free out of
-   the unconfigured 7.4 GB ceiling — right at that gate, landing on both sides of it across attempts.
-   `full-app`'s real memory requirement is therefore still unmeasured, not just unmet: the run never
-   got far enough to import an image. User's call, not resolved this session: apply the `.wslconfig`
-   override (ends the current WSL session) and retry with real headroom, or leave it as a stated,
-   unresolved limitation. `platform` (Argo CD) and `observability` remain fully unbuilt — no
+   `staff-portal` was additionally run standalone before this (clean boot ~2.8 s — not the
+   "slow-start" the architecture doc's framing implied, one data point not a load test — correct
+   non-root UID 1000, working stdout logging, graceful degradation with backends down; two real
+   defects found and fixed this way: a root-owned `standalone/` directory that crashed first boot,
+   and deploying as `staff-portal.war` instead of `ROOT.war` silently breaking every
+   `/healthz`-shaped k8s probe path). `order-service` got a small, additive `NotificationClient`
+   (default no-op — `core`/`commerce` unaffected) firing on `CONFIRMED` and on `DispatchWatcher`'s
+   dispatch-window-open scan.
+
+   **`full-app` took three attempts across two days before it first ran successfully.** The first two
+   failed the memory preflight (`need_mb=6000`) outright — a bare k3d cluster with nothing deployed
+   yet leaves only ~5.9–6.4 GB free out of the unconfigured 7.4 GB ceiling, right at that gate. The
+   third, the next day with nothing else running, passed the preflight and got seven of eight pods up
+   cleanly, then hit a **real rollout deadlock**, not memory pressure: `staff-portal`'s
+   `maxSurge: 1, maxUnavailable: 0` strategy kept its old pod — permanently stuck in
+   `ImagePullBackOff` on the manifest's placeholder image tag, cosmetic on every other service since
+   `bootstrap.sh`'s `kubectl set image` normally supersedes it within seconds — alive forever, and its
+   `1 Gi` `limits.memory` reservation against the namespace `ResourceQuota` (4 Gi total, eight
+   services now sharing it) left no room for the new pod's own `1 Gi` request. Fixed by hand in the
+   running cluster (deleting the stuck ReplicaSet freed the reservation, and the real rollout
+   completed within seconds) and then for real in the manifest:
+   `platform-repo/dev/staff-portal/deployment.yaml` now uses `maxUnavailable: 1, maxSurge: 0`, so the
+   old pod is torn down before the new one is created rather than requiring both to exist
+   simultaneously. **Not yet re-verified against a fresh reproduction** — confirming it means tearing
+   down the now-working demo cluster, not done in favour of leaving it up.
+
+   **Measured: 2234 MiB total** (`kubectl top node`), against a ~5.2 GB estimate — `staff-portal`
+   itself came in at 456 MiB against its own 1 Gi limit, comfortable headroom. A live checkout
+   confirmed the whole notification path end to end: `order-service`'s `HttpNotificationClient`
+   pushed `ORDER_CONFIRMED` to `notification-service` (`202`), which queued and "delivered" (stub
+   sender) a logged email four seconds later. `staff-portal` was checked via `kubectl port-forward`
+   only, not yet through the public ingress; all three of its pages rendered correctly against live
+   backend data. `platform` (Argo CD) and `observability` remain fully unbuilt — no
    manifests or code for either. `observability`'s ~9.2 GB estimate would not fit the unconfigured
    7.4 GB WSL2 ceiling even once built, until the `.wslconfig` override is applied.
 4. **Still not written:** the full local-to-cloud document (only the Phase 1 extract exists, in

@@ -39,8 +39,16 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+      # maxUnavailable: 0 / maxSurge: 1 (every other deployment's setting here)
+      # deadlocks the very first deploy into a fullish namespace: a stuck
+      # ImagePullBackOff pod on the manifest's placeholder tag never becomes
+      # eligible for removal, so its ResourceQuota reservation starves the
+      # replacement pod's own request and neither side can ever proceed.
+      # staff-portal is read-only and internal-only, so a slower one-at-a-time
+      # rollout costs nothing here. Found by running a fresh full-app deploy
+      # (16-17 Sep 2026); see RELEASE-NOTES.md.
+      maxUnavailable: 1
+      maxSurge: 0
   selector:
     matchLabels:
       app: staff-portal
@@ -86,13 +94,14 @@ spec:
             # does not.
             readOnlyRootFilesystem: false
             capabilities: { drop: ["ALL"] }
-          # WildFly's boot time in this container is not yet measured.
-          # catalog-service's JVM boot needed 30 x 5s = 150s; a full
-          # JBoss/WildFly install with a WAR deployment scan is likely to
-          # need at least that much, plausibly more, so this starts
-          # deliberately generous. Correct it after the first real
-          # `kubectl rollout status`, the same way catalog's own figure
-          # was corrected after its first real boot.
+          # Measured in-cluster (full-app profile, 17 Sep 2026): ~4.1s boot,
+          # far under this generous window -- consistent with the ~2.8s
+          # standalone measurement, and not the "slow-start" this platform's
+          # docs originally assumed. Left generous anyway: one clean boot on
+          # an idle node isn't evidence it stays fast under load or on a
+          # busier node, and the failure mode of a startup probe that's too
+          # tight (a false OOMKilled/restart loop) is worse than one that's
+          # merely too generous.
           startupProbe:
             httpGet: { path: /healthz, port: http }
             failureThreshold: 40
@@ -106,13 +115,12 @@ spec:
             periodSeconds: 5
             failureThreshold: 3
           resources:
-            # First estimate, not a measurement -- nothing in this platform
-            # has ever run a full application server before. A bare WildFly
-            # standalone instance is documented (upstream) as wanting on the
-            # order of a few hundred MiB at idle before this WAR's own
-            # heap; 512Mi requested / 1Gi limit is a starting point to
-            # correct after `kubectl top pods` sees it actually run, exactly
-            # like every other memory figure in this repository was
-            # corrected after first being measured.
+            # Measured in-cluster (full-app profile, 17 Sep 2026): 456 MiB
+            # resident, settled -- comfortable headroom under both the
+            # request and the limit below, not a tight fit. Left as originally
+            # sized rather than tightened to the observed figure: one
+            # settled measurement on an idle node is a floor, not a ceiling,
+            # and a full JBoss/WildFly install's footprint under real request
+            # load is still unmeasured.
             requests: { cpu: 100m, memory: 512Mi }
             limits: { memory: 1Gi }

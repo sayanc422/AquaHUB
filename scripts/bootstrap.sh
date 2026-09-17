@@ -43,9 +43,14 @@ preflight() {
   # taking pods and you will debug Kubernetes for an hour to find a WSL problem.
   local need_mb=4000
   [[ "$PROFILE" == commerce ]] && need_mb=5000   # order-service is a second JVM
-  # full-app adds a Go service (small) and a full WildFly install (not small,
-  # and unmeasured in k3d as of this writing) on top of everything commerce
-  # already needs.
+  # full-app's measured steady-state footprint (17 Sep 2026) is only ~2.2 GiB
+  # total -- well under this gate. Left at 6000 anyway: the gate exists for
+  # the transient overhead of building/importing eight images and rolling out
+  # eight deployments at once, not the settled resting figure, and that
+  # transient peak is still unmeasured. Three of this profile's four bootstrap
+  # attempts happened within 6000-6400 MB of available memory; lowering this
+  # number is exactly how you reintroduce the OOM-killer debugging session
+  # this preflight exists to prevent.
   [[ "$PROFILE" == full-app ]] && need_mb=6000
   (( avail_mb > need_mb )) || die "need >${need_mb} MB free for the ${PROFILE} profile; close something or raise WSL memory in .wslconfig"
 

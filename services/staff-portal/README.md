@@ -60,16 +60,17 @@ without the `jboss-cli.sh` logging-subsystem change baked into the Dockerfile, e
 service ever wrote would be invisible to `kubectl logs`. This is the concrete thing
 "stdout logging" in `docs/architecture.md`'s phase description means, not a given.
 
-**Boot time is measured standalone, not yet in k3d; memory is still unmeasured anywhere.** Run
-directly with `docker run` (not through Kubernetes), this image boots cleanly in **~2.8 s** -- one
-data point, not a load test, and not the "slow-start" `docs/architecture.md`'s framing implied.
-Memory has never been measured, in or out of a cluster. The startup probe (`40 x 5s`) and the
-resource requests/limits in `platform-repo/dev/staff-portal/deployment.yaml` remain first estimates,
-explicitly marked as such in that file's comments -- correct them against `kubectl top pods` /
-`kubectl rollout status` once `full-app` actually runs in k3d, the same way `catalog-service`'s JVM
-figures were corrected after its first one. As of this writing `full-app` has not: three attempts
-were blocked by this machine's unconfigured WSL2 memory ceiling before a single pod deployed (see
-`RELEASE-NOTES.md`), so this container's in-cluster behaviour is still unverified.
+**Boot time and memory are both measured now, standalone and in k3d.** Run directly with
+`docker run` (not through Kubernetes), this image boots cleanly in **~2.8 s**; in-cluster
+(`full-app` profile, 17 September 2026) it booted in ~4.1 s and settled at **456 MiB** resident
+against its own 1 Gi limit -- comfortable headroom, not a tight fit, and not the "slow-start"
+`docs/architecture.md`'s framing implied. `full-app` took three attempts to first succeed: two
+blocked by this machine's unconfigured WSL2 memory ceiling before a single pod deployed, a third that
+hit a rollout deadlock unrelated to this container itself (`platform-repo/dev/staff-portal/deployment.yaml`'s
+`maxUnavailable`/`maxSurge` interacting badly with a stuck placeholder-tagged pod under a tight
+namespace quota -- see `RELEASE-NOTES.md`, fixed in that manifest afterward). Once actually running,
+a live checkout was seen pushing a real notification through this platform's `notification-service`
+end to end, and all three of this service's pages rendered correctly against live backend data.
 
 ## Configuration
 

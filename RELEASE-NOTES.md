@@ -5,6 +5,101 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## `full-app` ran in k3d for the first time
+
+The previous entry ended with `full-app` blocked before a single pod deployed, three times in a row,
+by a memory preflight sitting right at the edge of this machine's unconfigured WSL2 ceiling. On
+retry the next day, with nothing else running, the preflight passed and every one of the eight
+services came up — `notification-service` and `staff-portal` alongside the original six.
+
+### The defect this run found
+
+`staff-portal`'s rollout hung at `0 out of 1 new replicas have been updated` until it exceeded its
+600 s progress deadline. The cause was not memory pressure in the way the previous three attempts
+were — it was a rollout-mechanics deadlock specific to this profile's combination of things:
+
+- Every deployment manifest here ships a placeholder tag (`aquashop/staff-portal:PLACEHOLDER`,
+  `# CI rewrites this to the git SHA`) by design — `kubectl apply -f` creates the Deployment with it,
+  and `bootstrap.sh`'s own `kubectl set image` supersedes it moments later. On every other service,
+  in every prior run, this has been genuinely cosmetic: the first pod briefly tries to pull a tag
+  that doesn't exist, fails once, and gets replaced before anyone notices.
+- `staff-portal`'s Deployment uses `maxSurge: 1, maxUnavailable: 0` (the same strategy as every other
+  service here), which means a rollout keeps the old pod alive until a new one is Ready. The old pod,
+  stuck forever in `ImagePullBackOff` on a tag that will never resolve, is *never* Ready — so
+  Kubernetes never scales it down, and it sits there indefinitely holding its `limits.memory: 1Gi`
+  reservation against the namespace `ResourceQuota`.
+- With eight services now sharing a 4 Gi memory-limit quota, that stuck 1 Gi reservation left too
+  little headroom for the *new* replica's own 1 Gi request — `ReplicaSetController` logged
+  `FailedCreate: exceeded quota` on every retry, and the rollout could never make progress in either
+  direction. Two pods needing 2 Gi combined, arriving from opposite ends of an unbreakable ordering
+  constraint, is not something either the memory preflight or the per-pod resource estimate was ever
+  going to catch — it only exists at the intersection of a placeholder tag, a zero-unavailable rollout
+  strategy, and a quota with limited headroom, and it only shows up on the very first deploy of a
+  service into an already-fullish namespace.
+- **Fixed twice: by hand in the running cluster, then for real in the manifest.** Deleting the stuck
+  `ImagePullBackOff` ReplicaSet freed its quota reservation and let the real rollout proceed
+  immediately — that unblocked this run, but changed nothing checked into Git. Afterward,
+  `platform-repo/dev/staff-portal/deployment.yaml`'s rollout strategy was changed from
+  `maxUnavailable: 0, maxSurge: 1` (every other deployment's setting, and the thing that made the
+  deadlock possible) to `maxUnavailable: 1, maxSurge: 0` — the old pod is torn down before the new
+  one is created, rather than requiring both to exist at once, so the stuck-pod-holds-the-quota
+  scenario can't arise. `staff-portal` is read-only and internal-only, so the very-briefly-fewer-than-1-replica
+  window this trades for costs nothing here. **Not yet re-verified against a fresh reproduction** —
+  applying it requires tearing down the now-working cluster to force a from-scratch `staff-portal`
+  deploy again, and that wasn't done in favour of leaving the demo up.
+
+### Measured
+
+`kubectl top node` / `kubectl top pods -A`, all eight services up and settled, `metrics-server`
+installed cleanly this run (the transient GitHub timeout from three attempts ago didn't recur):
+
+| | |
+|---|---|
+| **Total node memory, `full-app`** | **2234 MiB (29%)** — against a ~5.2 GB estimate that had never been tested end to end |
+
+| Pod | CPU | Memory |
+|---|---|---|
+| `staff-portal` (WildFly) | 5m | **456 MiB** |
+| `order-service` (JVM) | 4m | 229 MiB |
+| `catalog-service` (JVM) | 3m | 217 MiB |
+| `storefront` (Node) | 1m | 32 MiB |
+| `aquatics-advisor` (Python/FastAPI) | 5m | 43 MiB |
+| `postgres` | 3m | 60 MiB |
+| `inventory-service` (Go) | 1m | 5 MiB |
+| `notification-service` (Go) | 1m | 5 MiB |
+| `payment-service` (Rust) | 1m | 2 MiB |
+| `ingress-nginx-controller` | 2m | 186 MiB |
+
+`staff-portal`'s 456 MiB is the first real number against the manifest's 1 Gi limit — comfortable
+headroom, not a tight fit, and a long way from "5.2 GB estimate" ever implying anything about this
+specific pod. `notification-service`'s 5 MiB matches `inventory-service`'s own figure almost exactly,
+consistent with both being small Go services doing comparable I/O-bound work.
+
+### A live checkout confirmed the whole path, not just the pods
+
+Cart → line (`INV-AMA-01`, Amano Shrimp × 2) → checkout with an `Idempotency-Key`, same shape as the
+`commerce`-profile demonstration two entries back. Result: `201`, `CONFIRMED`, reservation
+`COMMITTED`. This time, `order-service`'s log showed `HttpNotificationClient` actually firing:
+`notification-service` answered `202` on `POST /v1/events` four seconds before its own log recorded
+`"email delivered (stub)" event=ORDER_CONFIRMED to=demo@example.com` — the full push-then-deliver
+path from [ADR 0020](docs/adr/0020-push-not-subscribe-until-phase-6.md), working exactly as designed,
+observed end to end for the first time.
+
+`staff-portal` was checked directly (via `kubectl port-forward`, not yet through the ingress):
+`/healthz` and `/readyz` both `200`, and all three of its pages (`/orders`, `/stock`, `/catalog`)
+rendered `200` against live backend data.
+
+### Still unproven
+
+- Not yet exposed through the ingress — checked via `kubectl port-forward` only, matching
+  `order-service`'s own pattern of staying internal-only by design.
+- No sustained load against any of the eight services together.
+- `platform` (Argo CD) and `observability` remain fully unbuilt.
+- The rollout-deadlock defect above is worked around by hand, not fixed in the manifest or
+  `bootstrap.sh` — the next fresh deploy will reproduce it.
+
+---
+
 ## `notification-service` and `staff-portal` built; `full-app` still won't run
 
 A prior version of `context_summary.md` claimed the `full-app` profile "has manifests but hasn't

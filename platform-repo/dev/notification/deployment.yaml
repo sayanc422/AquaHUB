@@ -104,10 +104,11 @@ spec:
             periodSeconds: 5
             failureThreshold: 3
           resources:
-            # Unmeasured -- no session has run this in k3d yet. Sized like
-            # inventory-service (the closest comparable: a small Go service
-            # with a Postgres pool and a background goroutine) as a starting
-            # estimate to be corrected after the first real boot.
+            # Measured in-cluster (full-app profile, 17 Sep 2026): 5 MiB
+            # resident -- matches inventory-service's own figure almost
+            # exactly, as expected for two small Go services doing
+            # comparable I/O-bound work. Comfortable headroom under both
+            # figures below; left as originally sized.
             requests: { cpu: 50m, memory: 64Mi }
             # No CPU limit, for the same reason as every other service here: a
             # limit is CFS throttling, which reads as latency spikes on an
