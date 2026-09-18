@@ -5,6 +5,73 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## 32 product photographs, sourced under verified open licences
+
+The shop had 10 photographs across 55 products — one section (Malawi cichlids) was fairly covered,
+everything else was an empty grey tile. `services/storefront/public/species/README.md` is explicit
+about why that stayed empty rather than being filled from a generic image search: "a shop is a
+commercial use with no fair-dealing argument available," and every photograph must be shop-taken,
+licensed for commercial use with the licence on record, or breeder-supplied. This entry is the
+"licensed" path, done for real rather than skipped.
+
+### Method
+
+Four parallel passes, one per product group (community fish, catfish/Malawi cichlids, invertebrates,
+plants/hardscape/equipment/food), each against the Wikimedia Commons API directly
+(`action=query&generator=search...&prop=imageinfo&iiprop=url|extmetadata|size`) — never a generic
+image search. An image was only accepted if `extmetadata.LicenseShortName` was `cc0`, public domain,
+or an explicit `cc-by`/`cc-by-sa` variant; anything containing "nc" (non-commercial) or "nd"
+(no-derivatives), or with no licence metadata at all, was rejected outright. Every accepted image was
+also checked against the actual product — scientific name, sex/morph where the product name specifies
+one (Lake Malawi cichlids and *Neocaridina* shrimp colour morphs both make this matter:
+`Blue Dream Shrimp` and `Blue Velvet Shrimp` are the same species in different colours, and using the
+wrong one would be a real, visible mislabelling, not just a licensing miss).
+
+### Measured
+
+**32 of 45 missing products got an image; 42 of 55 products now have one, up from 10.** ~6.6 MB
+total across the new files, each processed to this repository's existing spec (4:3, ≥1200×900, JPEG
+quality 80, EXIF-stripped, under 300 KB). Verified rendering end to end: rebuilt `catalog-service`
+(carries the new `V9__licensed_photography.sql` migration) and `storefront` (the images are baked
+into its static assets at build time, same as the original 10), redeployed both to the running
+`full-app` cluster, confirmed Flyway applied migration 9 cleanly, and screenshotted three category
+pages (`malawi`, `inverts-shrimp`, `inverts-snails`) to see the actual rendered cards, not just check
+HTTP 200s.
+
+### What was NOT forced through
+
+**13 products still have no image, on purpose:** `saulosi`, `acei-yellow-tail`, `bristlenose-pleco`,
+`otocinclus`, `red-melon-badis`, `yellow-shrimp` — for each, either no correctly-identified Commons
+photo exists at all, or the only ones that do are below the 1200×900 floor, or the only
+adequately-sized candidates are mislabelled/unidentified at species level. And `seiryu-stone-5kg`,
+`canister-filter-400lph`, `heater-100w`, `master-test-kit`, `community-flake-100g`,
+`algae-wafers-250g`, `frozen-bloodworm-100g` — Commons skews toward educational/nature photography
+and is genuinely sparse for generic retail product shots; several searches for these returned nothing
+but unrelated scanned books and PDFs. These stay `NULL` and render as the designed placeholder.
+
+**Two identification caveats, recorded rather than hidden:** `blue-velvet-shrimp`'s source file calls
+itself "Blue Diamond," not "Blue Velvet" — a genuinely distinct photo from `blue-dream-shrimp`'s, same
+general blue *Neocaridina* class, but the specific morph name is unconfirmed. `mystery-snail`'s source
+is Commons-categorised under *Pomacea diffusa*, treated as a trade synonym of *P. bridgesii* rather
+than a clean species match. Both are spelled out in `CREDITS.md`, not glossed over.
+
+**One defect found and fixed before this shipped:** `malaysian-trumpet-snail`'s source is a five-view
+scientific specimen plate; the first automated crop-and-resize pass cut off the shell's spire tip and
+aperture base. Re-cropped by hand to the single profile view, trimmed, and letterboxed onto a 4:3
+black canvas — full shell visible, tip to base, still under 300 KB.
+
+### Still unproven
+
+- The 10 original shop-owner photographs are unaffected and still `unverified` in `CREDITS.md` — this
+  entry only touches the new 32.
+- No photograph in this batch has been reviewed by the shop owner for accuracy the way a real listing
+  would be before publishing; the identification work here is a careful outsider's best effort against
+  public reference photos, not a breeder's or owner's sign-off.
+- The 13 still-empty product slots were searched for in earnest, not left idle — but Commons' coverage
+  changes over time, and a repeat search later might succeed where this one didn't.
+
+---
+
 ## `staff-portal` reachable through the public ingress; `.wslconfig` written
 
 Small follow-up to the entry below, same day.

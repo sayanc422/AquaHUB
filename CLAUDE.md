@@ -131,8 +131,14 @@ of exactly that gap.
    memory figures remain estimates. `core`, `commerce` and `full-app` are all measured now.
 2. Secrets are plaintext in Git. External Secrets + SOPS is planned, not built.
 3. Observability and Argo CD (`platform`) are budgeted profiles with no manifests behind them yet.
-4. Photograph licensing: every row in `services/storefront/public/species/CREDITS.md` says
-   `unverified`, and must not reach a commercial launch that way.
+4. Photograph licensing: the original 10 shop-owner photos in
+   `services/storefront/public/species/CREDITS.md` are still `unverified` and must not reach a
+   commercial launch that way. A second batch (32 images, 17–18 September 2026) is sourced from
+   Wikimedia Commons under CC0/public-domain/CC-BY/CC-BY-SA licences only, each verified against the
+   Commons API and recorded with source/licence/artist in CREDITS.md — those are launch-eligible as
+   recorded, not "unverified." 13 products still have no image at all; Commons had nothing both
+   correctly licensed and correctly identified for them. `catalog-service`'s `V9__licensed_photography.sql`
+   wires the 32 `image_key`s in.
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist
    anywhere in the codebase — `architecture.md`'s "staff manage tanks, stock, claims" actor
