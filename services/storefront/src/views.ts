@@ -188,6 +188,7 @@ export function productPage(nav: CategoryView[], d: ProductDetail) {
 
   return layout(p.name, nav, `
     <article class="detail">
+      ${photo(p.imageKey, p.name, '4/3')}
       <h1>${esc(p.name)} ${p.livestock ? '<span class="tag live">LIVE</span>' : ''}</h1>
       <p class="lede">${esc(p.summary)}</p>
       <p class="price big">${esc(money(p))}</p>

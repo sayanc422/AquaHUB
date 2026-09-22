@@ -5,6 +5,41 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## The product detail page has never shown a photograph — found verifying the entry below
+
+Verifying the two-image gap-reattempt below meant actually rebuilding `catalog-service` and
+`storefront`, redeploying into the running `full-app` cluster, and loading the pages through the
+ingress rather than trusting the migration text — this project's own rule. `V10` applied cleanly
+(Flyway log: `Migrating schema "public" to version "10"`) and both `/api/products` and the category
+page (`/c/malawi`, `/c/equipment`) rendered the two new images correctly. The product **detail**
+page (`/p/:slug`) did not: `curl`'d against `demasoni`, one of the ten original shop photographs and
+the most-verified image in the repository, it returned zero `<img>` tags. Every product page for
+every one of the 44 photographed products has been rendering with no photograph since Phase 1 —
+the card and tile templates call the shared `photo()` helper; `productPage()` in
+`services/storefront/src/views.ts` never did.
+
+### Measured
+
+Fix is one line: `productPage()` now opens its `<article class="detail">` with
+`${photo(p.imageKey, p.name, '4/3')}`, the same helper `card()` and `tile()` already use, so the
+missing-key placeholder and the `onerror` fallback both come for free. Rebuilt `storefront`, imported
+into k3d, rolled out, and re-curled three cases against the live cluster: `acei-yellow-tail` (has a
+key, file exists) now renders `<img src="/static/species/acei-yellow-tail.jpg">`; `demasoni` (an
+original photograph, unrelated to this session's changes) now renders its image too; `saulosi` (no
+key) renders the `<span class="shot shot-none">` placeholder, not a broken `<img>`. No JavaScript
+console or automated test caught this — `services/storefront` has no test suite (absent from
+`CLAUDE.md`'s testing table), so this was only visible by requesting the actual page.
+
+### Still unproven
+
+- Not visually inspected in an actual browser, only via `curl` against the rendered HTML — the CSS
+  (`.shot { object-fit: cover; ... }`) is shared with the already-working card/tile images, but the
+  detail page's larger, standalone placement has not been eyeballed.
+- No regression test exists to keep this failure mode from recurring; `services/storefront` remains
+  entirely untested.
+
+---
+
 ## Re-attempt at the 13 empty product slots: 2 closed, 11 still empty
 
 The entry below left 13 products without a photograph and said so. This is the repeat search it
@@ -30,8 +65,11 @@ the live `catalog` database in the still-running `full-app` cluster inside a tra
 back: `UPDATE 2`, both keys resolving to the expected `species/<slug>.jpg`, `saulosi` untouched and
 still `NULL`. The same session confirmed the starting state from the database rather than from these
 notes — 55 products, 42 with a key, 13 without, and the 13 are exactly the slugs named below plus the
-two now closed. **Flyway has still not applied V10, and the two cards have not been seen rendered** —
-unlike the batch below, no migration run, no redeploy, no screenshot. That is the gap in this entry.
+two now closed. **Verified since: Flyway applied V10 in the running `full-app` cluster** (log:
+`Migrating schema "public" to version "10"`), `storefront` rebuilt and redeployed, and both cards
+confirmed rendering through the live ingress — see the entry above, which also caught a real,
+unrelated defect in the process (the product detail page rendering no photograph at all, for any
+product).
 
 `V9`'s header comment says "the other 13 stay NULL," which is now wrong. V9 is left unedited: Flyway
 has already applied it, and a comment-only edit still changes the checksum. The correction is in
@@ -71,17 +109,18 @@ no curator has confirmed it. The fish does carry the marks the variant is sold o
 body, yellow dorsal margin, solid yellow caudal — but that is a visual match against the trade form,
 not a determination, and the source is a soft-focus three-quarter snapshot, not the lateral profile
 `README.md` asks for. `heater-100w` shows the product class and not the product: an unbranded
-glass-tube heater out of the tank, with no thermostat dial and no wattage marking anywhere in frame.
-Nothing in that photograph says "100 W" or "thermostatic."
+glass-tube heater out of the tank, with no thermostat dial and no wattage marking anywhere in frame,
+and the glass carries visible mineral/limescale buildup — a heater that has been used in hard water,
+not a new-in-box unit. Nothing in that photograph says "100 W" or "thermostatic," and it does not
+look new.
 
 ### Still unproven
 
-- Neither new image has been rendered in a running storefront. V10's statement has been dry-run
-  against the real schema, which proves it parses and matches the right two rows; it does not prove
-  Flyway applies it cleanly in sequence, and it says nothing about how the two cards look on a page.
 - The `acei-yellow-tail` identification rests on one uploader's caption plus a visual check against
   published reference photographs. That is the same standard as the batch below and it is still not a
   breeder's or owner's sign-off.
+- Neither card has been seen in an actual browser, only via `curl` against the rendered HTML — see
+  the entry above for what that verification did and did not cover.
 - The eleven remaining gaps were searched by category listing as well as full-text search, which is
   broader than the first pass, but "nothing on Commons" is always a statement about what was queried.
 

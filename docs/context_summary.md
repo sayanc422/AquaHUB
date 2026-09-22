@@ -3,10 +3,18 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** re-attempt at the 13 products left without a photograph — 2 closed, 11 still open
-(22 September 2026); 32 of 45 missing product photographs sourced under verified open licences
-(18 September 2026); `full-app` measured in k3d (2234 MiB) and `staff-portal` exposed through the
-ingress (17 September 2026).
+**Last updated:** verifying the photo re-attempt by running it found a real, repository-wide defect —
+the product detail page has never rendered a photograph for any product, since Phase 1 — fixed and
+re-verified in the same session (22 September 2026); re-attempt at the 13 products left without a
+photograph — 2 closed, 11 still open (22 September 2026); 32 of 45 missing product photographs
+sourced under verified open licences (18 September 2026); `full-app` measured in k3d (2234 MiB) and
+`staff-portal` exposed through the ingress (17 September 2026).
+
+**Also worth knowing:** `/proc/meminfo` now measures **~11 GB**, not the ~7.4 GB this file's older
+entries describe — the `.wslconfig` override was applied at some point between sessions. That
+resolves the `observability` profile's ~9.2 GB-estimate-vs-7.4 GB-ceiling mismatch flagged below;
+`observability` has still never been built or run, so its own estimate remains unmeasured, but the
+ceiling that used to make it impossible no longer applies.
 
 ---
 
