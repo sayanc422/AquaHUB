@@ -3,7 +3,8 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** 32 of 45 missing product photographs sourced under verified open licences
+**Last updated:** re-attempt at the 13 products left without a photograph — 2 closed, 11 still open
+(22 September 2026); 32 of 45 missing product photographs sourced under verified open licences
 (18 September 2026); `full-app` measured in k3d (2234 MiB) and `staff-portal` exposed through the
 ingress (17 September 2026).
 
@@ -465,26 +466,35 @@ aquashop/
 - The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.
 - `aquatics-advisor` has no automated test of its HTTP layer or its catalog client, and its image is
   not distroless. Both are stated in its README rather than left to be found.
-- ~~Ten photographs are committed and ten products carry them.~~ **42 of 55 products now carry a
-  photograph** (17–18 September 2026): the original 10 shop-owner photos, plus 32 sourced from
-  Wikimedia Commons under CC0/public-domain/CC-BY/CC-BY-SA licences, each verified via the Commons
-  API and recorded with source/licence/artist in
-  `services/storefront/public/species/CREDITS.md`. 13 products still have no image and render as the
-  designed placeholder — `saulosi`, `acei-yellow-tail`, `bristlenose-pleco`, `otocinclus`,
-  `red-melon-badis`, `yellow-shrimp` (Commons had nothing both correctly licensed and correctly
-  identified, at the resolution the README requires), and `seiryu-stone-5kg`,
-  `canister-filter-400lph`, `heater-100w`, `master-test-kit`, `community-flake-100g`,
-  `algae-wafers-250g`, `frozen-bloodworm-100g` (Commons is sparse for generic retail product
-  photography specifically).
+- ~~Ten photographs are committed and ten products carry them.~~ **44 of 55 products now carry a
+  photograph** (17–18 September 2026, extended 22 September 2026): the original 10 shop-owner photos,
+  plus 34 sourced from Wikimedia Commons under CC0/public-domain/CC-BY/CC-BY-SA licences, each
+  verified via the Commons API and recorded with source/licence/artist in
+  `services/storefront/public/species/CREDITS.md`. 11 products still have no image and render as the
+  designed placeholder. Four fail on resolution alone — `saulosi`, `bristlenose-pleco`, `otocinclus`,
+  `red-melon-badis`: a correctly-identified, correctly-licensed Commons file exists for each species
+  but every one is under the 1200×900 floor, so these close on one adequate upload. Seven are
+  structural — `yellow-shrimp` (the only named still is 1024×685; the large file is a whole-tank shot
+  in which the shrimp are a few dozen pixels), `seiryu-stone-5kg`, `master-test-kit`,
+  `algae-wafers-250g` (Commons holds nothing of the subject at all), `frozen-bloodworm-100g` (live
+  worms exist, blister packaging does not, and the packaging is the product), and
+  `canister-filter-400lph` + `community-flake-100g` — those last two **do** have correctly-licensed,
+  adequately-sized candidates and were rejected anyway, because both carry legible third-party
+  trademarks on hardware and packaging the shop does not sell. A CC licence covers copyright and
+  explicitly disclaims trademark, so a verified licence is not clearance to publish. Reason-by-reason,
+  candidate by candidate, in CREDITS.md.
 - **The original 10 shop-owner photographs still have unverified provenance** — nothing changed
   about those; recorded row by row in `services/storefront/public/species/CREDITS.md`, and none may
   ship until it is the shop's own with permission on file, a stock licence, or breeder-supplied. **The
-  32 Commons-sourced photographs are not in this category** — each has a real, recorded, verified
+  34 Commons-sourced photographs are not in this category** — each has a real, recorded, verified
   licence permitting commercial use, which is the "licensed" path `CREDITS.md` and
-  `services/storefront/public/species/README.md` have always described, not a workaround. Two of the
-  32 carry an honest identification caveat rather than a hidden guess (`blue-velvet-shrimp`'s morph
-  name is unconfirmed; `mystery-snail`'s source is Commons-categorised as a synonym species) — see
-  CREDITS.md for both.
+  `services/storefront/public/species/README.md` have always described, not a workaround. Four of the
+  34 carry an honest caveat rather than a hidden guess: `blue-velvet-shrimp`'s morph name is
+  unconfirmed, `mystery-snail`'s source is Commons-categorised as a synonym species,
+  `acei-yellow-tail`'s species ID is the uploader's own caption (Commons files it under "Unidentified
+  Pseudotropheus") confirmed only by eye against the trade form, and `heater-100w` shows an unbranded
+  glass-tube heater with no thermostat dial or wattage marking in frame — the product class, not the
+  100 W thermostatic unit. See CREDITS.md for all four.
 - `catalog-service`'s test suite uses Testcontainers, so it could not be executed in the session that
   wrote the tree tests. Every assertion was verified by hand against the running service instead --
   which is weaker, and is why the first CI run after this change is worth watching.

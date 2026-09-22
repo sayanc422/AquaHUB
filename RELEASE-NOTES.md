@@ -5,6 +5,88 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Re-attempt at the 13 empty product slots: 2 closed, 11 still empty
+
+The entry below left 13 products without a photograph and said so. This is the repeat search it
+invited ("Commons' coverage changes over time, and a repeat search later might succeed where this one
+didn't"). Same protocol, no exceptions: every candidate through the Commons API, licence read off
+`extmetadata.LicenseShortName`, `imageinfo.width`/`height` checked before download, artist from
+`extmetadata.Artist` rather than a filename. One addition — every surviving candidate was also opened
+and looked at before a decision, since a correct caption is not a correct photograph. That step is
+what rejected four subjects that had already passed licence and resolution.
+
+### Measured
+
+**2 of the 13 closed; 44 of 55 products now carry a photograph, up from 42.** 0.4 MB added across
+two files (`acei-yellow-tail.jpg` 1600×1200 at 120 KB, `heater-100w.jpg` 1400×1050 at 278 KB —
+quality 76 rather than 82, because its dark woven-cloth background compresses badly, the same problem
+`auratus.jpg` had: at this crop, 82 measured 335 KB and even 78 measured 301 KB, both over the 300 KB
+ceiling). Both source files returned `cc-by-sa-3.0`, an empty `Restrictions` field and
+`Credit: Own work` from the API. Species/subject, licence, artist, dimensions and output file sizes
+were all verified by running the queries and the conversions and reading the results.
+
+`V10__licensed_photography_gap_reattempt.sql` wires the two keys in. Its statement was run against
+the live `catalog` database in the still-running `full-app` cluster inside a transaction and rolled
+back: `UPDATE 2`, both keys resolving to the expected `species/<slug>.jpg`, `saulosi` untouched and
+still `NULL`. The same session confirmed the starting state from the database rather than from these
+notes — 55 products, 42 with a key, 13 without, and the 13 are exactly the slugs named below plus the
+two now closed. **Flyway has still not applied V10, and the two cards have not been seen rendered** —
+unlike the batch below, no migration run, no redeploy, no screenshot. That is the gap in this entry.
+
+`V9`'s header comment says "the other 13 stay NULL," which is now wrong. V9 is left unedited: Flyway
+has already applied it, and a comment-only edit still changes the checksum. The correction is in
+V10's own header, which names V9 and the stale line.
+
+### What was NOT forced through
+
+**11 products still have no image.** Four fail on resolution alone — `saulosi` (its whole Commons
+category is three files, largest 1295×737 and a tank shot), `bristlenose-pleco`, `otocinclus`,
+`red-melon-badis` (one file, 701×468). For the two catfish the pattern is specific and worth naming:
+the correctly-identified files are small, and every adequately-sized file is `sp.`, genus only, or a
+different species — and neither fish is separable to species by eye, so looking harder cannot close
+it. These four would close on a single adequate upload.
+
+Seven fail structurally. Five of them — `yellow-shrimp`, `seiryu-stone-5kg`, `master-test-kit`,
+`algae-wafers-250g`, `frozen-bloodworm-100g` — because Commons has nothing of the subject, or nothing
+of it in the form the product is sold in: the bloodworm candidate is correctly licensed and correctly
+identified but its own caption says *live* worms, and the product is a frozen blister pack whose
+packaging is the thing being bought. *Category:Water test kits* and *Category:Rocks in aquaria* are
+both literally empty.
+
+**The other two are the ones worth arguing about — `canister-filter-400lph` and
+`community-flake-100g` had usable candidates and were rejected anyway.** `File:FiltroExterno.jpg` (3120×4160, CC BY-SA 4.0) and
+`File:Potfilter.JPG` (2000×3008, CC BY-SA 3.0) are both unambiguously external canister filters at
+well over the resolution floor; both are also unambiguously EHEIM units, the first with a full-size
+"EHEIM professionel 4+" logo and the second with a lid mark that resolves cleanly at crop resolution.
+The flake candidate is four retail tubs with Tropical, sera and Tetra branding legible across the
+frame — and they hold granulate and pellet food, not flake. A Creative Commons licence grants
+copyright permission and explicitly disclaims trademark, so a verified licence is not clearance to
+put a competitor's branded hardware on a listing for a product the shop does not sell. Cost of that
+call: two tiles stay grey that could have been filled today. The candidates are named in `CREDITS.md`
+so the decision can be overruled deliberately instead of re-derived from scratch.
+
+**Two caveats on what was accepted, recorded rather than hidden.** `acei-yellow-tail`'s species ID is
+the uploader's own caption; Commons files the image under *Category:Unidentified Pseudotropheus*, so
+no curator has confirmed it. The fish does carry the marks the variant is sold on — dark blue-violet
+body, yellow dorsal margin, solid yellow caudal — but that is a visual match against the trade form,
+not a determination, and the source is a soft-focus three-quarter snapshot, not the lateral profile
+`README.md` asks for. `heater-100w` shows the product class and not the product: an unbranded
+glass-tube heater out of the tank, with no thermostat dial and no wattage marking anywhere in frame.
+Nothing in that photograph says "100 W" or "thermostatic."
+
+### Still unproven
+
+- Neither new image has been rendered in a running storefront. V10's statement has been dry-run
+  against the real schema, which proves it parses and matches the right two rows; it does not prove
+  Flyway applies it cleanly in sequence, and it says nothing about how the two cards look on a page.
+- The `acei-yellow-tail` identification rests on one uploader's caption plus a visual check against
+  published reference photographs. That is the same standard as the batch below and it is still not a
+  breeder's or owner's sign-off.
+- The eleven remaining gaps were searched by category listing as well as full-text search, which is
+  broader than the first pass, but "nothing on Commons" is always a statement about what was queried.
+
+---
+
 ## 32 product photographs, sourced under verified open licences
 
 The shop had 10 photographs across 55 products — one section (Malawi cichlids) was fairly covered,
@@ -29,7 +111,8 @@ wrong one would be a real, visible mislabelling, not just a licensing miss).
 
 ### Measured
 
-**32 of 45 missing products got an image; 42 of 55 products now have one, up from 10.** ~6.6 MB
+**32 of 45 missing products got an image; 42 of 55 products had one after this batch, up from 10**
+(44 of 55 after the re-attempt above). ~6.6 MB
 total across the new files, each processed to this repository's existing spec (4:3, ≥1200×900, JPEG
 quality 80, EXIF-stripped, under 300 KB). Verified rendering end to end: rebuilt `catalog-service`
 (carries the new `V9__licensed_photography.sql` migration) and `storefront` (the images are baked
@@ -40,7 +123,8 @@ HTTP 200s.
 
 ### What was NOT forced through
 
-**13 products still have no image, on purpose:** `saulosi`, `acei-yellow-tail`, `bristlenose-pleco`,
+**13 products still had no image after this batch, on purpose** (11 after the re-attempt above, which
+closed `acei-yellow-tail` and `heater-100w`)**:** `saulosi`, `acei-yellow-tail`, `bristlenose-pleco`,
 `otocinclus`, `red-melon-badis`, `yellow-shrimp` — for each, either no correctly-identified Commons
 photo exists at all, or the only ones that do are below the 1200×900 floor, or the only
 adequately-sized candidates are mislabelled/unidentified at species level. And `seiryu-stone-5kg`,
@@ -68,7 +152,9 @@ black canvas — full shell visible, tip to base, still under 300 KB.
   would be before publishing; the identification work here is a careful outsider's best effort against
   public reference photos, not a breeder's or owner's sign-off.
 - The 13 still-empty product slots were searched for in earnest, not left idle — but Commons' coverage
-  changes over time, and a repeat search later might succeed where this one didn't.
+  changes over time, and a repeat search later might succeed where this one didn't. **It did, for two
+  of them** — see the entry above; the remaining eleven are itemised with a reason each in
+  `CREDITS.md`.
 
 ---
 

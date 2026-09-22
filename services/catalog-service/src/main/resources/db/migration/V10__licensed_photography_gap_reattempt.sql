@@ -1,0 +1,56 @@
+-- Second pass at the 13 products V9 deliberately left without a photograph,
+-- sourced the same way and under the same rules. See
+-- services/storefront/public/species/CREDITS.md, section "Wikimedia Commons
+-- re-attempt on the 13 gaps, 22 September 2026", for the source, licence and
+-- attribution recorded against both files, and for the reason standing against
+-- each slug that is still empty.
+--
+-- 2 of the 13 closed; 11 are still NULL. Of the eleven, four (saulosi,
+-- bristlenose-pleco, otocinclus, red-melon-badis) fail on resolution alone --
+-- the correctly-identified Commons files for those species exist but are all
+-- under the 1200x900 floor README.md sets, so they would close on a single
+-- adequate upload. The other seven fail structurally. Commons holds no seiryu
+-- stone, no water test kit and no algae wafer at all; for yellow-shrimp the
+-- only large file is a whole-tank shot in which the shrimp are a few dozen
+-- pixels; for frozen-bloodworm-100g the only candidate is captioned as *live*
+-- worms, and the product is a blister pack whose packaging is the thing being
+-- bought. The last two, canister-filter-400lph and community-flake-100g, had
+-- candidates that passed licence, identification and resolution and were
+-- rejected anyway: both carry legible third-party trademarks on hardware and
+-- packaging this shop does not sell, and a CC licence covers copyright while
+-- explicitly disclaiming trademark, so a verified licence is not clearance to
+-- publish. That call costs two tiles that could have been filled today; the
+-- rejected candidates are named in CREDITS.md so it can be overruled
+-- deliberately rather than re-derived.
+--
+-- V9's own header comment says "the other 13 stay NULL". That was true when it
+-- was written and is not true now; the current count is the one above. V9 is
+-- left unedited on purpose -- migrations are forward-only, and this file is
+-- where the correction belongs.
+--
+-- Both files below carry an honest caveat in CREDITS.md rather than a silent
+-- one: acei-yellow-tail's species ID is the uploader's caption (Commons files
+-- it under "Unidentified Pseudotropheus") confirmed by eye against the trade
+-- form, and heater-100w shows an unbranded glass-tube heater with no
+-- thermostat dial or wattage marking in frame -- the product class, not the
+-- 100 W thermostatic unit itself.
+--
+-- acei-yellow-tail is the second time this key has been set. V5 set it on the
+-- assumption that a shop photograph was coming; the file never arrived, and V7
+-- cleared it with the reason "a key is a promise that the file exists; these
+-- ones were not kept". That promise is kept this time --
+-- services/storefront/public/species/acei-yellow-tail.jpg is committed in the
+-- same change as this migration, which is what README.md asks for. saulosi,
+-- cleared by the same V7 statement, still has no file and correctly stays NULL.
+--
+-- Dry-run against the live `catalog` database in the running full-app cluster
+-- before committing, inside a transaction that was rolled back: UPDATE 2, both
+-- keys resolving as expected, saulosi untouched. Flyway has not applied this
+-- file yet, so that check proves the statement, not the migration run.
+UPDATE product SET image_key = 'species/' || slug || '.jpg'
+ WHERE slug IN (
+   -- Malawi cichlid
+   'acei-yellow-tail',
+   -- equipment
+   'heater-100w'
+ );

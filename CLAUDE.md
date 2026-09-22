@@ -133,12 +133,19 @@ of exactly that gap.
 3. Observability and Argo CD (`platform`) are budgeted profiles with no manifests behind them yet.
 4. Photograph licensing: the original 10 shop-owner photos in
    `services/storefront/public/species/CREDITS.md` are still `unverified` and must not reach a
-   commercial launch that way. A second batch (32 images, 17–18 September 2026) is sourced from
-   Wikimedia Commons under CC0/public-domain/CC-BY/CC-BY-SA licences only, each verified against the
-   Commons API and recorded with source/licence/artist in CREDITS.md — those are launch-eligible as
-   recorded, not "unverified." 13 products still have no image at all; Commons had nothing both
-   correctly licensed and correctly identified for them. `catalog-service`'s `V9__licensed_photography.sql`
-   wires the 32 `image_key`s in.
+   commercial launch that way. A second batch (32 images, 17–18 September 2026) plus a re-attempt at
+   the gaps it left (2 more, 22 September 2026) is sourced from Wikimedia Commons under
+   CC0/public-domain/CC-BY/CC-BY-SA licences only, each verified against the Commons API and recorded
+   with source/licence/artist in CREDITS.md — those 34 are launch-eligible as recorded, not
+   "unverified." **11 products still have no image at all.** Four of those (`saulosi`,
+   `bristlenose-pleco`, `otocinclus`, `red-melon-badis`) fail on resolution alone and would close on
+   one adequate upload; the other seven are structural gaps in what Commons collects, and two of those
+   (`canister-filter-400lph`, `community-flake-100g`) have correctly-licensed candidates rejected for
+   legible third-party trademarks on products the shop does not sell — a CC licence disclaims
+   trademark, so a correct licence is not clearance. Reason-by-reason in CREDITS.md.
+   `catalog-service`'s `V9__licensed_photography.sql` wires the 32 `image_key`s in and
+   `V10__licensed_photography_gap_reattempt.sql` the 2; V9's header still says "the other 13 stay
+   NULL," corrected in V10 rather than by editing V9, which Flyway has already applied.
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist
    anywhere in the codebase — `architecture.md`'s "staff manage tanks, stock, claims" actor
