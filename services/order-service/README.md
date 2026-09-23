@@ -85,17 +85,21 @@ design on.
 | `POST` | `/v1/orders/from-cart/{cartId}` | run the saga. **Always 201**, even for a declined card: the request succeeded, and the answer is an order in `PAYMENT_FAILED` |
 | `GET` | `/v1/orders/{id}`, `/v1/orders/by-reference/{ref}` | `dispatchable` is derived, never stored |
 | `GET` | `/v1/orders/{id}/events` | the audit trail — the only place a compensation is visible afterwards |
+| `POST` | `/v1/inquiries` | a custom tank enquiry. **201 with an id and nothing else** — no echo of the submission, no `Location` header, and no `GET` anywhere that resolves the id. See below |
 
 Not exposed through the ingress. The storefront calls it; it calls inventory-service.
 
 ## Tests
 
 ```bash
-mvn test                                  # 24 tests: state machine, calendar, HTTP client
+mvn test                     # 77 tests, 34 skipped: state machine, calendar, HTTP client,
+                             # enquiry field validation
 
 createdb orders_test
 ORDER_TEST_DSN=jdbc:postgresql://127.0.0.1:5432/orders_test ORDER_TEST_USER=postgres \
-  mvn test                                # + 8 saga tests against a real Postgres
+  mvn test                   # 77 tests, 0 skipped: the 34 above are the saga, the recovery
+                             # scan, the tank-enquiry encrypt/decrypt round trip, and the
+                             # missing-key behaviour
 ```
 
 The saga tests need a real database because what they assert is that each step committed its own
@@ -108,6 +112,13 @@ exists to avoid.
 `aPartlyReservedOrderReleasesTheHoldsItAlreadyTook` is the one that earned its keep: it found the
 rollback-erases-the-holds bug described above.
 
+`TankInquiryTest` needs a real Postgres for a different reason: the claim under test is that
+*Postgres* encrypts those columns, and an in-memory database has no `pgcrypto`, so a green run
+against one would only prove the Java compiled. `whatIsOnDiskIsNotThePlaintext`,
+`thereIsNoWayToReadAnEnquiryBackOverHttp` and `InquiryKeyMissingTest`'s
+`theCommercePathIsCompletelyUnaffected` are the three written to fail loudly if someone changes this
+design without reading ADR 0021.
+
 ## Configuration
 
 | Variable | Default | |
@@ -118,6 +129,47 @@ rollback-erases-the-holds bug described above.
 | `ORDER_HOLD_TTL_SECONDS` | `900` | the customer's time to enter a card |
 | `ORDER_DISPATCH_ZONE` | `Asia/Kolkata` | the cut-off is the shop's local time |
 | `PAYMENT_STUB_OUTCOME` | `APPROVE` | `DECLINE` demonstrates compensation |
+| `INQUIRY_ENCRYPTION_KEY` | — | **no default, no fallback.** Unset disables `POST /v1/inquiries` (503) and nothing else. See below |
+
+## Custom tank enquiries
+
+A second thing this service owns, sharing nothing with the saga: `POST /v1/inquiries` writes one row
+to `tank_inquiry` when a visitor describes the tank they want and leaves an email address and a phone
+number. No order, no reservation, no state transition, no event row — an enquiry is not a checkout.
+[ADR 0021](../../docs/adr/0021-encrypt-enquiry-contact-details-in-postgres.md) is why it is here
+rather than in a ninth service, and what that costs.
+
+**Postgres does the encryption, not Java.** `pgcrypto`'s `pgp_sym_encrypt` on the email, the phone
+number and the free-text message, all `BYTEA`, AES-256, compression off. Same reasoning as
+`payment-service`'s append-only trigger: an invariant that must not be lost belongs in the database.
+`tank_inquiry` is deliberately the only table here that is **not** a JPA entity — a mapped entity
+would keep the plaintext in Hibernate's caches. `message_chars` is the one column left in the clear,
+so "are enquiries arriving?" can be answered without the key.
+
+**`INQUIRY_ENCRYPTION_KEY` has no default and never will.** Missing, or shorter than 16 characters,
+and the write is refused — a default key writes rows that look encrypted and are not, and orphans
+them the day a real key arrives.
+
+**The refusal is scoped to this endpoint.** The service starts normally, logs one `WARN`, and serves
+carts, checkout, the saga and order lookups exactly as always; `POST /v1/inquiries` alone answers
+`503` with a body naming the runbook. This service owns the checkout saga, and a forgotten Secret
+for a bolt-on enquiry form must not be able to take commerce down with it — the reach of a failure
+should match the size of the thing that failed. `InquiryKeyMissingTest` pins that behaviour.
+`secretKeyRef` in `platform-repo/dev/order/deployment.yaml` needs `optional: true` for it to hold;
+without that, kubelet will not start the container at all. The cost is that the feature can be
+silently off on a green-looking cluster, which ADR 0021 states plainly.
+
+The key comes from a Kubernetes Secret that is **not** in this repository;
+[docs/runbooks/rotate-or-create-the-inquiry-key.md](../../docs/runbooks/rotate-or-create-the-inquiry-key.md)
+has the one command that creates it, and what happens if it changes (every existing row becomes
+unreadable, permanently).
+
+**There is no way to read an enquiry back over HTTP.** No `GET`, no list, no search, no `Location`
+header. Nothing in this platform authenticates anyone, so a read endpoint would undo the reason the
+columns are encrypted. Reading one means `psql` and the key. That is a gap, and the ADR says so.
+
+**The endpoint is public and has no rate limiting.** A 4,000-character cap and field-shape validation
+are the only bounds. Fix that before this goes anywhere real.
 
 ## What this does not do
 

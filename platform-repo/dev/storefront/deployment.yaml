@@ -47,6 +47,22 @@ spec:
               value: http://catalog-service.aquashop-dev.svc.cluster.local:8080
             - name: CATALOG_TIMEOUT_MS
               value: "2000"
+            # New with the custom tank-setup enquiry form (ADR 0021). This is
+            # the storefront's first call to order-service -- checkout is not
+            # wired through the BFF -- so the variable is new, not a rename.
+            #
+            # Note what this means for the `core` profile: core deploys the
+            # storefront without order-service, so the form is reachable there
+            # and every submission fails. It fails honestly (502, the
+            # customer's text kept, "we could not reach the shop") rather than
+            # silently, but core is not a profile this feature works in.
+            - name: ORDER_BASE_URL
+              value: http://order-service.aquashop-dev.svc.cluster.local:8082
+            # Bounded at 2 s like the catalog call, for the same reason: an
+            # unbounded upstream call lets one slow service fill this BFF's
+            # connection pool and take the whole shop down with it.
+            - name: ORDER_TIMEOUT_MS
+              value: "2000"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

@@ -29,3 +29,4 @@ because the reasoning that was true at the time is the useful part.
 | [0018](0018-recover-from-state-not-from-an-outbox.md) | Recover the saga from its own state, not from an outbox — amends 0015 | Accepted |
 | [0019](0019-the-catalogue-says-what-kind-of-animal-it-is.md) | The catalogue says what kind of animal it is — extends 0017 | Accepted |
 | [0020](0020-push-not-subscribe-until-phase-6.md) | notification-service is pushed to, not subscribed via NATS, until Phase 6 | Accepted |
+| [0021](0021-encrypt-enquiry-contact-details-in-postgres.md) | Custom tank enquiries live in order-service, with contact details encrypted by Postgres | Accepted |

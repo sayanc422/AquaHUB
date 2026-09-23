@@ -44,6 +44,24 @@ orders:
   stuck-after-ms: ${ORDER_STUCK_AFTER_MS:120000}
   recovery-scan-interval-ms: ${ORDER_RECOVERY_SCAN_MS:60000}
 
+inquiries:
+  # The pgcrypto passphrase for tank_inquiry's email, phone and message columns.
+  #
+  # There is deliberately no default. An empty value is not "use a fallback",
+  # it is "refuse the write" -- see TankInquiryRepository and ADR 0021. A
+  # fallback key would write rows that look encrypted and are readable by anyone
+  # holding this file, then orphan them the day a real key arrives.
+  #
+  # Empty is survivable, though, and only for this one endpoint: the service
+  # starts normally, the checkout saga is untouched, and POST /v1/inquiries
+  # alone answers 503. A bolt-on form's missing Secret must not be able to take
+  # the commerce path down with it.
+  #
+  # The value comes from a Kubernetes Secret that is NOT in this repository and
+  # must not be: docs/runbooks/rotate-or-create-the-inquiry-key.md has the one
+  # command that creates it.
+  encryption-key: ${INQUIRY_ENCRYPTION_KEY:}
+
 inventory:
   base-url: ${INVENTORY_BASE_URL:http://inventory-service:8081}
   connect-timeout-ms: ${INVENTORY_CONNECT_TIMEOUT_MS:1000}

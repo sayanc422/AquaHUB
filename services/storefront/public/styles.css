@@ -102,3 +102,54 @@ a.tile:hover { border-color: var(--teal); transform: translateY(-2px); }
 /* A shelf heading on the shop front, under the section tiles. */
 .shelf{font-size:1.05rem;color:var(--muted);font-weight:600;letter-spacing:.04em;
   text-transform:uppercase;margin:2.5rem 0 1rem}
+
+/* ---- custom tank enquiry --------------------------------------------- */
+/* One of the shop's main offers, sitting between the section tiles and the
+   stock shelf, so it is styled as a panel rather than as another tile: it is
+   not a doorway into the catalogue and should not look like one. The violet
+   accent is the one already used for the care profile -- the two places on the
+   site where the shop talks rather than sells. */
+.nav-cta { color: var(--violet); font-weight: 600; }
+.top nav a.nav-cta:hover { color: var(--teal); }
+
+.inquiry { border: 1px solid var(--line); border-left: 3px solid var(--violet);
+           border-radius: 0 12px 12px 0; background: var(--panel-solid);
+           padding: 1.6rem 1.8rem 1.8rem; margin: 0 0 2.5rem; scroll-margin-top: 1rem; }
+.inquiry h2 { margin: 0 0 .4rem; font-size: 1.35rem; }
+.inquiry .lede { margin-bottom: 1.25rem; max-width: 68ch; }
+
+.inquiry-form { display: flex; flex-direction: column; gap: .5rem; }
+.inquiry-form label { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+                      color: var(--muted); }
+.inquiry-form textarea,
+.inquiry-form input { width: 100%; background: var(--bg); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: .7rem .8rem;
+  font: inherit; resize: vertical; }
+.inquiry-form textarea::placeholder { color: var(--muted); opacity: .6; }
+.inquiry-form textarea:focus,
+.inquiry-form input:focus { outline: 2px solid var(--violet); outline-offset: 1px;
+                            border-color: var(--violet); }
+
+/* Two columns where there is room, stacked on a phone. A phone number and an
+   email address on one line each is a lot of empty space on a desktop. */
+.inquiry-contact { display: grid; gap: .75rem 1rem; margin-top: .75rem;
+                   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.inquiry-contact > div { display: flex; flex-direction: column; gap: .35rem; }
+
+.inquiry-form button { align-self: flex-start; margin-top: 1rem; cursor: pointer;
+  background: var(--violet); color: #0f1725; font: inherit; font-weight: 700;
+  border: 0; border-radius: 999px; padding: .65rem 1.4rem; }
+.inquiry-form button:hover { background: var(--teal); }
+
+/* The promise made on the form about what happens to these three fields. It is
+   small, but it is not fine print in the dishonest sense -- it says exactly
+   what the database does. */
+.fineprint { color: var(--muted); font-size: .78rem; margin: .9rem 0 0; max-width: 62ch; }
+
+/* A rejected submission. Loud enough to find without scrolling back up. */
+.form-error { border: 1px solid var(--orange); background: rgba(255,154,77,.12);
+              color: var(--orange); border-radius: 8px; padding: .7rem .9rem;
+              margin: 0 0 1rem; font-size: .9rem; }
+
+.thanks { max-width: 60ch; }
+.thanks .sku { margin: 1.5rem 0; }

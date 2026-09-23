@@ -108,6 +108,44 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef: { name: postgres-credentials, key: ORDERS_PASSWORD }
+            # The pgcrypto passphrase for tank_inquiry's email, phone and
+            # message columns (ADR 0021).
+            #
+            # Same secretKeyRef mechanism as DB_PASSWORD above, and
+            # deliberately NOT the same Secret. `postgres-credentials` is
+            # checked into this repository in plaintext -- it says so in its
+            # own header -- and this key must not be. `order-inquiry-key` is
+            # created by hand, out of band, and exists in no file here:
+            #
+            #   kubectl create secret generic order-inquiry-key \
+            #     --namespace aquashop-dev \
+            #     --from-literal=INQUIRY_ENCRYPTION_KEY="$(openssl rand -base64 48)"
+            #
+            # docs/runbooks/rotate-or-create-the-inquiry-key.md is the whole
+            # procedure, including what happens to existing rows if the key
+            # changes (they are lost).
+            #
+            # `optional: true` is load-bearing, and it is the whole reason this
+            # is a separate env entry rather than an envFrom.
+            #
+            # WITHOUT it, a missing Secret leaves the pod in
+            # CreateContainerConfigError forever -- kubelet will not start a
+            # container whose env it cannot resolve -- and order-service never
+            # runs at all. That takes the checkout saga down for the sake of an
+            # enquiry form, which is a blast radius wildly out of proportion to
+            # the feature. WITH it, the variable is simply unset, the service
+            # starts normally, everything else works, and `POST /v1/inquiries`
+            # alone answers 503 (ADR 0021).
+            #
+            # It does NOT mean the key is optional in any security sense. There
+            # is no fallback key and nothing is ever stored in plaintext; the
+            # endpoint refuses instead.
+            - name: INQUIRY_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: order-inquiry-key
+                  key: INQUIRY_ENCRYPTION_KEY
+                  optional: true
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

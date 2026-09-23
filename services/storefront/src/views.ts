@@ -54,7 +54,13 @@ function layout(title: string, nav: CategoryView[], body: string): string {
 </head><body>
 <header class="top">
   <a class="brand" href="/">Aqua<span>Shop</span></a>
-  <nav>${nav.map(c => `<a href="/c/${esc(c.slug)}">${esc(c.name)}</a>`).join('')}</nav>
+  <nav>${nav.map(c => `<a href="/c/${esc(c.slug)}">${esc(c.name)}</a>`).join('')}
+       <!-- Not a catalogue category, so it cannot come from the nav data, but
+            it is one of the shop's main offers and belongs beside the ones
+            that are. Anchored to the home page rather than given a page of its
+            own: the form is four fields, and a page whose only content is four
+            fields is a redirect with extra steps. -->
+       <a class="nav-cta" href="/#custom-tank">Custom tank build</a></nav>
 </header>
 <main>${body}</main>
 <footer>Local development build. Livestock ships only inside a safe weather window.</footer>
@@ -144,7 +150,95 @@ export function categoryPage(
     ${listing}`);
 }
 
-export function homePage(nav: CategoryView[], featured: ProductSummary[]) {
+/**
+ * What a rejected submission has to carry back to the form.
+ *
+ * Server-rendered, so a validation failure means re-rendering the whole page.
+ * Without the typed-in values the customer loses the paragraph they just wrote
+ * because they mistyped their phone number, which is the fastest way to make
+ * someone not bother a second time.
+ */
+export interface InquiryFormState {
+  error?: string;
+  message?: string;
+  email?: string;
+  phone?: string;
+}
+
+/**
+ * The custom tank-setup enquiry form.
+ *
+ * A plain HTML form doing a full-page POST, with no client-side JavaScript —
+ * the same decision as the rest of the site (ADR 0005). It works with
+ * JavaScript off, it needs no fetch wrapper, and the failure states are just
+ * pages.
+ *
+ * `required` and `type="email"` are the browser's own checks and are worth
+ * having because they catch the mistake before a round trip; they are not
+ * trusted. The BFF checks again, and order-service checks again after that,
+ * because the only validation that counts is the one nearest the database.
+ */
+const inquiryForm = (state: InquiryFormState) => `
+<section class="inquiry" id="custom-tank">
+  <h2>Tell us the tank you want</h2>
+  <p class="lede">
+    Describe the setup and the stocking you have in mind — size, water, plants, the fish you
+    want living together — and we will price it, tell you honestly what will not work, and
+    come back to you.
+  </p>
+  ${state.error ? `<p class="form-error" role="alert">${esc(state.error)}</p>` : ''}
+  <form method="post" action="/inquiries" class="inquiry-form">
+    <label for="message">Your tank, in your own words</label>
+    <textarea id="message" name="message" rows="7" maxlength="4000" required
+      placeholder="e.g. 120 litres, planted, soft water. I would like a school of cardinal tetras, some otocinclus, and a centrepiece fish that will leave shrimp alone."
+      >${esc(state.message ?? '')}</textarea>
+
+    <div class="inquiry-contact">
+      <div>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" maxlength="190" required
+               autocomplete="email" value="${esc(state.email ?? '')}">
+      </div>
+      <div>
+        <label for="phone">Phone</label>
+        <input id="phone" name="phone" type="tel" maxlength="24" required
+               autocomplete="tel" value="${esc(state.phone ?? '')}">
+      </div>
+    </div>
+
+    <button type="submit">Send this to the shop</button>
+    <p class="fineprint">
+      Your email, phone number and message are encrypted before they are stored, and are used
+      only to answer this enquiry. We do not show them anywhere on this site.
+    </p>
+  </form>
+</section>`;
+
+/**
+ * The page after a successful submission.
+ *
+ * Reached by redirect, not rendered from the POST, so a refresh does not send
+ * the enquiry twice. The reference is shown because it is the only handle the
+ * customer has on the thing they just sent — and it is safe to show, because
+ * there is no endpoint that turns it back into their details.
+ */
+export function inquiryThanksPage(nav: CategoryView[], reference: string | null) {
+  return layout('Enquiry received', nav, `
+    <section class="thanks">
+      <h1>That is with the shop.</h1>
+      <p class="lede">
+        Someone who keeps fish will read it and come back to you on the email or phone number
+        you left. If what you have asked for will not work as described, we will say so —
+        that is the point of asking first.
+      </p>
+      ${reference ? `<p class="sku">Reference ${esc(reference)}</p>` : ''}
+      <p><a class="nav-cta" href="/">Back to the shop</a></p>
+    </section>`);
+}
+
+export function homePage(
+  nav: CategoryView[], featured: ProductSummary[], inquiry: InquiryFormState = {},
+) {
   // The sections first, then a handful of stock beneath them.
   //
   // The route has always fetched both and this view rendered only the second
@@ -156,10 +250,17 @@ export function homePage(nav: CategoryView[], featured: ProductSummary[]) {
   //
   // Same `tile` as every other level of the tree, so a COMING_SOON section is
   // greyed out here exactly as Saltwater is one level down.
+  //
+  // The enquiry form sits directly under the sections, above the stock shelf.
+  // It is one of the shop's main offers rather than an afterthought, and a
+  // customer who wants a whole tank built should not have to scroll past six
+  // fish to find where to ask. It is also where the page goes back to when a
+  // submission is rejected, which is why `homePage` takes the form state.
   return layout('Home', nav, `
     <h1>Freshwater livestock, plants and hardscape</h1>
     <p class="lede">Every living animal we sell carries a full care profile. Read it before you buy.</p>
     <section class="tiles">${nav.map(tile).join('')}</section>
+    ${inquiryForm(inquiry)}
     <h2 class="shelf">In the shop now</h2>
     <section class="grid">${featured.map(card).join('')}</section>`);
 }
