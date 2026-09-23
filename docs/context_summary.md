@@ -474,30 +474,37 @@ aquashop/
 - The card acquirer is stubbed, so nothing here proves behaviour against a real payment network.
 - `aquatics-advisor` has no automated test of its HTTP layer or its catalog client, and its image is
   not distroless. Both are stated in its README rather than left to be found.
-- ~~Ten photographs are committed and ten products carry them.~~ **44 of 55 products now carry a
-  photograph** (17–18 September 2026, extended 22 September 2026): the original 10 shop-owner photos,
-  plus 34 sourced from Wikimedia Commons under CC0/public-domain/CC-BY/CC-BY-SA licences, each
-  verified via the Commons API and recorded with source/licence/artist in
-  `services/storefront/public/species/CREDITS.md`. 11 products still have no image and render as the
-  designed placeholder. Four fail on resolution alone — `saulosi`, `bristlenose-pleco`, `otocinclus`,
-  `red-melon-badis`: a correctly-identified, correctly-licensed Commons file exists for each species
-  but every one is under the 1200×900 floor, so these close on one adequate upload. Seven are
-  structural — `yellow-shrimp` (the only named still is 1024×685; the large file is a whole-tank shot
-  in which the shrimp are a few dozen pixels), `seiryu-stone-5kg`, `master-test-kit`,
-  `algae-wafers-250g` (Commons holds nothing of the subject at all), `frozen-bloodworm-100g` (live
-  worms exist, blister packaging does not, and the packaging is the product), and
-  `canister-filter-400lph` + `community-flake-100g` — those last two **do** have correctly-licensed,
-  adequately-sized candidates and were rejected anyway, because both carry legible third-party
-  trademarks on hardware and packaging the shop does not sell. A CC licence covers copyright and
-  explicitly disclaims trademark, so a verified licence is not clearance to publish. Reason-by-reason,
-  candidate by candidate, in CREDITS.md.
+- ~~Ten photographs are committed and ten products carry them.~~ ~~**44 of 55 products now carry a
+  photograph**~~ **55 of 55 products now carry a photograph** (17–18 September 2026, extended twice on
+  22 September 2026): the original 10 shop-owner photos, plus 45 sourced from Wikimedia Commons under
+  CC0/public-domain/CC-BY/CC-BY-SA licences, each verified via the Commons API and recorded with
+  source/licence/artist in `services/storefront/public/species/CREDITS.md`. No product renders the
+  placeholder any more. **34 of those 45 are launch-eligible as recorded; the last 11 are not.** They
+  were added at explicit user direction, trading launch-eligibility for a site that looks finished,
+  on the reasoning that this platform is never applied to an AWS account and nothing is ever sold from
+  it. What was relaxed for them: resolution (five are enlarged with Lanczos from below the 1200×900
+  floor — `saulosi` 2.3× from 556×392 is the worst), species precision (`bristlenose-pleco` and
+  `otocinclus` are genus-level *Ancistrus* sp. / *Otocinclus* sp.), product form
+  (`frozen-bloodworm-100g` is freeze-dried not frozen, `algae-wafers-250g` is tablets not wafers,
+  `seiryu-stone-5kg` is unidentified aquascaping rock in someone's layout, `master-test-kit` is a
+  teaching-lab test-tube rack and not an aquarium test kit at all), and third-party trademark
+  (`canister-filter-400lph` carries a legible FLUVAL 204 mark on a product the shop does not sell —
+  the one row here that is a legal problem rather than a quality problem if this ever went live).
+  What was *not* relaxed is the licence: all 11 were queried through the Commons API the same way as
+  the first 34, nothing "NC"/"ND", nothing from a general image search. `canister-filter-400lph.jpg`
+  is also the only file in that directory that is not entirely photograph — its portrait source will
+  not fit a 4:3 frame, so the outer thirds are a blurred, desaturated copy of the image itself.
+  Row by row, with the original dimensions of every upscale, in CREDITS.md.
 - **The original 10 shop-owner photographs still have unverified provenance** — nothing changed
   about those; recorded row by row in `services/storefront/public/species/CREDITS.md`, and none may
   ship until it is the shop's own with permission on file, a stock licence, or breeder-supplied. **The
-  34 Commons-sourced photographs are not in this category** — each has a real, recorded, verified
+  45 Commons-sourced photographs are not in this category** — each has a real, recorded, verified
   licence permitting commercial use, which is the "licensed" path `CREDITS.md` and
-  `services/storefront/public/species/README.md` have always described, not a workaround. Four of the
-  34 carry an honest caveat rather than a hidden guess: `blue-velvet-shrimp`'s morph name is
+  `services/storefront/public/species/README.md` have always described, not a workaround. That is a
+  statement about licensing only: the last 11 clear the licence and fail the quality and subject bars
+  on purpose, and are marked **not launch-eligible** in CREDITS.md rather than being quietly folded in
+  with the rest. Four of the first 34 carry an honest caveat rather than a hidden guess:
+  `blue-velvet-shrimp`'s morph name is
   unconfirmed, `mystery-snail`'s source is Commons-categorised as a synonym species,
   `acei-yellow-tail`'s species ID is the uploader's own caption (Commons files it under "Unidentified
   Pseudotropheus") confirmed only by eye against the trade form, and `heater-100w` shows an unbranded

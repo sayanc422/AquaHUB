@@ -5,6 +5,99 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## The last 11 product slots filled by lowering the bar, on purpose — 55 of 55, none launch-eligible
+
+The entry below left eleven products without a photograph and argued, correctly, that each one would
+be worse filled than empty. That argument was about a shop that takes orders. This one does not and
+never will — designed for AWS, validated with mock providers, run on k3d, never applied to an AWS
+account — and the instruction here was explicit: fit the remaining eleven, dismiss the resolution and
+structural constraints, make the website look complete. So the bar moved, deliberately, in one
+direction only.
+
+**What did not move: the licence.** Every candidate went through the Commons API exactly as the first
+34 did — `extmetadata.LicenseShortName` read off the actual response, `Restrictions` confirmed empty,
+artist from `extmetadata.Artist` rather than a filename, nothing containing "NC" or "ND", nothing
+from a general web or stock-photo search. Relaxing quality is a judgement about how a demo looks;
+publishing an unlicensed photograph is a different kind of problem.
+
+### Measured
+
+**11 of 11 closed; 55 of 55 products now carry a photograph, up from 44.** 1.9 MB added across eleven
+files, 56–281 KB each, all under the 300 KB ceiling, all 4:3 (1400×1050, or 1200×900 for the two
+heaviest upscales), all EXIF-stripped, progressive JPEG quality 80.
+`V11__demo_complete_photography.sql` wires the keys in and states in its header why these are not
+V9/V10's kind of image. Licences used: CC BY-SA 2.5/3.0/4.0 and CC BY 4.0.
+
+What each one cost, because none of them was free:
+
+- **Resolution — five Lanczos upscales.** `saulosi` 2.3× from 556×392 (the worst by a distance),
+  `red-melon-badis` 1.92× from 701×468, `yellow-shrimp` 1.53× from 1024×685, the three food shots
+  1.4× from 1000×1000, `seiryu-stone-5kg` 1.09× from 1452×962. An upscale invents no detail; it hides
+  the shortfall behind interpolation. Every original dimension is recorded in `CREDITS.md`.
+- **Identification — two genus-level IDs.** `bristlenose-pleco` is *Ancistrus* sp. and `otocinclus`
+  is *Otocinclus* sp. Both products are sold under a species name the photograph does not carry, and
+  neither fish is separable to species by eye, so this does not close with more looking.
+- **Product form — four mismatches.** `frozen-bloodworm-100g` is freeze-dried, not frozen in a
+  blister pack. `algae-wafers-250g` is tablets, not wafers. `seiryu-stone-5kg` is unidentified
+  aquascaping rock already built into someone's layout, not Seiryu stone as a sellable object.
+  `master-test-kit` is a teaching-lab test-tube rack and is not an aquarium test kit at all.
+- **Trademark — one.** `canister-filter-400lph` carries a legible **FLUVAL 204** mark on a real Hagen
+  product this shop does not sell, and it is the wrong flow rate besides. The entry below refused
+  exactly this and its reasoning still holds — a CC licence disclaims trademark, so a verified
+  licence is not clearance. This is the single row that would be a legal problem rather than a
+  quality problem if this catalogue ever went live, and it is flagged that way in `CREDITS.md`, in
+  `V11`'s header and in `CLAUDE.md`.
+- **One synthetic background.** `canister-filter-400lph.jpg`'s source is portrait 975×2033 and the
+  unit will not fit a 4:3 frame, so it was scaled to full height and composited over a blurred,
+  desaturated copy of itself. The outer thirds of that image are not photographed background. It is
+  the only file in `public/species/` that is not entirely photograph.
+
+**`community-flake-100g` got better, not worse.** The candidate the entry below rejected was four
+brand-dominated tubs of granulate. The broadened search turned up `File:Fischfutter-Flocken.JPG` —
+actual flake, on plain white, no packaging and no brand mark anywhere in frame. The relaxation was
+not needed for the reason it was granted.
+
+**Broadening the search is what closed the three "nothing exists on Commons" cases**, and the
+mechanism is worth recording: Commons full-text search is close to useless for retail objects.
+"dragon stone aquarium", "ohko stone", "aquarium water testing" and "pool water test strips" returned
+scanned Victorian aquarium manuals, Federal Register pages and US Army Corps of Engineers reports —
+the same wall the previous pass hit. **Category listing found all three.**
+`generator=categorymembers` on *Category:Aquascaping* produced the iwagumi layout,
+*Category:Test tubes* the reagent rack, and *Category:Fish food* all three Buchling studio shots at
+once. That last category had been read before and those three files were missed; they are 1000×1000
+and would have failed the old resolution bar, which is presumably why. For objects rather than
+organisms, list the category first and search second.
+
+**Downloading and looking at every candidate still earns its keep**, and rejected three that passed
+on API metadata alone: `File:Bioloog.JPG` is in *Category:Aquarium filters*, correctly licensed and
+3008×2000 — and is a grimy home-built sump in a cabinet, nothing like a canister.
+`File:Otocinclus ssp 21.jpg` is 4032×3024 and shows the fish belly-on from underneath.
+`File:Colour gradient with solutions.jpg` is a plausible test-tube candidate whose lower half is an
+empty bench top under a heavy pink cast.
+
+The hand-drawn SVG fallback prepared for "nothing licensable exists even after broadening" was not
+needed. Every one of the eleven found a real photograph once the acceptance bar moved.
+
+### Still unproven
+
+- ~~Nothing here has been rendered.~~ **Verified since.** `catalog-service` and `storefront` rebuilt,
+  imported into the running `full-app` cluster, and redeployed; Flyway applied `V11` cleanly (log:
+  `Migrating schema "public" to version "11 - demo complete photography"`). `/api/products` confirms
+  all 55 products now carry a non-null `image_key`, all eleven new static assets return `200`, and
+  every one renders an actual `<img>` tag on both its category card and its detail page — zero
+  `<span class="shot shot-none">` placeholders remain anywhere in the catalogue. Not independently
+  eyeballed in an actual browser, only via `curl` against the rendered HTML.
+- `upload.wikimedia.org` began returning HTTP 429 on original files partway through, so
+  `otocinclus`, `master-test-kit` and `frozen-bloodworm-100g` were built from Commons-rendered
+  thumbnails (3840×2160, 1920×2560 and 960×959) rather than the originals. Same pixels, one more
+  resampling step than the other eight had.
+- "Nothing else on Commons" remains a statement about what was queried, now across both full-text
+  search and category listing, not a proof of absence.
+- No photograph in this batch has been checked by the shop owner, and four of the eleven are not
+  photographs of the product being sold in any meaningful sense.
+
+---
+
 ## The product detail page has never shown a photograph — found verifying the entry below
 
 Verifying the two-image gap-reattempt below meant actually rebuilding `catalog-service` and
@@ -52,7 +145,8 @@ what rejected four subjects that had already passed licence and resolution.
 
 ### Measured
 
-**2 of the 13 closed; 44 of 55 products now carry a photograph, up from 42.** 0.4 MB added across
+**2 of the 13 closed; 44 of 55 products carried a photograph after this entry, up from 42** (55 of 55
+after the later entry above, under a bar this one would have refused). 0.4 MB added across
 two files (`acei-yellow-tail.jpg` 1600×1200 at 120 KB, `heater-100w.jpg` 1400×1050 at 278 KB —
 quality 76 rather than 82, because its dark woven-cloth background compresses badly, the same problem
 `auratus.jpg` had: at this crop, 82 measured 335 KB and even 78 measured 301 KB, both over the 300 KB
@@ -123,6 +217,11 @@ look new.
   the entry above for what that verification did and did not cover.
 - The eleven remaining gaps were searched by category listing as well as full-text search, which is
   broader than the first pass, but "nothing on Commons" is always a statement about what was queried.
+  ~~All eleven are still empty.~~ **All eleven were filled by the later entry above**, at user
+  direction and under a deliberately relaxed bar — including three of the "genuinely nothing on
+  Commons" cases, which a wider category sweep did find material for. The licence reasoning in this
+  entry survived; the resolution, identification, product-form and trademark reasoning was overruled
+  on the grounds that this platform never reaches a commercial launch.
 
 ---
 
@@ -151,7 +250,7 @@ wrong one would be a real, visible mislabelling, not just a licensing miss).
 ### Measured
 
 **32 of 45 missing products got an image; 42 of 55 products had one after this batch, up from 10**
-(44 of 55 after the re-attempt above). ~6.6 MB
+(44 of 55 after the re-attempt above; 55 of 55 after the relaxed-bar entry above that). ~6.6 MB
 total across the new files, each processed to this repository's existing spec (4:3, ≥1200×900, JPEG
 quality 80, EXIF-stripped, under 300 KB). Verified rendering end to end: rebuilt `catalog-service`
 (carries the new `V9__licensed_photography.sql` migration) and `storefront` (the images are baked
@@ -193,7 +292,7 @@ black canvas — full shell visible, tip to base, still under 300 KB.
 - The 13 still-empty product slots were searched for in earnest, not left idle — but Commons' coverage
   changes over time, and a repeat search later might succeed where this one didn't. **It did, for two
   of them** — see the entry above; the remaining eleven are itemised with a reason each in
-  `CREDITS.md`.
+  `CREDITS.md`, and were later filled under a relaxed bar rather than by Commons' coverage improving.
 
 ---
 

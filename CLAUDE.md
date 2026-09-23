@@ -138,15 +138,21 @@ of exactly that gap.
    the gaps it left (2 more, 22 September 2026) is sourced from Wikimedia Commons under
    CC0/public-domain/CC-BY/CC-BY-SA licences only, each verified against the Commons API and recorded
    with source/licence/artist in CREDITS.md — those 34 are launch-eligible as recorded, not
-   "unverified." **11 products still have no image at all.** Four of those (`saulosi`,
-   `bristlenose-pleco`, `otocinclus`, `red-melon-badis`) fail on resolution alone and would close on
-   one adequate upload; the other seven are structural gaps in what Commons collects, and two of those
-   (`canister-filter-400lph`, `community-flake-100g`) have correctly-licensed candidates rejected for
-   legible third-party trademarks on products the shop does not sell — a CC licence disclaims
-   trademark, so a correct licence is not clearance. Reason-by-reason in CREDITS.md.
-   `catalog-service`'s `V9__licensed_photography.sql` wires the 32 `image_key`s in and
-   `V10__licensed_photography_gap_reattempt.sql` the 2; V9's header still says "the other 13 stay
-   NULL," corrected in V10 rather than by editing V9, which Flyway has already applied.
+   "unverified." **All 55 products carry a photograph now**, but the last 11 (22 September 2026, same
+   day, later session) are **demo-complete, not launch-eligible**, and were added at explicit user
+   direction to make the site look finished. Their licences were verified exactly as the first 34's
+   were — that bar did not move — but resolution, species precision, product form and third-party
+   trademark all did. Five are Lanczos upscales from below the 1200×900 floor; `bristlenose-pleco` and
+   `otocinclus` are genus-level *sp.* IDs; `master-test-kit` is a teaching-lab test-tube rack, not an
+   aquarium test kit; `canister-filter-400lph` carries a legible FLUVAL 204 trademark on a product the
+   shop does not sell, which is the one that becomes a legal problem rather than a quality problem the
+   day this goes anywhere real. `canister-filter-400lph.jpg` is also the only file in that directory
+   whose outer thirds are synthetic (a blurred copy of itself, to fill 4:3 from a portrait source).
+   Row-by-row caveats and every upscale's original dimensions are in CREDITS.md.
+   `catalog-service`'s `V9__licensed_photography.sql` wires the 32 `image_key`s in,
+   `V10__licensed_photography_gap_reattempt.sql` the 2 and `V11__demo_complete_photography.sql` the
+   last 11; V9's header still says "the other 13 stay NULL," corrected in V10 and V11 rather than by
+   editing V9, which Flyway has already applied.
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist
    anywhere in the codebase — `architecture.md`'s "staff manage tanks, stock, claims" actor

@@ -1,7 +1,10 @@
 # Photograph provenance
 
 One row per image. A photograph with no row here should not be in the repository, and a row that
-says "unverified" should not survive to launch.
+says "unverified" should not survive to launch. Neither should a row marked **not launch-eligible** —
+those are the eleven added on 22 September 2026 under a deliberately relaxed bar, described in the
+last section. Correct licence, wrong quality or wrong subject: a different failure from "unverified,"
+and a different fix.
 
 | File | Subject | Source | Licence | Cleared for commercial use |
 |---|---|---|---|---|
@@ -48,6 +51,17 @@ says "unverified" should not survive to launch.
 | `vallisneria-nana.jpg` | *Vallisneria nana* | Wikimedia Commons, [File:Vallisneria nana-3-veda aquarium-bengaluru-India.jpg](https://commons.wikimedia.org/wiki/File:Vallisneria_nana-3-veda_aquarium-bengaluru-India.jpg), Yercaud-elango | CC BY 4.0 | ✅ yes — explicitly labelled *Vallisneria nana*, the dwarf species itself, photographed in an aquarium |
 | `spiderwood-medium.jpg` | Aquarium driftwood ("spiderwood") | Wikimedia Commons, [File:An Aquascapist Planting Anubias on Driftwood.jpg](https://commons.wikimedia.org/wiki/File:An_Aquascapist_Planting_Anubias_on_Driftwood.jpg), Abhik.Mazumdar.73 | CC BY 4.0 | ✅ yes — source is a wide aquarium shot that also contained a person; cropped tightly to an unambiguous, human-free view of one branching root piece, no brand/logo in frame |
 | `acei-yellow-tail.jpg` | *Pseudotropheus* sp. "acei", yellow-tail form | Wikimedia Commons, [File:Yellow tailed acei.jpg](https://commons.wikimedia.org/wiki/File:Yellow_tailed_acei.jpg), Kevin3020 | CC BY-SA 3.0 | ✅ yes — **caveat:** the species ID is the uploader's own caption ("a picture of a *Pseudotropheus* sp. acei"), and Commons files it under *Category:Unidentified Pseudotropheus*, so no curator has confirmed it. The fish shown does carry the two marks the trade sells this variant on — dark blue-violet body, yellow dorsal margin and solid yellow caudal — but that is a visual match against the trade form, not an independent determination. **Second caveat:** the source is a soft-focus aquarium snapshot with a strong blue-green cast, three-quarter rather than the lateral profile `README.md` asks for; cropped from 3264×2448 to 1600×1200 around the nearer of the two fish. It is the only correctly-licensed *acei* photo on Commons above the resolution floor |
+| `saulosi.jpg` | *Chindongo saulosi* (*Pseudotropheus saulosi*) | Wikimedia Commons, [File:Pseudotropheus saulosi.jpg](https://commons.wikimedia.org/wiki/File:Pseudotropheus_saulosi.jpg), Gerard Delany | CC BY-SA 2.5 | ⚠️ licence yes, **not launch-eligible** — **upscaled.** The source is 556×392, less than a quarter of `README.md`'s 1200×900 floor in area; cropped to 522×392 and enlarged 2.3× with Lanczos to 1200×900. There is no real detail in those extra pixels — the enlargement is interpolation, and the file reads soft at full size. The other two Commons files for this species are a 1024×682 head-and-shoulders crop of a single female with the tail cut off, and a 1295×737 whole-tank shot; this one was chosen because it shows the blue-barred male and the yellow female together, which is how the species is recognised and sold |
+| `bristlenose-pleco.jpg` | *Ancistrus* sp., bristlenose catfish | Wikimedia Commons, [File:Ancistrus sp. in aquarium.jpg](https://commons.wikimedia.org/wiki/File:Ancistrus_sp._in_aquarium.jpg), Júlio Reis | CC BY-SA 4.0 | ⚠️ licence yes, **not launch-eligible** — **genus-level ID, not species-confirmed.** The product is sold as *Ancistrus cirrhosus*; this file is captioned *Ancistrus* sp. and no curator has taken it to species. Bristlenose *Ancistrus* are not reliably separable to species by eye, so looking harder does not close that gap. Resolution is fine (3264×1836, cropped to 2448×1836 and downscaled to 1400×1050); the tail is cut off at the left edge |
+| `otocinclus.jpg` | *Otocinclus* sp. | Wikimedia Commons, [File:Otocinclus Catfish (Otocinclus sp.) on Malaysian driftwood.jpg](https://commons.wikimedia.org/wiki/File:Otocinclus_Catfish_(Otocinclus_sp.)_on_Malaysian_driftwood.jpg), Evan Baldonado | CC BY 4.0 | ⚠️ licence yes, **not launch-eligible** — **genus-level ID, not species-confirmed.** The product is sold as *Otocinclus vittatus*; the file says *Otocinclus* sp. and the photographer asks to be credited as "Evan Baldonado / AquariumKids.org". Framing is three-quarter/dorsal, not the lateral profile `README.md` asks for. Worked from the 3840×2160 Commons thumbnail because `upload.wikimedia.org` was returning 429 on originals; cropped 1600×1200 and downscaled to 1400×1050 |
+| `red-melon-badis.jpg` | *Dario hysginon* | Wikimedia Commons, [File:Dario Hysginon.jpg](https://commons.wikimedia.org/wiki/File:Dario_Hysginon.jpg), Crazyhund | CC BY-SA 4.0 | ⚠️ licence yes, **not launch-eligible** — **upscaled**, and it is the only file of this species on Commons. Source 701×468, cropped to 624×468 and enlarged 1.92× with Lanczos to 1200×900; the extra pixels are interpolation, not detail. The fish shown carries brown-red barring rather than the saturated red of the male the trade sells under "red melon badis," so this is the species but not the colour form on the listing |
+| `yellow-shrimp.jpg` | *Neocaridina davidi*, yellow morph | Wikimedia Commons, [File:Neocaridina-heteropoda-var-yellow.jpg](https://commons.wikimedia.org/wiki/File:Neocaridina-heteropoda-var-yellow.jpg), DirkBlankenhaus | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **upscaled**, mildly: source 1024×685, cropped to 913×685 and enlarged 1.53× to 1400×1050. Subject and framing are otherwise right — one yellow *Neocaridina* in lateral profile filling the frame. *N. heteropoda* in the file title is a synonym of *N. davidi* |
+| `seiryu-stone-5kg.jpg` | Aquascaping stone in an iwagumi layout | Wikimedia Commons, [File:Iwagumi Scape.jpg](https://commons.wikimedia.org/wiki/File:Iwagumi_Scape.jpg), Moritz Holzinger | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **generic rock, not Seiryu, and not the product.** Nothing on Commons shows Seiryu stone as a sellable object; this is unidentified aquascaping rock, submerged, algae-filmed and already built into someone's layout, not a 5 kg box of dry stone. One Commons file does name Seiryu in its caption (`File:Aquascaping-minilandschaft-lennart.jpg`, 2000×702, CC BY-SA 4.0, Lennart Jöhnk) but the stone there is a small element inside a dense planted scene, so this one was used instead. Source 1452×962, below the floor; cropped 1283×962 and enlarged 1.09× |
+| `canister-filter-400lph.jpg` | External canister filter (Fluval 204) | Wikimedia Commons, [File:Aquarium - external filter.jpg](https://commons.wikimedia.org/wiki/File:Aquarium_-_external_filter.jpg), User:Pinpin (fr.wikipedia) | CC BY-SA 3.0 (`Cc-by-sa-old`, dual-licensed GFDL) | ❌ **not cleared, deliberately published anyway for the demo** — the lid carries a legible **FLUVAL 204** trademark. That is a real Hagen product this shop does not sell, and a CC licence covers copyright while explicitly disclaiming trademark, so the licence is not clearance. It is here only because this project never reaches a commercial launch. It is also the wrong unit: a Fluval 204 is roughly 680 L/h, not 400. Source is 975×2033 portrait; the whole unit will not fit a 4:3 frame, so it was scaled to 1050 px tall and **composited onto a blurred, desaturated copy of itself** to fill the canvas — the left and right thirds of this image are a synthetic backdrop, not photographed background |
+| `master-test-kit.jpg` | Test-tube rack with coloured reagent solutions | Wikimedia Commons, [File:All the beauty colors.jpg](https://commons.wikimedia.org/wiki/File:All_the_beauty_colors.jpg), MarijaD6 | CC BY-SA 4.0 | ⚠️ licence yes, **not launch-eligible** — **wrong object.** This is a school/teaching-lab rack of glass test tubes holding assorted coloured solutions. It is not an aquarium master test kit, has no reagent bottles, no colour card and nothing aquarium-related in frame; it stands in for "colorimetric water testing" as a class of thing. Commons has no water test kit of any kind: *Category:Water test kits* and *Category:Chemical test kits* are both empty, and the broadened searches in the section below returned only scanned books and military reports. Worked from the 1920×2560 Commons thumbnail, cropped 1920×1440 and downscaled to 1400×1050 |
+| `community-flake-100g.jpg` | Tropical fish flake food | Wikimedia Commons, [File:Fischfutter-Flocken.JPG](https://commons.wikimedia.org/wiki/File:Fischfutter-Flocken.JPG), Buchling | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **below resolution**, and it is loose food rather than the packaged 100 g product. The subject is right, though: this is actual flake, not the granulate/pellet the earlier candidate showed, on a plain white ground with no packaging and no brand mark anywhere in frame. Source 1000×1000, cropped to 1000×750 and enlarged 1.4× to 1400×1050 |
+| `algae-wafers-250g.jpg` | Sinking tablet food for bottom-feeding fish | Wikimedia Commons, [File:Fischfutter-Tabs.JPG](https://commons.wikimedia.org/wiki/File:Fischfutter-Tabs.JPG), Buchling | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **below resolution**, and the form is tablets rather than the flatter wafer the product name implies; the file's own caption says these are for catfish and loaches, which is the right use. Loose food, not the 250 g tub. Same series and same treatment as `community-flake-100g.jpg`: 1000×1000 source, cropped 1000×750, enlarged 1.4× |
+| `frozen-bloodworm-100g.jpg` | Freeze-dried red mosquito larvae (bloodworm) | Wikimedia Commons, [File:Fischfutter-Mueckenlarven.jpg](https://commons.wikimedia.org/wiki/File:Fischfutter-Mueckenlarven.jpg), Buchling | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **wrong product form.** These are **freeze-dried** bloodworm, dry and loose on white; the product is a frozen blister pack, and the packaging is a large part of what is being bought. Commons has no frozen fish food or blister pack of any kind. This is still much closer than the previously rejected candidate, which was live worms in water. Worked from the 960×959 Commons thumbnail (the 1001×1000 original was 429-blocked), cropped 960×720 and enlarged 1.46× to 1400×1050 |
 | `heater-100w.jpg` | Submersible glass-tube aquarium heater | Wikimedia Commons, [File:Grzałka do akwarium.jpg](https://commons.wikimedia.org/wiki/File:Grza%C5%82ka_do_akwarium.jpg), Ewkaa | CC BY-SA 3.0 | ✅ yes — **caveat:** this shows the product *class*, not the product. It is an unbranded glass-tube heater photographed out of the tank with its suction cups and lead; no thermostat dial and no wattage marking are visible anywhere in frame, so nothing in the photograph says "100 W" or "thermostatic". No brand or logo is in frame, which is why this one was used and the canister-filter candidates were not (see below). **Third caveat:** the glass tube carries visible mineral/limescale buildup along its length — this is a heater that has been run in hard water, not a new-in-box unit, and it reads as used rather than the clean retail shot the rest of the catalogue aims for. Left in rather than dropped back to the placeholder, on the same "an honest compromise beats an empty tile" reasoning as `common-pleco.jpg`'s dorsal framing, but flagged here for a deliberate call, not a silent one. Cropped to 4:3 at 1400×1050 and encoded at quality 76 — the dark woven-cloth background compresses badly, and at this crop quality 82 measured 335 KB and even 78 measured 301 KB, both over `README.md`'s 300 KB ceiling |
 
 ## Wikimedia Commons batch, 17–18 September 2026
@@ -117,6 +131,82 @@ Four of these eleven (`saulosi`, `bristlenose-pleco`, `otocinclus`, `red-melon-b
 resolution alone, not on licensing or identification. Those would close the moment somebody uploads a
 single adequate photograph, so they are worth re-checking; the other seven are structural gaps in what
 Commons collects and will most likely need the shop's own camera.
+
+**All eleven were subsequently filled — by relaxing the bar, not by clearing it.** The table above is
+still the correct account of what Commons holds. Read the next section before treating any of those
+eleven files as launch-eligible; none of them is.
+
+## Deliberate quality relaxation on the remaining gaps, 22 September 2026
+
+**All 11 closed. 55 of 55 products now carry a photograph.** This batch reads differently from the two
+above and it should, because the rule it was worked under is different.
+
+The instruction was explicit: fit the remaining eleven, dismiss the resolution and structural
+constraints for them, the website should look complete. The trade being made is visual completeness
+now against launch-eligibility later, and it is a reasonable trade *only* because this project is a
+local k3d demo that is never applied to an AWS account and never opens a till. The moment that stops
+being true, every one of these eleven rows becomes a liability rather than a compromise.
+
+**What was relaxed, per the instruction:**
+
+* **Resolution.** `README.md`'s 1200×900 floor no longer applies. Five files are below it at source
+  and were enlarged with Lanczos: `saulosi` (2.3× from 556×392), `red-melon-badis` (1.92× from
+  701×468), `yellow-shrimp` (1.53× from 1024×685), the three Buchling food shots (1.4–1.46× from
+  1000×1000), and `seiryu-stone-5kg` (1.09× from 1452×962). An upscale invents no detail. Each row
+  above names its original dimensions so the fabrication is visible rather than implied.
+* **Species precision.** Genus-level identification is accepted where no species-confirmed file
+  exists. `bristlenose-pleco` (*Ancistrus* sp.) and `otocinclus` (*Otocinclus* sp.) are both
+  genus-only, and both products are sold under a species name the photograph does not carry.
+* **Product form.** `frozen-bloodworm-100g` shows freeze-dried worms, not a frozen blister pack.
+  `algae-wafers-250g` shows tablets, not wafers. `seiryu-stone-5kg` shows unidentified aquascaping
+  rock already built into a layout, not Seiryu stone as a sellable object. `master-test-kit` shows a
+  teaching-lab test-tube rack, not an aquarium test kit at all. Three of the four are loose material
+  photographed without the packaging that is part of what a customer buys.
+* **Third-party trademark.** `canister-filter-400lph` carries a legible **FLUVAL 204** mark. This is
+  the one the earlier batch refused on principle, and the principle has not changed — a CC licence
+  disclaims trademark, so a verified licence is not clearance. It is published here only because
+  nothing in this repository is ever sold from. `community-flake-100g`'s old brand-dominated candidate
+  was **not** used: a genuinely unbranded flake photograph turned up on the broadened search and is
+  better on every axis.
+
+**What was not relaxed: licensing.** Every one of the eleven was queried through the Commons API,
+`extmetadata.LicenseShortName` read off the actual response, `Restrictions` confirmed empty, and the
+artist taken from `extmetadata.Artist` rather than from a filename. Nothing containing "NC" or "ND"
+and nothing lacking licence metadata was considered, and no image came from a general web or
+stock-photo search. The licences used are CC BY-SA 2.5/3.0/4.0 and CC BY 4.0. Relaxing quality is a
+judgement call about how a demo looks; publishing an unlicensed photograph is a different kind of
+problem and stayed off the table.
+
+**Broadening the search is what closed the three "nothing exists" cases.** Full-text search on
+Commons is close to useless for retail objects — "dragon stone aquarium", "ohko stone", "aquarium
+water testing" and "pool water test strips" all return scanned Victorian aquarium manuals, Federal
+Register pages and US Army Corps of Engineers reports, exactly as the previous session found.
+Category listing is what worked. *Category:Aquascaping* produced the iwagumi layout, *Category:Test
+tubes* produced the reagent rack, and *Category:Fish food* produced all three Buchling studio shots —
+flake, tablets and freeze-dried bloodworm, on white, unbranded, the closest thing to real product
+photography in this whole exercise. That category had been read before and the three files were
+missed; they are 1000×1000 and would have failed the old resolution bar, which is presumably why.
+**Prefer `generator=categorymembers` over `generator=search` for objects rather than organisms.**
+
+**Every candidate was downloaded and looked at before acceptance**, same as before, and that step
+still earns its keep. `File:Bioloog.JPG` is filed under *Category:Aquarium filters*, is correctly
+licensed and is 3008×2000 — and is a grimy home-built sump in a cabinet, nothing like a canister.
+`File:Otocinclus ssp 21.jpg` is 4032×3024 and shows the fish from underneath, belly-on, unusable.
+`File:Colour gradient with solutions.jpg` is a plausible test-tube candidate whose lower half is an
+empty bench top under a heavy pink cast. None of those is detectable from the API response.
+
+**No original illustration was needed.** The fallback of hand-drawing an SVG icon was not used;
+every one of the eleven found a real, correctly-licensed photograph once the acceptance bar moved.
+
+**Weight added: 1.9 MB across eleven files**, 56–281 KB each, all under `README.md`'s 300 KB ceiling,
+all 4:3 (1400×1050, or 1200×900 for the two heaviest upscales), all EXIF-stripped, progressive JPEG
+at quality 80.
+
+**One image contains fabricated background.** `canister-filter-400lph.jpg`'s source is portrait and
+its subject will not fit a 4:3 frame, so the unit was scaled to full height and composited over a
+blurred, desaturated copy of itself. The outer thirds of that image are synthetic. It is called out
+in the row above as well as here because it is the only file in this directory that is not entirely
+photograph.
 
 ## What "unverified" means here
 
