@@ -88,7 +88,14 @@ function layout(title: string, nav: NavCategory[], body: string): string {
 </body></html>`;
 }
 
-const card = (p: ProductSummary) => `
+/**
+ * A product card. `showPrice` is false on the homepage shelf on purpose --
+ * those six or seven products are "here's what we carry", not a price list,
+ * and the price belongs to the moment a customer has actually narrowed down
+ * to a section (`/c/malawi` and below), where `categoryPage` passes `true`.
+ * Same card, same data, one thing withheld until it's the right page for it.
+ */
+const card = (p: ProductSummary, showPrice = true) => `
 <a class="card" href="/p/${esc(p.slug)}">
   ${photo(p.imageKey, p.name, '4/3')}
   <div class="card-body">
@@ -97,7 +104,7 @@ const card = (p: ProductSummary) => `
       ${p.livestock ? '<span class="tag live">LIVE</span>' : ''}
     </div>
     <p class="summary">${esc(p.summary)}</p>
-    <span class="price">${esc(money(p))}</span>
+    ${showPrice ? `<span class="price">${esc(money(p))}</span>` : ''}
   </div>
 </a>`;
 
@@ -162,7 +169,7 @@ export function categoryPage(
     : '';
 
   const listing = products.length
-    ? `<section class="grid">${products.map(card).join('')}</section>`
+    ? `<section class="grid">${products.map(p => card(p)).join('')}</section>`
     : (hasSections ? '' : `<p class="empty">Nothing stocked here yet. Tell us what you are
          looking for and we will source it on the next import.</p>`);
 
@@ -290,7 +297,7 @@ export function homePage(
     <section class="tiles">${nav.map(tile).join('')}</section>
     ${inquiryForm(inquiry)}
     <h2 class="section-label">In the shop now</h2>
-    <section class="grid">${featured.map(card).join('')}</section>`);
+    <section class="grid">${featured.map(p => card(p, false)).join('')}</section>`);
 }
 
 export function productPage(nav: NavCategory[], d: ProductDetail) {
