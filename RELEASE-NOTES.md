@@ -5,6 +5,190 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+<!-- BEGIN: custom tank enquiries (23 September 2026) -->
+## Custom tank enquiries: the first table in this repository whose contents nobody can read
+
+The shop front now has a section where a visitor writes, in their own words, what they want their
+tank and its stocking to look like, and leaves an email address and a phone number so the shop can
+answer. It is one of the shop's main offers, so it sits directly under the section tiles with a
+permanent link in the site header, not in a footer.
+
+Three decisions, one record:
+[ADR 0021](docs/adr/0021-encrypt-enquiry-contact-details-in-postgres.md).
+
+**It is not a ninth service.** `order-service` already owns "a customer told us what they want and
+left an email address" — that is literally what `CustomerOrder.email` is — and it already has a
+database, a Flyway sequence, a login role, an image, a deployment, a quota share and probes. The new
+work is one table and one handler. The measured argument is in this file already: `full-app`'s eight
+services came in at 2234 MiB against a 4 Gi namespace quota, `order-service`'s share being 229 MiB.
+A ninth JVM for one write-mostly table does not earn that. **What it costs is blast-radius
+isolation** — a checkout-saga defect or an `order-service` OOM now takes enquiries with it, and the
+encryption key lives in a process that also handles payments. That is the same trade
+[ADR 0003](docs/adr/0003-one-postgres-database-per-service.md) already made for databases, made
+again, knowingly.
+
+**Postgres encrypts it, not Java.** `V3__tank_inquiry.sql` creates `pgcrypto` and a table whose
+`email`, `phone` **and** free-text message are `BYTEA` holding `pgp_sym_encrypt` output — AES-256,
+compression off, because PGP compressing a message before encrypting it leaks content through
+ciphertext length and saves nothing against a 4,000-character cap. The message is encrypted too, not
+just the contact fields, because it is the field most likely to carry detail the form never asked
+for ("deliver to 14 Park Street, ask for Priya"), and a column left in the clear because nobody
+expected PII in it is exactly how PII ends up in the clear.
+
+This is the same instinct as `payment-service`'s append-only ledger trigger, applied to secrecy
+instead of immutability: an invariant that must not be lost belongs in the database, where the next
+service, the next migration and a hand-typed `SELECT` all inherit it. `tank_inquiry` is deliberately
+the only table in `order-service` that is **not** a JPA entity — a mapped entity with an
+`AttributeConverter` would hold the decrypted address in Hibernate's first-level cache and its
+dirty-check snapshot, which is the one thing this design exists to prevent.
+
+### Measured
+
+Everything below was run, against a real PostgreSQL 16, before it was written down.
+
+**`CREATE EXTENSION pgcrypto` works as the non-superuser `orders` role.** This was the question that
+could have changed the whole design, so it was answered first rather than assumed: pgcrypto has been
+a *trusted* extension since PostgreSQL 13, so a database owner can create it without superuser.
+Checked against the running k3d `postgres:16-alpine` as `orders` (the probe extension dropped again
+straight afterwards, so the cluster was left as found), then proved for real when `V3` migrated
+cleanly onto a fresh `orders_local` database owned by `orders`:
+
+```
+Migrating schema "public" to version "3 - tank inquiry"
+Started OrderApplication in 6.325 seconds
+```
+
+Had it not been trusted, the extension would have needed a superuser step in
+`postgres/init-configmap.yaml` and a new line in the add-a-service-database runbook.
+
+**What is on disk is not the plaintext.** After a real submission through the form:
+
+```
+message_chars | 73
+email_on_disk | \303\r\x04 \x03\x02\255\245\357\323\245I?\324y\322B\x01\377\326}\x18:%,…
+pgp_sym_decrypt(email_enc,'<key>')  | priya@example.com
+pgp_sym_decrypt(email_enc,'wrong')  | ERROR:  Wrong key or corrupt data
+```
+
+A wrong key raises rather than returning rubbish, which matters: it means a cluster rebuilt with a
+fresh key fails loudly instead of handing someone mojibake they might mistake for a corrupt row.
+
+**The same address encrypts differently every time.** A fresh session key and IV per call, so two
+enquiries from one customer are not linkable without the key — and so there is no index and no
+unique constraint on those columns, and "has this person written before?" is not answerable without
+decrypting the table. That is the cost of the property that makes the ciphertext worth storing.
+
+**A missing key stops the endpoint, not the service.** Reproduced against a real running jar, with
+no `INQUIRY_ENCRYPTION_KEY` set at all:
+
+```
+readiness:            {"status":"UP"}
+boot log:             WARN TankInquiryRepository - tank enquiries are DISABLED:
+                        inquiries.encryption-key is not set (INQUIRY_ENCRYPTION_KEY).
+                        Everything else in order-service is unaffected.
+POST /v1/inquiries →  503 {"reason":"inquiries.encryption-key is not set (INQUIRY_ENCRYPTION_KEY)",
+                           "runbook":"docs/runbooks/rotate-or-create-the-inquiry-key.md",
+                           "affects":"tank enquiries only; checkout, carts and orders are unaffected"}
+POST /v1/carts     →  201        PUT  /v1/carts/{id}/lines → 200
+GET  /v1/carts/{id}→  200        GET  /actuator/prometheus → 200
+```
+
+A 7-character placeholder key behaves identically. Restoring a real key and restarting returns the
+form to `303` and a decryptable row. Field validation still runs *ahead* of the key check, so a
+malformed submission is still `400` rather than `503`.
+
+**This is a reversal of the first shape of this feature, and the reasoning is the interesting
+part.** It originally refused to start the Spring context without a key. `order-service` also owns
+the checkout saga — the most hardened, most crash-tested, most k3d-verified path in this platform —
+and letting a forgotten Kubernetes Secret for a bolt-on marketing form take commerce down is a blast
+radius wildly out of proportion to the feature that caused it. **The reach of a failure should match
+the size of the thing that failed.** Nothing about the safety property changed: no fallback key
+either way, no plaintext written either way, no row accepted that cannot be encrypted either way.
+
+A default key remains the option that was never on the table: it accepts submissions and writes rows
+that *look* encrypted while being readable by anyone holding the source, and makes those same rows
+permanently undecryptable the day a real key arrives — discovered, at the earliest, when someone
+tries to phone a customer.
+
+**Two things that only a real process would have caught.** `secretKeyRef` needs `optional: true` in
+the deployment, or kubelet refuses to start a container whose env it cannot resolve and the pod sits
+in `CreateContainerConfigError` with checkout down — the Java-side decision would have been moot.
+And the `503` needed an explicit body: Spring drops the exception message unless
+`server.error.include-message` is enabled globally, so the first version returned a bare
+`{"status":503,"error":"Service Unavailable"}` that sent the reader to the logs of a service that
+looks perfectly healthy. MockMvc's `getErrorMessage()` had hidden that; `curl` found it.
+
+**End to end through the BFF**, with `order-service` and Postgres running locally and the storefront
+talking to both: `POST /inquiries` → `303 See Other` →
+`/inquiries/thanks?ref=a29ce2b8-…` → one row in `tank_inquiry`, decryptable with the key. An empty
+message, a malformed email and prose in the phone field each come back `400` with the page
+re-rendered and the customer's typed text still in the box. A junk `ref` query parameter is not
+echoed onto the page at all.
+
+**`order-service`: 77 tests, 34 skipped** without a DSN (up from 55/18 — the six new bean-validation
+tests need no database), **77 tests, 0 skipped** with `ORDER_TEST_DSN` set. `TankInquiryTest` and
+`InquiryKeyMissingTest` both follow `CheckoutSagaTest`'s existing DB-gated convention exactly. Three
+of the 22 new tests are written to fail if someone changes the design without reading the ADR:
+`whatIsOnDiskIsNotThePlaintext`, `thereIsNoWayToReadAnEnquiryBackOverHttp`, and
+`theCommercePathIsCompletelyUnaffected`, which boots a context with no key and then exercises carts
+to prove the saga side is untouched. **No existing test needed changing** — the key is not required
+to start a context.
+
+**`storefront`: `npm run build` (tsc) passes.** It gained its first body parser
+(`@fastify/formbody` v7, the line that still supports Fastify 4), its first `POST` route, and its
+first call to `order-service`. It has no test suite — a pre-existing gap, not a new one.
+
+### Not measured, and unproven
+
+**None of this has run in the k3d cluster.** The local run above used a throwaway Postgres container
+and a locally-built jar with the cluster's `catalog-service` port-forwarded in for the home page.
+The images have not been rebuilt, the manifests have not been applied, and nobody has submitted the
+form through the ingress. That verification pass is the next thing that should happen, and it is
+where this project has historically found the defects that review did not.
+
+### What this does not solve
+
+**Key management is better than the rest of this repository and still incomplete.**
+`INQUIRY_ENCRYPTION_KEY` comes from a Secret (`order-inquiry-key`) created by hand and present in no
+file here — the first secret in this repository that is not plaintext in Git, unlike
+`platform-repo/dev/postgres/secret.yaml`, which still is. But there is **no rotation**: changing the
+key orphans every existing row, permanently. There is **no secrets manager**: the value lives in one
+shell history and in etcd, base64-encoded, which is encoding, not encryption.
+[docs/runbooks/rotate-or-create-the-inquiry-key.md](docs/runbooks/rotate-or-create-the-inquiry-key.md)
+is the whole procedure.
+
+**And the failure is quiet — that is the price of the smaller blast radius.** A k3d cluster torn
+down and rebuilt without the `kubectl create secret` step repeated comes up entirely green: every
+pod `Running`, every probe passing, nothing in `kubectl get all` out of place, while the enquiry
+form refuses every customer who uses it. The earlier crash-loop design was impossible to miss and
+this one is not. The mitigation is three deliberately noisy things — one `WARN` at boot naming the
+runbook, a `bootstrap.sh` warning before the `commerce` rollout, and a storefront message that says
+"that is our fault, not yours" and tells the customer to email instead of retrying — and none of
+them is as loud as a pod that will not start. **The trade was made knowingly: a feature that is off
+is recoverable in one command, and a checkout path that is down is not.**
+
+**The shop cannot read its own enquiries.** There is no `GET`, no list, no search — deliberately,
+because this platform has no authentication anywhere and an unauthenticated read endpoint over this
+table would make the encryption theatre. Today the only way to see a submission is `psql` plus the
+key. **That is a gap, not a feature**: a form the shop cannot read is a form that does not work. The
+honest fix is authentication first, then a `staff-portal` decrypt view, in that order.
+`TankInquiryRepository.findById` exists and is exercised by tests so that path has a seam to build
+on.
+
+**A public, unauthenticated `POST` with no rate limiting.** No CAPTCHA, no per-IP limit, no
+honeypot. A 16 KiB request-body limit at the BFF and a 4,000-character message cap bound what one
+request can cost, not how many arrive. The right answer is `ingress-nginx`'s `limit-rps` annotation
+or a WAF at the edge; a bespoke limiter written now would be an unreviewed security control.
+**Anyone taking this past a local k3d demo must fix this first.**
+
+**The `core` profile renders a form that cannot work.** `core` deploys the storefront without
+`order-service`, so every submission there fails — honestly, with a 502 and the customer's text
+kept, but it fails. This feature belongs to `commerce` and above.
+
+<!-- END: custom tank enquiries -->
+
+---
+
 ## The last 11 product slots filled by lowering the bar, on purpose — 55 of 55, none launch-eligible
 
 The entry below left eleven products without a photograph and argued, correctly, that each one would

@@ -6,8 +6,13 @@ mock providers, run on k3d, **never applied to an AWS account**.
 This file is tracked in Git, so it reaches every session — local, web, or otherwise. It is the only
 thing that does. Conversation history and `~/.claude/` settings are per-machine.
 
-Read [docs/context_summary.md](docs/context_summary.md) for current state and open items, and
-[RELEASE-NOTES.md](RELEASE-NOTES.md) for what has actually been measured.
+Read [docs/context_summary.md](docs/context_summary.md) for current state and open items,
+[RELEASE-NOTES.md](RELEASE-NOTES.md) for what has actually been measured, and
+[agent_learningz.md](agent_learningz.md) for mistakes already made and the pattern behind each one
+— check it before starting non-trivial work, and add to it when you make one or catch one from a
+previous session. It is external memory, not a change log: keep entries short, and remove one once
+it's become a structural guarantee (a test, a constraint, a rule already stated in this file)
+rather than a judgment call.
 
 ## The one thing to know first
 
@@ -61,7 +66,7 @@ why the advisor's rules are a YAML file. Match that when you add code.
 |---|---|
 | `services/catalog-service` | Java 21 / Spring Boot. Products, categories, species care profiles. Owns the only data anyone else reads |
 | `services/inventory-service` | Go. Tank-scoped, TTL-bounded, idempotent stock reservations |
-| `services/order-service` | Java. Checkout as a saga with compensation and crash recovery |
+| `services/order-service` | Java. Checkout as a saga with compensation and crash recovery. Also custom tank enquiries (ADR 0021) |
 | `services/payment-service` | Rust / Axum. Append-only ledger, enforced by a Postgres trigger |
 | `services/aquatics-advisor` | Python / FastAPI. Whether a tank will work. No database of its own |
 | `services/storefront` | TypeScript / Fastify. Server-rendered |
@@ -114,7 +119,7 @@ why the advisor's rules are a YAML file. Match that when you add code.
 ```bash
 cd services/catalog-service  && mvn test     # needs Docker (Testcontainers) — has never run
 cd services/inventory-service && go test ./...
-cd services/order-service    && mvn test     # 55 tests, 18 skipped (DB-gated)
+cd services/order-service    && mvn test     # 77 tests, 34 skipped (DB-gated); 0 skipped with ORDER_TEST_DSN
 cd services/payment-service  && cargo test   # 18 DB tests need PAYMENTS_TEST_DSN
 cd services/aquatics-advisor && python3 -m pytest    # 35 tests
 cd services/notification-service && go test ./...   # integration test needs NOTIFICATION_TEST_DSN
@@ -125,6 +130,49 @@ cd services/staff-portal     && mvn test     # 3 tests, no DB (reads only, no DB
 were verified by hand against a running service, which is not the same thing — a contradiction
 inside it (two tests asserting different counts from the same endpoint) survived undetected because
 of exactly that gap.
+
+<!-- BEGIN: custom tank enquiries (23 September 2026) -->
+## Custom tank enquiries — the one encrypted table
+
+A section on the shop front where a visitor describes the tank and stocking they want and leaves an
+email address and a phone number. **[ADR 0021](docs/adr/0021-encrypt-enquiry-contact-details-in-postgres.md)
+is the whole decision**; what follows is what you need to not break it.
+
+- **It lives in `order-service`, not a ninth service.** One table (`tank_inquiry`, `V3`), one
+  handler (`POST /v1/inquiries`), nothing touching `customer_order`, `order_line`, `order_event` or
+  the saga. An enquiry is not a checkout.
+- **Postgres encrypts, not Java.** `pgcrypto`'s `pgp_sym_encrypt` on `email`, `phone` **and** the
+  free-text message, all `BYTEA`, AES-256, compression off. Same instinct as `payment-service`'s
+  append-only trigger: an invariant that must not be lost belongs in the database, not in a code
+  review. `tank_inquiry` is the only table here that is deliberately **not** a JPA entity — a mapped
+  entity would keep the plaintext in Hibernate's caches.
+- **`message_chars` is the one plaintext column.** It exists so "are enquiries arriving, and are
+  they empty?" is answerable by someone who is not entitled to read them.
+- **The key is not in Git and never will be.** `INQUIRY_ENCRYPTION_KEY` comes from a Secret called
+  `order-inquiry-key`, created by hand, out of band. `bootstrap.sh` does not create it and
+  `kubectl apply -k` will not restore it. **A rebuilt cluster needs the command in
+  [docs/runbooks/rotate-or-create-the-inquiry-key.md](docs/runbooks/rotate-or-create-the-inquiry-key.md)
+  run again.** This is the first secret in the repository that is not plaintext in Git; it is an
+  improvement on known gap 2 below, not a fix for it.
+- **No key disables this one endpoint and nothing else.** `order-service` starts normally, logs one
+  `WARN`, serves carts/checkout/the saga as always, and `POST /v1/inquiries` alone answers `503`
+  with a body naming the runbook. There is still no fallback key and still nothing written in
+  plaintext — a default key would write rows that look encrypted and are not, and orphan them the
+  day a real key arrives. A key under 16 characters is refused the same way. **The `secretKeyRef` in
+  `platform-repo/dev/order/deployment.yaml` must keep `optional: true`** or kubelet leaves the pod in
+  `CreateContainerConfigError` and the whole point is lost. The cost of this shape is that the
+  feature can be silently off on a green-looking cluster; the `WARN`, the `bootstrap.sh` warning and
+  the storefront's honest 503 message are the mitigation. All verified on a real running process.
+- **Write-only.** No `GET`, no list, no `Location` header. The shop's only way to read an enquiry
+  today is `psql` plus the key — a real gap, recorded as one, waiting on authentication existing
+  anywhere in this platform before a `staff-portal` read path can be honest.
+- **No rate limiting.** A public, unauthenticated `POST`. A 16 KiB body limit at the BFF and a
+  4,000-character cap are the only bounds. Fix this before this goes anywhere real.
+- **The storefront is no longer GET-only.** `@fastify/formbody`, `POST /inquiries`,
+  `GET /inquiries/thanks`, and `ORDER_BASE_URL` — its first call to `order-service`. Readiness still
+  checks only the catalog, on purpose.
+
+<!-- END: custom tank enquiries -->
 
 ## Known gaps, in order of how much they matter
 
@@ -153,6 +201,37 @@ of exactly that gap.
    `V10__licensed_photography_gap_reattempt.sql` the 2 and `V11__demo_complete_photography.sql` the
    last 11; V9's header still says "the other 13 stay NULL," corrected in V10 and V11 rather than by
    editing V9, which Flyway has already applied.
+
+<!-- BEGIN: monster fish, arowana and section photography (23 September 2026) -->
+   **Addendum, 23 September 2026 — the counts in item 4 above are now stale, and the section tiles
+   are no longer empty.** `V12`–`V15` add two categories (`catfish-predatory` under `catfish-large`,
+   `arowana` under `freshwater`), fourteen products and eleven species profiles: three large
+   predatory catfish, *Cyrtocara moorii*, four American cichlids and six arowana. **The catalogue is
+   69 products across 40 categories now, not 55 across 38**, and all 69 carry a photograph.
+   - **Every category had `image_key IS NULL` until `V14`** — all of them, root and leaf, since `V7`
+     cleared `V5`'s keys-with-no-files. `services/storefront/public/sections/` held a README and
+     nothing else. It now holds 40 photographs and a `CREDITS.md` in the same format as the species
+     one. A section tile is thematic rather than a specimen, so subject precision is looser there by
+     design; the licence bar is not. One correctly-licensed candidate was rejected outright for
+     having no machine-readable author — a share-alike licence naming nobody cannot be attributed.
+   - **The 14 new species photographs were sourced at the original bar, not `V11`'s relaxed one.**
+     Correct species, at or above 1200×900 before cropping, no third-party trademark. The real caveat
+     is the four Asian arowana trade morphs: all four are genuinely *Scleropages formosus*, but
+     Commons does not index by farm line. Only Golden Crossback's caption ("Quá bối," Vietnamese for
+     cross-back) and Green's ("Green Arowana," stated outright) confirm the morph; Super Red's caption
+     names the right trade term ("Honglongyu") but the photographed fish reads olive-gold rather than
+     visibly red, and Red Tail Golden's source names no morph at all — both of those two are ours by
+     eye, and `CREDITS.md` says so plainly rather than implying a caption confirms what it doesn't.
+   - **`asian-arowana-*` care notes lead with CITES Appendix I**, and so do the product summaries.
+     That is a legal fact about the animal — restricted or outright illegal to own in many countries
+     including the US — not project flavour text, and it is the first sentence a customer reads
+     rather than a footnote.
+   - **`flowerhorn`'s `scientific_name` is the literal string `Hybrid (Amphilophus spp. x others)`.**
+     The column is `NOT NULL` and the fish is a man-made hybrid line with no valid binomial; a
+     plausible-looking invented name would read as a real taxon to a customer and to the advisor.
+     `care_notes` opens with "This is not a species."
+<!-- END: monster fish, arowana and section photography -->
+
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist
    anywhere in the codebase — `architecture.md`'s "staff manage tanks, stock, claims" actor

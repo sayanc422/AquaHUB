@@ -34,7 +34,8 @@ before purchase.
 Actors:
 
 - **Customer** — browses by category, reads a care profile, checks a species against their tank,
-  checks out with a computed shipping window, tracks an order, raises a DOA claim.
+  asks the shop to build a custom tank by describing it in their own words, checks out with a
+  computed shipping window, tracks an order, raises a DOA claim.
 - **Staff** — manage tanks, stock, claims and species content through an internal back-office.
 - **Payment provider** — external, stubbed locally.
 - **Email and webhook targets** — external, stubbed locally.
@@ -118,6 +119,12 @@ migrating to MSK is a heavier lift than the local-to-cloud mapping makes it look
   Kubernetes restart every healthy storefront pod in a loop and turn a partial outage into a total
   one. `/readyz` (readiness) does call it, because a storefront that cannot reach the catalog should
   not receive traffic.
+- It was GET-only until the custom tank-setup enquiry form
+  ([ADR 0021](adr/0021-encrypt-enquiry-contact-details-in-postgres.md)). That form is a plain HTML
+  `POST` with a body parser and a redirect to a confirmation page — no client-side JavaScript, the
+  same decision as everything else here — and it is the BFF's only call to `order-service`. Readiness
+  deliberately does **not** check `order-service`: a shop that cannot reach it still sells everything
+  it has, and failing readiness to protect one form would take the site down.
 
 ---
 
@@ -227,6 +234,20 @@ in k3d (16 September 2026, `commerce` profile): a live checkout through the ingr
 `curlimages/curl` pod reserved, authorised, committed and confirmed, ending `CONFIRMED` with a
 correct dispatch window. Not yet exercised in-cluster: a crash mid-checkout against the in-cluster
 saga specifically — the `kill -9` demonstration above ran outside k3d.
+
+**`order-service` also owns custom tank enquiries, and they touch none of the above.**
+`POST /v1/inquiries` writes one row to `tank_inquiry` — no order, no reservation, no state machine,
+no saga step, no event row. It is here rather than in a ninth service because this one already owns
+"a customer told us what they want and left an email address" and already has a database, a login
+role and an image; the price is blast-radius isolation, which is the same trade
+[ADR 0003](adr/0003-one-postgres-database-per-service.md) made for databases. The contact details and
+the free text are encrypted by Postgres itself (`pgcrypto`, `pgp_sym_encrypt`), the same instinct
+that made `payment-service`'s ledger append-only in a trigger rather than in code. There is no read
+endpoint of any kind, because nothing in this platform authenticates anyone. A missing encryption
+key disables that one endpoint (`503`) and leaves everything above it untouched — the saga must not
+be able to fall over because a marketing form's Secret was forgotten.
+[ADR 0021](adr/0021-encrypt-enquiry-contact-details-in-postgres.md) records that, the key-management
+gap and the absent rate limiting.
 
 ---
 
@@ -427,7 +448,11 @@ allows the ALB SG on the node port range; RDS SG allows the node SG on 5432 only
 
 State these plainly. They make the project more credible, not less.
 
-- Secrets are plaintext in Git at Phase 1.
+- Secrets are plaintext in Git at Phase 1, with exactly one exception:
+  `INQUIRY_ENCRYPTION_KEY` (ADR 0021) lives in a Secret created by hand and present in no file in
+  this repository. That one key has no rotation and no secrets manager behind it, and a cluster
+  rebuilt without the manual step silently serves a 503 from the enquiry form while looking entirely
+  healthy — better than the rest of the repository's secrets story, and still not a solution.
 - Single-node cluster: PDBs, anti-affinity, node drains and multi-AZ behaviour cannot be exercised.
 - Only one environment is materialised at a time; none has run concurrently with another.
 - The AWS layer has never been applied. Module wiring is proven; AWS behaviour is not.

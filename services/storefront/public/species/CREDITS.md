@@ -63,6 +63,20 @@ and a different fix.
 | `algae-wafers-250g.jpg` | Sinking tablet food for bottom-feeding fish | Wikimedia Commons, [File:Fischfutter-Tabs.JPG](https://commons.wikimedia.org/wiki/File:Fischfutter-Tabs.JPG), Buchling | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **below resolution**, and the form is tablets rather than the flatter wafer the product name implies; the file's own caption says these are for catfish and loaches, which is the right use. Loose food, not the 250 g tub. Same series and same treatment as `community-flake-100g.jpg`: 1000×1000 source, cropped 1000×750, enlarged 1.4× |
 | `frozen-bloodworm-100g.jpg` | Freeze-dried red mosquito larvae (bloodworm) | Wikimedia Commons, [File:Fischfutter-Mueckenlarven.jpg](https://commons.wikimedia.org/wiki/File:Fischfutter-Mueckenlarven.jpg), Buchling | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **wrong product form.** These are **freeze-dried** bloodworm, dry and loose on white; the product is a frozen blister pack, and the packaging is a large part of what is being bought. Commons has no frozen fish food or blister pack of any kind. This is still much closer than the previously rejected candidate, which was live worms in water. Worked from the 960×959 Commons thumbnail (the 1001×1000 original was 429-blocked), cropped 960×720 and enlarged 1.46× to 1400×1050 |
 | `heater-100w.jpg` | Submersible glass-tube aquarium heater | Wikimedia Commons, [File:Grzałka do akwarium.jpg](https://commons.wikimedia.org/wiki/File:Grza%C5%82ka_do_akwarium.jpg), Ewkaa | CC BY-SA 3.0 | ✅ yes — **caveat:** this shows the product *class*, not the product. It is an unbranded glass-tube heater photographed out of the tank with its suction cups and lead; no thermostat dial and no wattage marking are visible anywhere in frame, so nothing in the photograph says "100 W" or "thermostatic". No brand or logo is in frame, which is why this one was used and the canister-filter candidates were not (see below). **Third caveat:** the glass tube carries visible mineral/limescale buildup along its length — this is a heater that has been run in hard water, not a new-in-box unit, and it reads as used rather than the clean retail shot the rest of the catalogue aims for. Left in rather than dropped back to the placeholder, on the same "an honest compromise beats an empty tile" reasoning as `common-pleco.jpg`'s dorsal framing, but flagged here for a deliberate call, not a silent one. Cropped to 4:3 at 1400×1050 and encoded at quality 76 — the dark woven-cloth background compresses badly, and at this crop quality 82 measured 335 KB and even 78 measured 301 KB, both over `README.md`'s 300 KB ceiling |
+| `redtail-catfish.jpg` | *Phractocephalus hemioliopterus* | Wikimedia Commons, [File:Redtail catfish (Phractocephalus hemioliopterus) (15594456228).jpg](https://commons.wikimedia.org/wiki/File:Redtail_catfish_(Phractocephalus_hemioliopterus)_(15594456228).jpg), harum.koh from Kobe city, Japan | CC BY-SA 2.0 | ✅ yes |
+| `tiger-shovelnose-catfish.jpg` | *Pseudoplatystoma fasciatum* | Wikimedia Commons, [File:Pseudoplatystoma fasciatum1.jpg](https://commons.wikimedia.org/wiki/File:Pseudoplatystoma_fasciatum1.jpg), KENPEI | CC BY-SA 3.0 | ✅ yes — see `V13`'s own note on this species: the 2007 generic revision means the Amazon fish the trade ships under this name is now usually *P. punctifer*, and the two are not reliably separable from a photograph |
+| `iridescent-shark.jpg` | *Pangasianodon hypophthalmus* | Wikimedia Commons, [File:Oniria - Poisson 67.jpg](https://commons.wikimedia.org/wiki/File:Oniria_-_Poisson_67.jpg), Tylwyth Eldar | CC BY-SA 4.0 | ✅ yes — source caption itself identifies it as "Panga (*Pangasianodon hypophthalmus*)" |
+| `dolphin-cichlid.jpg` | *Cyrtocara moorii* | Wikimedia Commons, [File:Cyrtocara moorii male 2.jpg](https://commons.wikimedia.org/wiki/File:Cyrtocara_moorii_male_2.jpg), Brian Gratwicke | CC BY 2.0 | ✅ yes |
+| `green-terror.jpg` | *Andinoacara rivulatus* | Wikimedia Commons, [File:Andinoacara rivulatus - Karlsruhe Zoo 01.jpg](https://commons.wikimedia.org/wiki/File:Andinoacara_rivulatus_-_Karlsruhe_Zoo_01.jpg), H. Zell | CC BY 4.0 | ✅ yes |
+| `texas-cichlid.jpg` | *Herichthys cyanoguttatus* | Wikimedia Commons, [File:Cichlid Texas Freshwater Fisheries Center 2025.jpg](https://commons.wikimedia.org/wiki/File:Cichlid_Texas_Freshwater_Fisheries_Center_2025.jpg), Larry D. Moore | CC BY 4.0 | ✅ yes |
+| `flowerhorn.jpg` | Hybrid (*Amphilophus* spp. × others) | Wikimedia Commons, [File:Flowerhorn cichlid.jpg](https://commons.wikimedia.org/wiki/File:Flowerhorn_cichlid.jpg), Psiĥedelisto | CC BY-SA 4.0 | ✅ yes — **caveat:** this specimen is a pale pink-white morph, not the vivid pearled red most commonly associated with the flowerhorn line; the extreme nuchal hump and deep body are unmistakable regardless of colour, and no better-licensed alternative showing the more typical colouring met the bar |
+| `redhead-cichlid.jpg` | *Vieja synspila* | Wikimedia Commons, [File:Vieja synspila.JPG](https://commons.wikimedia.org/wiki/File:Vieja_synspila.JPG), Shizhao | CC BY-SA 3.0 | ✅ yes — photographed at Beijing Ocean Aquarium |
+| `silver-arowana.jpg` | *Osteoglossum bicirrhosum* | Wikimedia Commons, [File:Milwaukee County Zoo August 2022 098 (silver arowana).jpg](https://commons.wikimedia.org/wiki/File:Milwaukee_County_Zoo_August_2022_098_(silver_arowana).jpg), Michael Barera | CC BY-SA 4.0 | ✅ yes — **caveat:** the crop keeps the fish's own reflection off the water surface in frame alongside it, since the source is shot from directly above the fish; both halves are the same animal |
+| `jardini-arowana.jpg` | *Scleropages jardinii* | Wikimedia Commons, [File:Gulf saratoga in Japan 20210523-1.jpg](https://commons.wikimedia.org/wiki/File:Gulf_saratoga_in_Japan_20210523-1.jpg), ノボホショコロトソ | CC BY-SA 3.0 | ✅ yes |
+| `asian-arowana-golden-crossback.jpg` | *Scleropages formosus*, Golden Crossback morph | Wikimedia Commons, [File:Quá bối.JPG](https://commons.wikimedia.org/wiki/File:Qu%C3%A1_b%E1%BB%91i.JPG), Duyphuong | CC BY 3.0 | ✅ yes — source's own filename and description are "Quá bối," Vietnamese for "cross-back," matching this specific morph's trade name, not just the species |
+| `asian-arowana-green.jpg` | *Scleropages formosus*, Green morph | Wikimedia Commons, [File:London Aquarium (539698092).jpg](https://commons.wikimedia.org/wiki/File:London_Aquarium_(539698092).jpg), Phalinn Ooi from Kuala Lumpur, Malaysia | CC BY 2.0 | ✅ yes — source's own caption names it "Green Arowana" outright, the only one of the four morphs whose caption uses the actual morph name rather than just the species |
+| `asian-arowana-red-tail-golden.jpg` | *Scleropages formosus*, Red Tail Golden morph | Wikimedia Commons, [File:Scleropages formosus Prague 2012 2.jpg](https://commons.wikimedia.org/wiki/File:Scleropages_formosus_Prague_2012_2.jpg), Karelj | CC BY-SA 3.0 | ✅ yes — **caveat:** correctly *S. formosus* and correctly licensed, but the source names no morph — a golden body with reddish-tinted fins visible in frame is consistent with the trade name, but the assignment is ours, by eye, as `V15__new_species_photography.sql`'s comment already said it would be for whichever file filled this row |
+| `asian-arowana-super-red.jpg` | *Scleropages formosus*, Super Red morph | Wikimedia Commons, [File:Honglongyu3.jpg](https://commons.wikimedia.org/wiki/File:Honglongyu3.jpg), Photo taken by Fanghong | CC BY-SA 3.0 | ✅ yes — "Honglongyu" (红龙鱼, "red dragon fish") is the Chinese trade name for this line, matching the caption to the morph as `V15`'s comment intended. **Caveat:** the fish itself photographs olive-gold under this tank's lighting rather than visibly red; the caption-to-morph match is real, the colour in this particular photograph is not a clean visual confirmation of it |
 
 ## Wikimedia Commons batch, 17–18 September 2026
 
@@ -234,3 +248,38 @@ Two are below the 1200 px minimum in `README.md` and should be re-shot:
 
 * `nkhomo-benga-peacock.jpg` — 1136 px wide. Acceptable on a card, soft as a hero.
 * `salvini.jpg` — **474 px wide.** Too small for anything but a thumbnail.
+
+## V13/V15 species batch — three interrupted agents, one reconciled record, 23–24 September 2026
+
+The fourteen new-species files above were sourced across three separate, independently-interrupted
+agent sessions in the same day: an Opus run that was rate-limited before writing any provenance at
+all, a background fork that stalled twice (mid-download) but left most of the files on disk, and a
+fresh isolated session that reconstructed plausible sourcing for some of them from file bytes alone
+— all before this file had a single confirmed row in it. **Two different, mutually incompatible
+attempts at this table existed in the working tree at once** before this pass: one written against
+files that were later overwritten, describing sources that no longer matched what was on disk.
+
+**What actually happened, resolved by direct verification rather than by trusting either prior
+attempt:** the interrupted fork's own scratch directory (a `raw/` folder of downloaded candidates
+plus `all.txt`, a title-to-candidate mapping, and `meta.py`, a script to re-query Commons for exact
+license/artist/dimensions) survived in the session's scratchpad even though the fork itself did not
+survive to write `CREDITS.md`. That gave genuine, re-verifiable provenance — not reconstruction by
+guesswork — for most of the fourteen: every license below was read fresh from the live Commons API
+response during this pass, not carried over from either interrupted attempt. Where a species had
+several downloaded candidates and the specific one used could not be established with confidence
+(`dolphin-cichlid`, `silver-arowana`, `texas-cichlid`, `iridescent-shark`, and all four Asian arowana
+morphs), the file was **replaced outright** with a freshly sourced, freshly cropped image whose
+provenance is certain because it was chosen and processed in this pass, not inferred after the fact.
+`redtail-catfish`, `tiger-shovelnose-catfish`, `green-terror` and `flowerhorn` had no candidate
+tracked in the fork's scratch files at all (they were processed before that tracking existed) and
+were sourced from scratch the same way. Only `jardini-arowana` and `redhead-cichlid` keep their
+original files, on high-confidence pixel comparison against a single well-identified candidate each.
+
+**The Asian arowana morphs, specifically:** two are caption-confirmed to their trade name — Golden
+Crossback by "Quá bối" (Vietnamese for "cross-back") and Green by a caption that says "Green Arowana"
+outright. Super Red is matched to a file captioned "Honglongyu" (红龙鱼, "red dragon fish"), the
+correct Chinese trade term for this line, though the fish in that particular photograph reads more
+olive-gold than red under its tank's lighting — the caption match is real, the visual confirmation is
+weaker. Red Tail Golden has no caption naming any morph at all; the assignment there is by eye, as
+`V15__new_species_photography.sql`'s original comment already anticipated it would be for whichever
+image ultimately filled that row.

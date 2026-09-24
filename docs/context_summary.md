@@ -516,6 +516,168 @@ aquashop/
 
 ---
 
+<!-- BEGIN: custom tank enquiries (23 September 2026) -->
+### Custom tank enquiries — notes worth carrying forward (23 September 2026)
+
+A storefront section where a visitor writes what they want their tank to look like and leaves an
+email address and a phone number. Decided in
+[ADR 0021](adr/0021-encrypt-enquiry-contact-details-in-postgres.md).
+
+**Why it is not a ninth service.** The memory-profiles section above is the argument. `full-app`'s
+eight services measured 2234 MiB against a 4 Gi namespace `ResourceQuota`, and `order-service`'s own
+share of that is 229 MiB. One write-mostly table and one `POST` handler do not earn another JVM, a
+Dockerfile, a distroless image, a deployment, a quota share and a login role. `order-service`
+already owns "a customer told us what they want and left an email address" — that is what
+`CustomerOrder.email` is. **What was given up is blast-radius isolation**, exactly the property
+[ADR 0003](adr/0003-one-postgres-database-per-service.md) already traded away for databases: a
+checkout-saga defect or an `order-service` OOM now takes enquiries down too, and the encryption key
+sits in a process that also handles payments.
+
+**Why the encryption is in Postgres, not in Java.** `pgcrypto`'s `pgp_sym_encrypt` on `email`,
+`phone` and the free-text message, stored `BYTEA`, AES-256 with compression disabled (PGP
+compression before encryption leaks message content through ciphertext length, and saves nothing on
+a 4,000-character cap). The house precedent is `payment-service`'s append-only ledger trigger: an
+invariant that must not be lost goes into the database, where the next service, the next migration
+and a hand-typed `SELECT` all inherit it. `tank_inquiry` is deliberately the only table in
+`order-service` that is **not** a JPA entity — a mapped entity with an `AttributeConverter` would
+keep the decrypted address in Hibernate's first-level cache and dirty-check snapshot.
+
+**Verified, not assumed** (all against a real Postgres 16, not an in-memory stand-in):
+
+- `CREATE EXTENSION pgcrypto` succeeds as the **non-superuser `orders` role** — pgcrypto has been a
+  *trusted* extension since PostgreSQL 13, so the database owner can create it. Checked first against
+  the running k3d `postgres:16-alpine` as `orders` (and the probe extension dropped again afterwards),
+  then proved for real by `V3` migrating cleanly on a fresh `orders_local` database owned by `orders`.
+  Had this not been true, the migration would have needed a superuser step in
+  `postgres/init-configmap.yaml` and the whole design would have changed shape.
+- What is on disk is not the plaintext: `encode(email_enc,'escape')` shows PGP framing and random
+  bytes, `pgp_sym_decrypt` with the right key returns `priya@example.com`, and with a wrong key
+  raises `Wrong key or corrupt data` rather than returning rubbish.
+- The same address encrypts to different bytes every time (fresh session key per call), which is why
+  there is no index and no unique constraint on these columns and why "has this person written
+  before?" is unanswerable without decrypting the table.
+- A missing `INQUIRY_ENCRYPTION_KEY` and a 7-character placeholder both leave `order-service`
+  starting normally and healthy, with `POST /v1/inquiries` alone answering `503`. Confirmed on a
+  real running process, not just MockMvc: readiness `UP`, one `WARN` at boot, carts create/update/
+  read at `200`, `/actuator/prometheus` at `200`, field validation still returning `400` ahead of
+  the key check, and the `503` body carrying `reason`, `runbook` and `affects`. Restoring the key
+  and restarting returns the form to a `303` and a decryptable row.
+- End to end through the BFF: `POST /inquiries` → `303` → `/inquiries/thanks?ref=<uuid>` → a row in
+  `tank_inquiry`, decryptable with the key. Empty message, malformed email and prose in the phone
+  field each come back `400` with the customer's typed text still in the form.
+
+**A missing key must not reach the checkout saga, and that is the decision worth carrying
+forward.** The first shape of this feature refused to start the Spring context without a key. That
+was reversed on review, and the reasoning is worth keeping: `order-service` also owns the checkout
+saga — the most hardened, most crash-tested, most k3d-verified path in this platform — and letting a
+forgotten Kubernetes Secret for a bolt-on marketing form take commerce down is a blast radius wildly
+out of proportion to the feature that caused it. **The reach of a failure should match the size of
+the thing that failed.** The safety property is identical either way: no fallback key, no plaintext
+written, no row accepted that cannot be encrypted. Only the collateral damage differs.
+
+Two implementation details make that real and are easy to break:
+
+- **`secretKeyRef` in the deployment carries `optional: true`.** Without it kubelet refuses to start
+  a container whose env it cannot resolve, the pod sits in `CreateContainerConfigError`, and the
+  Java-side decision is moot. This is the same class of trap as the `runAsUser: 65532` lesson.
+- **The `503` carries an explicit body** (`reason`, `runbook`, `affects`) rather than Spring's
+  default error shape, which drops the exception message unless `server.error.include-message` is
+  enabled globally — and enabling that would leak every other handler's messages to fix one
+  endpoint. Caught by curling a real process; MockMvc's `getErrorMessage()` had hidden it.
+
+The honest cost, recorded in the ADR: **this failure is quiet.** A cluster rebuilt without the
+Secret comes up entirely green while the form turns every customer away. The boot `WARN`, the
+`bootstrap.sh` warning and the storefront's "that is our fault, not yours" 503 message are the
+mitigation, and none is as loud as a pod that will not start.
+
+**Test counts moved.** `order-service` is now **77 tests, 34 skipped** without a DSN (the six new
+bean-validation tests need no database), and **77 tests, 0 skipped** with `ORDER_TEST_DSN` set. The
+DB-gated convention is unchanged; `TankInquiryTest` follows `CheckoutSagaTest`'s pattern exactly.
+`InquiryKeyMissingTest` boots a context with an empty key and asserts the other half of the
+decision: the application starts, carts still work, the repository refuses to write, and the
+endpoint answers `503` with the runbook in the body. No existing test needed changing.
+
+**Three gaps, all deliberate and all stated in ADR 0021's `## Cost`:**
+
+1. **Key management is better than the rest of this repository and still incomplete.** It is the
+   first secret here that is not plaintext in Git. There is no rotation (changing the key orphans
+   every existing row, permanently) and no secrets manager, and a rebuilt k3d cluster needs the
+   `kubectl create secret generic order-inquiry-key …` command run by hand again or the form
+   silently stops working. **The failure is scoped to the endpoint, not the service** — see the note
+   below on why that was changed.
+2. **No read path.** The shop cannot read its own enquiries except through `psql` with the key. The
+   honest fix is authentication first, then a `staff-portal` decrypt view — in that order, because a
+   read endpoint on a platform with no auth would make the encryption theatre.
+3. **No rate limiting on a public, unauthenticated `POST`.** A 16 KiB body limit and a
+   4,000-character message cap bound what one request costs, not how many arrive. The right answer
+   is `ingress-nginx`'s `limit-rps` or a WAF at the edge, not a bespoke limiter written under time
+   pressure.
+
+**Storefront is no longer GET-only.** First body parser (`@fastify/formbody`, v7 for Fastify 4),
+first `POST` route, first call to `order-service` (`ORDER_BASE_URL`, bounded at 2 s like every other
+upstream call). Readiness still checks only the catalog on purpose: a shop that cannot reach
+`order-service` still sells everything it has. Note that the `core` profile deploys the storefront
+*without* `order-service`, so the form renders there and every submission fails — honestly, with the
+customer's text kept, but it fails. This feature belongs to `commerce` and above.
+
+<!-- END: custom tank enquiries -->
+
+---
+
+<!-- BEGIN: monster fish, arowana and section photography (23 September 2026) -->
+### Monster fish, arowana, and the first photograph on any category tile (23 September 2026)
+
+**The catalogue is 69 products across 40 categories, up from 55 across 38.** The counts written
+further up this file, and in `CLAUDE.md` known gap 4, are the pre-`V12` ones; this subsection is the
+current figure. Migrations `V12`–`V15` in `catalog-service`:
+
+- `V12` — two categories. `catfish-predatory` under `catfish-large`, which had two children and no
+  direct products and held only algae-and-invertebrate eaters; and `arowana` under `freshwater`,
+  which had no arowana section at all. Both ACTIVE because `V13` stocks them in the same change.
+- `V13` — 14 products, 11 species profiles. Redtail catfish, tiger shovelnose, iridescent shark;
+  *Cyrtocara moorii*; green terror, Texas cichlid, flowerhorn, redhead cichlid (*Vieja synspila*);
+  silver and jardini arowana plus four Asian arowana trade morphs sharing one species profile, the
+  same way V7's four *Neocaridina* colours share one.
+- `V14` — the first `category.image_key` values that point at files that exist. All 40.
+- `V15` — the 14 new `product.image_key` values.
+
+**Every category row had `image_key IS NULL`** before this, root and leaf alike, since `V7` cleared
+`V5`'s keys-to-nonexistent-files. `services/storefront/public/sections/` contained a README and
+nothing else. It now holds 40 JPEGs at 1600×900 and a `CREDITS.md` mirroring the species one's table
+and verification write-up.
+
+Four things worth carrying forward:
+
+- **The section bar is licence-strict and subject-loose, deliberately.** Commons API, licence read
+  off `extmetadata.LicenseShortName`, `Restrictions` confirmed empty, artist from
+  `extmetadata.Artist`; CC0/PD/CC-BY/CC-BY-SA only. But a category tile is thematic, not a specimen,
+  so "Cichlids" is a tankful of assorted Malawi fish and does not claim otherwise. Three tiles carry
+  a caveat in CREDITS.md: `victoria` (an unidentified haplochromine — Commons holds no confirmed
+  Lake Victoria cichlid over the size floor), `badidae` (*Dario huli*, not the *Dario dario* sold),
+  and `plants-foreground` (dwarf hairgrass on a riverbank, not an aquarium carpet).
+- **One candidate was rejected for having no author, not for its licence.**
+  `File:Filtermaterial 060227.jpg` is CC BY-SA 3.0, 2485×1589, and exactly the subject wanted — and
+  its `extmetadata.Artist` is empty, Commons filing it under *Files with no machine-readable author*.
+  A share-alike licence that names nobody cannot be attributed, and reading a name out of the
+  description text is not the protocol. Recorded so the call can be overruled deliberately.
+- **The 14 species photographs did not inherit V11's relaxed bar.** Correct species, ≥1200×900 at
+  source, no trademark. The honest exception is the Asian arowana morphs: all four are genuinely
+  *Scleropages formosus*. Golden Crossback (`Quá bối`) and Green ("Green Arowana," stated outright)
+  are caption-confirmed to their trade name; Super Red's caption names the right term (`Honglongyu`)
+  but the photographed fish reads olive-gold rather than visibly red under its tank's lighting; Red
+  Tail Golden's source names no morph at all. The last two are our identification by eye, and
+  `CREDITS.md` says so rather than implying a caption confirms what it doesn't.
+- **Two honesty cases the schema forced into the open.** `species_profile.scientific_name` is
+  `NOT NULL`, so the flowerhorn — a hybrid line with no valid binomial — carries the literal
+  `Hybrid (Amphilophus spp. x others)` and a care note opening "This is not a species." And
+  *Scleropages formosus* is CITES Appendix I, so its care note and all four product summaries lead
+  with that, ahead of the price, because it is a legal fact and not a preference.
+
+Still unrun: none of this has been through Flyway or a browser. `V12`–`V15` are written, not applied.
+<!-- END: monster fish, arowana and section photography -->
+
+---
+
 ## How this session worked, and should keep working
 
 - Accuracy before documents. Clarifying questions first; a wrong assumption compounds across a
