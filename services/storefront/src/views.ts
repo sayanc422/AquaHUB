@@ -53,6 +53,7 @@ function layout(title: string, nav: CategoryView[], body: string): string {
 <link rel="stylesheet" href="/static/styles.css">
 </head><body>
 <header class="top">
+  <div class="top-inner">
   <a class="brand" href="/">Aqua<span>Shop</span></a>
   <nav>${nav.map(c => `<a href="/c/${esc(c.slug)}">${esc(c.name)}</a>`).join('')}
        <!-- Not a catalogue category, so it cannot come from the nav data, but
@@ -61,6 +62,7 @@ function layout(title: string, nav: CategoryView[], body: string): string {
             own: the form is four fields, and a page whose only content is four
             fields is a redirect with extra steps. -->
        <a class="nav-cta" href="/#custom-tank">Custom tank build</a></nav>
+  </div>
 </header>
 <main>${body}</main>
 <footer>Local development build. Livestock ships only inside a safe weather window.</footer>
@@ -70,12 +72,14 @@ function layout(title: string, nav: CategoryView[], body: string): string {
 const card = (p: ProductSummary) => `
 <a class="card" href="/p/${esc(p.slug)}">
   ${photo(p.imageKey, p.name, '4/3')}
-  <div class="card-head">
-    <span class="name">${esc(p.name)}</span>
-    ${p.livestock ? '<span class="tag live">LIVE</span>' : ''}
+  <div class="card-body">
+    <div class="card-head">
+      <span class="name">${esc(p.name)}</span>
+      ${p.livestock ? '<span class="tag live">LIVE</span>' : ''}
+    </div>
+    <p class="summary">${esc(p.summary)}</p>
+    <span class="price">${esc(money(p))}</span>
   </div>
-  <p class="summary">${esc(p.summary)}</p>
-  <span class="price">${esc(money(p))}</span>
 </a>`;
 
 /**
@@ -95,9 +99,11 @@ const tile = (c: CategoryView) => {
     : 'Coming soon';
   const inner = `
     ${photo(c.imageKey, c.name, '16/9')}
-    <span class="name">${esc(c.name)}</span>
-    <p class="summary">${esc(c.teaser ?? c.description ?? '')}</p>
-    <span class="count">${esc(count)}</span>`;
+    <div class="tile-body">
+      <span class="name">${esc(c.name)}</span>
+      <p class="summary">${esc(c.teaser ?? c.description ?? '')}</p>
+      <span class="count">${esc(count)}</span>
+    </div>`;
   return c.browsable
     ? `<a class="tile" href="/c/${esc(c.slug)}">${inner}</a>`
     : `<span class="tile soon" aria-disabled="true">${inner}</span>`;
@@ -257,11 +263,14 @@ export function homePage(
   // fish to find where to ask. It is also where the page goes back to when a
   // submission is rejected, which is why `homePage` takes the form state.
   return layout('Home', nav, `
-    <h1>Freshwater livestock, plants and hardscape</h1>
-    <p class="lede">Every living animal we sell carries a full care profile. Read it before you buy.</p>
+    <section class="hero">
+      <h1>Freshwater livestock, plants and hardscape</h1>
+      <p class="lede">Every living animal we sell carries a full care profile. Read it before you buy.</p>
+    </section>
+    <h2 class="section-label">Shop by category</h2>
     <section class="tiles">${nav.map(tile).join('')}</section>
     ${inquiryForm(inquiry)}
-    <h2 class="shelf">In the shop now</h2>
+    <h2 class="section-label">In the shop now</h2>
     <section class="grid">${featured.map(card).join('')}</section>`);
 }
 
