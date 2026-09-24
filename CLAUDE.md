@@ -237,6 +237,19 @@ is the whole decision**; what follows is what you need to not break it.
    anywhere in the codebase — `architecture.md`'s "staff manage tanks, stock, claims" actor
    description is a target, not what's built.
 
+<!-- BEGIN: storefront visual redesign (24 September 2026) -->
+6. **The storefront looks nothing like the dark, teal-accented theme earlier sessions built.**
+   `services/storefront/public/styles.css` was rewritten in three passes against direct user
+   feedback: an Apple-inspired light/dark design system, then a nav hover dropdown (touch devices
+   get an always-expanded inline panel instead, behind a checkbox-hack hamburger — no JS, ADR 0005
+   still holds), then an aquarium-tinted palette (blue-white background, green accent), price hidden
+   on the homepage shelf only, bigger base type, and a flexbox rewrite of `.grid`/`.tiles` that fixed
+   a real defect: CSS Grid's column count is fixed for the whole grid, so a ragged last row (six
+   cards splitting 4-then-2) left dead space beside the short row instead of the items stretching to
+   fill it. Full account in RELEASE-NOTES; the CSS Grid lesson and a `position: sticky` +
+   screenshot-tool false-positive are both in `agent_learningz.md`.
+<!-- END: storefront visual redesign -->
+
 ## Git
 
 Branch: `claude/clever-shannon-ivtkw6`. There is no `main`; this branch is the remote default.

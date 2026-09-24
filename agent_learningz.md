@@ -35,6 +35,44 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-24 — CSS Grid's column count is fixed for the whole grid, not recalculated per row
+
+**What happened:** `.grid`/`.tiles` used `repeat(auto-fit, minmax(260px, 1fr))`. `auto-fit` does
+fix the case where *every* row has fewer items than would fill it — it collapses the unused tracks
+and lets `1fr` redistribute the freed width. It does **not** fix a *ragged last row* in a
+multi-row grid: six product cards splitting 4-then-2 left the second row's two cards stranded at
+their base width with a visible gap beside them, because the grid computed "4 columns fit" once for
+the whole layout and reserved those four columns on every row, whether or not that row had four
+items in it.
+
+**Lesson:** for a card/tile layout where the item count is data-driven and won't reliably divide
+evenly into full rows, use flexbox (`display:flex;flex-wrap:wrap` with `flex:1 1 <basis>` on the
+items) instead of CSS Grid. A flex row distributes its own leftover width among only the items
+actually in it, full or ragged alike — Grid's column-track model has no equivalent per-row
+behavior. Uncapped `flex-grow` has its own failure mode (a single item alone on a wide screen's
+last row grows to the full row width), so pair it with a sensible `max-width` on the item.
+
+**Where the fix lives:** `services/storefront/public/styles.css`, `.grid`/`.card` and
+`.tiles`/`.tile`.
+
+### 2026-09-24 — `position: sticky` interacts badly with non-standard screenshot capture, producing bugs that aren't real
+
+**What happened:** verifying a redesign with a headless Chromium, two different capture techniques
+each produced what looked like a real layout bug: `page.screenshot({ fullPage: true })` made a
+sticky header appear to overlap the hero heading below it; resizing the viewport to the full
+document height (a workaround tried next) produced faint duplicate nav text hovering above the
+footer. Neither was reproducible in the live DOM (`getBoundingClientRect()` showed zero overlap) or
+in an ordinary viewport-sized screenshot taken after a normal scroll.
+
+**Lesson:** `position: sticky` elements are exactly the kind of thing that breaks under a
+screenshot tool's own capture tricks — `fullPage` stitching and artificially-tall viewports both
+resize or reflow the page in ways a real user's browser never does, and sticky positioning is
+computed relative to the viewport, so those tricks can produce compositing artifacts that don't
+exist for anyone actually scrolling the page. When a capture shows something that looks like a
+layout bug on a page with sticky elements, check the live computed layout
+(`getBoundingClientRect()`, or just a normal scroll-and-screenshot at the real viewport size)
+before trusting the capture and reporting a bug that isn't there.
+
 ### 2026-09-23 — A background agent's own migration comments described work that was never saved to disk
 
 **What happened:** An Opus subagent sourcing photos for 40 category tiles and 14 new species got

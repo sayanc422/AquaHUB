@@ -5,6 +5,69 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Storefront visual redesign: Apple-inspired, then corrected against real feedback (24 September 2026)
+
+Four commits, all in `services/storefront`, no other service touched. The brief was explicit —
+"make it look like apple.com... clean and elegant" — then refined twice more against what the user
+actually saw running, which is most of what's worth recording here.
+
+**Pass one:** full rewrite of `styles.css` around one set of CSS custom properties, light by
+default with a real `prefers-color-scheme` dark mode (no theme picker, no JS). The `-apple-system`
+font stack, large tight-tracked headlines, soft-shadow cards with a hover lift instead of hairline
+borders, a pill-shaped primary button, a clean two-column spec-sheet layout for the care profile.
+Added a homepage hero section that hadn't existed before (the h1/lede previously sat flush under
+the nav with no room to breathe).
+
+**Pass two, on explicit follow-up:** a hover dropdown for nav items with subcategories — the one
+piece of the Apple reference this hadn't covered. `Live Fishes` has exactly one real child,
+`Freshwater`, which is where the nine actual sections live, so `server.ts`'s `nav()` now fetches one
+level deeper for any pass-through branch and flattens its children into the dropdown directly rather
+than making a customer click through an extra page. Alongside it, a genuine mobile pass rather than
+the single small media-query tweak that existed before: below 899px the nav collapses behind a
+checkbox-hack hamburger toggle (no JavaScript, holding ADR 0005), and every dropdown that depended on
+hover becomes an always-expanded inline list, since a touch screen has no hover to begin with.
+
+**Pass three, on further feedback ("too much blank space," "the font is still small on PC"):**
+background shifted from neutral grey-white to a faint blue tint (water), the accent from generic
+blue to a planted-tank green — analogous hues, not competing ones. Product price hidden on the
+homepage's six-or-seven-item shelf (`card()` takes a `showPrice` argument, false only there) since
+that shelf is "here's what we carry," not a price list; every category page keeps it. Base
+`font-size` raised twice over the three passes, 100% -> 112.5% -> 118.75%, the one property every
+`rem` in the file scales from. And the actual fix behind "blank space": `.grid` and `.tiles` had
+been CSS Grid with `auto-fill`/`auto-fit`, but a Grid's column count is fixed for the *whole* grid,
+not recalculated per row — six product cards splitting 4-then-2 left the ragged second row's two
+cards stranded at their base width with dead space beside them, because the grid still reserved the
+four columns row one used. Switched both to flexbox with `flex-wrap`, which resizes each row's items
+independently; capped `.card`/`.tile` at a `max-width` so a single card stranded alone on a wide
+screen's last row grows generously rather than stretching to the full row.
+
+### Measured
+
+Verified against the live `full-app` cluster with a headless Chromium (`mcr.microsoft.com/playwright`
+— this box has no browser and no working native Node on PATH; see `docs/getting-started-locally.md`'s
+existing note about the PDF-render script for the same constraint). Checked the hover dropdown, the
+mobile panel closed and open, a tablet-width category page, and — after the third pass — the home and
+a category page at 1920px, 820px and 390px: **zero horizontal overflow at any of the six
+configurations**, product grids fill their rows completely at desktop width, and the mobile hamburger
+menu (unrelated to the font/color pass, but a global `font-size` change touches everything) still
+opens and renders correctly.
+
+Two apparent bugs surfaced during verification and neither was real, both worth recording because
+the instinct to trust a screenshot over the live page would have cost real time chasing them:
+`fullPage: true` screenshots interacting with `position: sticky` produced a hero heading that
+appeared to overlap the nav bar, and an oversized fixed-height viewport (a workaround for the first
+issue) produced faint ghost nav text above the footer. `getBoundingClientRect()` against the live DOM
+and an ordinary scrolled, viewport-sized screenshot both showed a clean page in either case — see
+`agent_learningz.md` for the general lesson.
+
+### Still unproven
+
+- No real device testing — every mobile/tablet check was a headless Chromium at a given viewport
+  size, not an actual phone. Viewport emulation does not catch everything a real touch device would
+  (address-bar show/hide reflow, momentum scrolling, real hover-vs-tap ambiguity on a tablet in
+  landscape).
+- The four-pass iteration was entirely against one person's stated taste and one screen. "Clean and
+  elegant" and "fill the blank space" are not universal, measured properties.
 <!-- BEGIN: custom tank enquiries (23 September 2026) -->
 ## Custom tank enquiries: the first table in this repository whose contents nobody can read
 

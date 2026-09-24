@@ -3,11 +3,20 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** verifying the photo re-attempt by running it found a real, repository-wide defect —
-the product detail page has never rendered a photograph for any product, since Phase 1 — fixed and
-re-verified in the same session (22 September 2026); re-attempt at the 13 products left without a
-photograph — 2 closed, 11 still open (22 September 2026); 32 of 45 missing product photographs
-sourced under verified open licences (18 September 2026); `full-app` measured in k3d (2234 MiB) and
+**Last updated:** storefront visual redesign, in three passes against direct feedback — Apple-inspired
+light/dark design system, then a nav hover dropdown plus a genuine mobile pass, then an aquarium-tinted
+palette, price hidden on the homepage shelf, bigger base type, and a flexbox rewrite of the product/tile
+grids that closed a real "dead space on a ragged last row" defect in the original CSS Grid layout
+(24 September 2026, see RELEASE-NOTES for the full account). Custom tank-setup enquiries shipped,
+encrypted at the database, write-only (23 September 2026). Catalog expanded to 69 products across 40
+categories — arowana family, predatory catfish, more American cichlids — with every category tile now
+photographed for the first time (23 September 2026). `agent_learningz.md` added: external memory for
+future sessions, read alongside this file and `CLAUDE.md`.
+
+**Older, still true:** verifying an earlier photo re-attempt by running it found a real, repository-wide
+defect — the product detail page had never rendered a photograph for any product, since Phase 1 — fixed
+and re-verified in the same session (22 September 2026); 32 of 45 missing product photographs sourced
+under verified open licences (18 September 2026); `full-app` measured in k3d (2234 MiB) and
 `staff-portal` exposed through the ingress (17 September 2026).
 
 **Also worth knowing:** `/proc/meminfo` now measures **~11 GB**, not the ~7.4 GB this file's older
