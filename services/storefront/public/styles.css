@@ -13,7 +13,7 @@
   --radius-lg:20px; --radius-md:14px; --radius-sm:8px; --pill:980px;
   --shadow:0 2px 8px rgba(15,40,50,.05), 0 10px 28px rgba(15,40,50,.06);
   --shadow-hover:0 6px 20px rgba(15,40,50,.08), 0 18px 44px rgba(15,40,50,.11);
-  --maxw:1120px; --nav-h:52px;
+  --maxw:1600px; --nav-h:52px;
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -30,9 +30,9 @@
 *{box-sizing:border-box}
 /* The base font-size every `rem` in this file scales from. 16px browser
    default reads small at normal desktop viewing distance for body copy this
-   size -- 18px (112.5%) is the whole fix, applied once here rather than
+   size -- 19px (118.75%) is the whole fix, applied once here rather than
    inflated on every individual rule. */
-html{scroll-behavior:smooth;font-size:112.5%}
+html{scroll-behavior:smooth;font-size:118.75%}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:400 1rem/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
@@ -122,8 +122,21 @@ h1{font-size:clamp(1.9rem,4vw,2.7rem);font-weight:600;letter-spacing:-.025em;
   color:var(--muted);text-transform:uppercase;margin:3.5rem 0 1.1rem}
 
 /* ---- product cards ------------------------------------------------------*/
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:1.5rem}
-.card{display:flex;flex-direction:column;background:var(--bg-elevated);
+/* Flexbox, not grid: a CSS Grid's column count is fixed for the whole grid,
+   so a short last row (say six cards -- four then two) leaves the two
+   stranded at their base width with dead space beside them, because the
+   grid still reserves the columns row one used even though row two has
+   nothing in them. A flex row has no such memory -- every row distributes
+   its own leftover width among only the items actually in it, full or
+   ragged alike, which is the fix `.tiles` below needed too. */
+.grid{display:flex;flex-wrap:wrap;gap:1.75rem}
+/* max-width is the other half of the flex fix: without it, a single card
+   stranded alone on a wide screen's last row would grow to the full row
+   width -- a 1500px product card. Capped, it still grows to fill a ragged
+   row generously, just not absurdly; the row's true leftover (rare, and
+   small once capped) is the one blank-space case left uneliminated on
+   purpose, because the alternative is worse. */
+.card{flex:1 1 min(100%,260px);max-width:420px;display:flex;flex-direction:column;background:var(--bg-elevated);
   border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);
   transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s}
 a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover)}
@@ -167,9 +180,10 @@ footer{border-top:1px solid var(--line);color:var(--muted);font-size:.75rem;
 .trail span{color:var(--line)}
 .trail b{color:var(--ink);font-weight:590}
 
-.tiles{display:grid;gap:1.5rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));
-  margin-bottom:1rem}
-.tile{display:flex;flex-direction:column;background:var(--bg-elevated);
+/* Same flexbox reasoning as `.grid` above -- a category page's own
+   subsections rarely divide evenly into full rows either. */
+.tiles{display:flex;flex-wrap:wrap;gap:1.75rem;margin-bottom:1rem}
+.tile{flex:1 1 min(100%,260px);max-width:440px;display:flex;flex-direction:column;background:var(--bg-elevated);
   border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);
   transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s;color:inherit}
 a.tile:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover)}
@@ -199,9 +213,13 @@ a.tile:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover)}
 .shot-none::after{content:"\1F41F";font-size:1.6rem;opacity:.18;filter:grayscale(1)}
 
 /* ---- custom tank enquiry --------------------------------------------- */
+/* Capped and centered rather than stretched to the full (now wider) main
+   column -- the form inside tops out at 520px anyway, and a card that wide
+   with that little in it would just relocate the blank-space problem rather
+   than fix it. */
 .inquiry{background:var(--bg-elevated);border-radius:var(--radius-lg);
   box-shadow:var(--shadow);padding:2.75rem clamp(1.5rem,5vw,3.5rem);
-  margin:3.5rem 0;text-align:center;scroll-margin-top:4rem}
+  margin:3.5rem auto;max-width:860px;text-align:center;scroll-margin-top:4rem}
 .inquiry h2{margin:0 0 .75rem;font-size:clamp(1.5rem,3vw,2rem);
   font-weight:600;letter-spacing:-.02em}
 .inquiry .lede{margin:0 auto 2rem;text-align:center}
