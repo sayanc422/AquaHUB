@@ -1,5 +1,5 @@
 import type {
-  CategoryPage, CategoryView, ProductSummary, ProductDetail, Range,
+  CategoryPage, CategoryView, NavCategory, ProductSummary, ProductDetail, Range,
 } from './catalog-client.js';
 
 const esc = (s: unknown): string =>
@@ -45,7 +45,7 @@ const money = (p: ProductSummary) =>
 
 const range = (r: Range, unit: string) => `${r.min}\u2013${r.max}${unit}`;
 
-function layout(title: string, nav: CategoryView[], body: string): string {
+function layout(title: string, nav: NavCategory[], body: string): string {
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -55,7 +55,26 @@ function layout(title: string, nav: CategoryView[], body: string): string {
 <header class="top">
   <div class="top-inner">
   <a class="brand" href="/">Aqua<span>Shop</span></a>
-  <nav>${nav.map(c => `<a href="/c/${esc(c.slug)}">${esc(c.name)}</a>`).join('')}
+  <!-- Checkbox-hack menu toggle: no client-side JavaScript (ADR 0005), and it
+       has to precede nav in the DOM for the ":checked ~ nav" sibling
+       selector that opens it on a phone to work at all. Hidden outright above
+       the mobile breakpoint, where hover already does the job. -->
+  <input type="checkbox" id="nav-toggle" class="nav-toggle-input">
+  <label for="nav-toggle" class="nav-toggle" aria-label="Menu">&#9776;</label>
+  <nav>${nav.map(c => {
+    if (!c.menu.length) return `<a href="/c/${esc(c.slug)}">${esc(c.name)}</a>`;
+    // A root with subcategories gets a dropdown on hover (desktop) or an
+    // always-open inline list once the mobile panel itself is open --
+    // there is no hover on a phone, so the CSS for the two cases differs
+    // rather than one pattern doing both badly.
+    const items = c.menu.map(m => m.browsable
+      ? `<a href="/c/${esc(m.slug)}">${esc(m.name)}</a>`
+      : `<span class="nav-soon">${esc(m.name)}</span>`).join('');
+    return `<div class="nav-item">
+      <a href="/c/${esc(c.slug)}">${esc(c.name)}</a>
+      <div class="nav-dropdown">${items}</div>
+    </div>`;
+  }).join('')}
        <!-- Not a catalogue category, so it cannot come from the nav data, but
             it is one of the shop's main offers and belongs beside the ones
             that are. Anchored to the home page rather than given a page of its
@@ -123,7 +142,7 @@ const crumbs = (trail: CategoryView[], here: string) => `
 </nav>`;
 
 export function categoryPage(
-  nav: CategoryView[], page: CategoryPage, products: ProductSummary[], showingAll: boolean,
+  nav: NavCategory[], page: CategoryPage, products: ProductSummary[], showingAll: boolean,
 ) {
   const c = page.category;
   const hasSections = page.children.length > 0;
@@ -228,7 +247,7 @@ const inquiryForm = (state: InquiryFormState) => `
  * customer has on the thing they just sent — and it is safe to show, because
  * there is no endpoint that turns it back into their details.
  */
-export function inquiryThanksPage(nav: CategoryView[], reference: string | null) {
+export function inquiryThanksPage(nav: NavCategory[], reference: string | null) {
   return layout('Enquiry received', nav, `
     <section class="thanks">
       <h1>That is with the shop.</h1>
@@ -243,7 +262,7 @@ export function inquiryThanksPage(nav: CategoryView[], reference: string | null)
 }
 
 export function homePage(
-  nav: CategoryView[], featured: ProductSummary[], inquiry: InquiryFormState = {},
+  nav: NavCategory[], featured: ProductSummary[], inquiry: InquiryFormState = {},
 ) {
   // The sections first, then a handful of stock beneath them.
   //
@@ -274,7 +293,7 @@ export function homePage(
     <section class="grid">${featured.map(card).join('')}</section>`);
 }
 
-export function productPage(nav: CategoryView[], d: ProductDetail) {
+export function productPage(nav: NavCategory[], d: ProductDetail) {
   const p = d.product;
   const s = d.species;
   const care = s ? `
@@ -307,6 +326,6 @@ export function productPage(nav: CategoryView[], d: ProductDetail) {
     </article>`);
 }
 
-export function errorPage(nav: CategoryView[], status: number, message: string) {
+export function errorPage(nav: NavCategory[], status: number, message: string) {
   return layout('Error', nav, `<h1>${status}</h1><p class="lede">${esc(message)}</p>`);
 }

@@ -3,7 +3,7 @@ import fastifyStatic from '@fastify/static';
 import fastifyFormbody from '@fastify/formbody';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { catalog, UpstreamError, type CategoryView } from './catalog-client.js';
+import { catalog, UpstreamError, type NavCategory } from './catalog-client.js';
 import { orders } from './order-client.js';
 import {
   homePage, categoryPage, productPage, errorPage, inquiryThanksPage,
@@ -25,11 +25,35 @@ await app.register(fastifyFormbody);
  * deliberate, bounded staleness: a category rename takes up to 60s to appear.
  * The alternative is one upstream call per page render for data that changes
  * a few times a year.
+ *
+ * Building the hover dropdown means each root needs its subcategories too --
+ * up to two levels deep, so a pass-through branch like `freshwater` (the only
+ * child of `live-fish`) contributes its own nine children to the menu instead
+ * of making a customer click through an intermediate page to see them. Worth
+ * doing here rather than in `views.ts`: the shape of the dropdown is a fact
+ * about the catalogue tree, not about how a page renders.
  */
-let navCache: { at: number; value: CategoryView[] } | null = null;
-async function nav(): Promise<CategoryView[]> {
+let navCache: { at: number; value: NavCategory[] } | null = null;
+async function nav(): Promise<NavCategory[]> {
   if (navCache && Date.now() - navCache.at < 60_000) return navCache.value;
-  const value = await catalog.categories();
+  const roots = await catalog.categories();
+  const value = await Promise.all(roots.map(async (root): Promise<NavCategory> => {
+    if (root.childCount === 0) return { ...root, menu: [] };
+    try {
+      const { children } = await catalog.page(root.slug);
+      const menu = (await Promise.all(children.map(async child => {
+        if (child.childCount === 0) return [child];
+        const grandchildren = await catalog.page(child.slug);
+        return grandchildren.children;
+      }))).flat();
+      return { ...root, menu };
+    } catch {
+      // The dropdown is a convenience on top of a link that already works --
+      // a slow or failing catalog call here should fall back to "no
+      // dropdown", not take out the whole nav bar.
+      return { ...root, menu: [] };
+    }
+  }));
   navCache = { at: Date.now(), value };
   return value;
 }

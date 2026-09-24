@@ -70,6 +70,19 @@ export interface CategoryPage {
   products: ProductSummary[];
 }
 
+/**
+ * A root category plus the flattened list of subcategories its nav dropdown
+ * should link to directly. Built in `server.ts`'s `nav()`, not here -- this
+ * type just carries the shape across the module boundary into `views.ts`.
+ *
+ * `menu` skips a level for a root whose only child is itself a pass-through
+ * branch (`live-fish` -> `freshwater` -> nine real sections): a dropdown
+ * offering "Freshwater, Saltwater" makes a customer click twice to reach
+ * "Cichlids". Where a child has no children of its own, it appears in `menu`
+ * unchanged.
+ */
+export interface NavCategory extends CategoryView { menu: CategoryView[] }
+
 export const catalog = {
   categories: () => get<CategoryView[]>('/api/categories'),
   page: (slug: string) => get<CategoryPage>(`/api/categories/${encodeURIComponent(slug)}`),
