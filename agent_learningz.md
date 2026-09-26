@@ -35,6 +35,15 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-26 — Filing by genus put a 10 cm fish on the Large page
+
+**What happened:** V17 filed *Synodontis nigriventris* under `catfish-synodontis` because of its
+genus; that section hangs under `catfish-large`, and this is the one small Synodontis. Nobody saw it
+until `CatalogApiTest.everyFishOnTheSmallCatfishPageFitsASmallTank` ran. Fixed forward in `V21`.
+**Pattern:** a catalogue tree mixes two axes (taxonomy and tank size). When adding fish, file by the
+axis the parent section encodes, and run `CatalogApiTest` after any catalogue migration — its
+count assertions are stale, but its data-rule assertions are not.
+
 ### 2026-09-26 — A caption or retailer listing is a claim about the fish, not proof; check by eye
 
 **What happened:** `asian-arowana-super-red.jpg` passed V15's bar because its Commons caption said

@@ -17,7 +17,11 @@ Same day, at the owner's request, six photos were replaced: `flowerhorn`, `silve
 needed: the files kept their names. **Still weak:** `asian-arowana-green.jpg` (tail cropped at the
 source, no better licensed photo found). Contact Us footer (WhatsApp/email) reads from env vars;
 both are placeholders until the owner supplies real ones. **Prices in V17 are Claude's estimates and
-have not been reviewed by the owner.** `CatalogApiTest` was not re-run after V17–V20.
+have not been reviewed by the owner.** Tests, re-run same day: advisor 35/35 pass; `CatalogApiTest` 25/34 — 9 failures are stale
+hard-coded counts/rankings (listed in `CLAUDE.md` → Testing), the 10th was a real misfiling fixed by
+`V21` (upside-down catfish, 10 cm, moved from Large to Small). Cherry, ghost and Amano shrimp photos
+were also replaced with licensed Commons shots — the owner's links were a watermarked professional
+photo and two unlicensed blog images, recorded as not used in `species/CREDITS.md`.
 
 **Before that:** storefront visual redesign, in three passes against direct feedback — Apple-inspired
 light/dark design system, then a nav hover dropdown plus a genuine mobile pass, then an aquarium-tinted

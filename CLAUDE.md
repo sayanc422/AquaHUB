@@ -126,7 +126,11 @@ cd services/notification-service && go test ./...   # integration test needs NOT
 cd services/staff-portal     && mvn test     # 3 tests, no DB (reads only, no DB of its own)
 ```
 
-`CatalogApiTest` **first ran on 26 September 2026**: 34 tests, **6 failing, all pre-existing** —
+`CatalogApiTest` **re-run 26 September 2026 after V17–V21: 34 tests, 9 failing, all stale
+expectations** (hard-coded product/photo counts from before the catalogue grew to 171, and a search
+ranking that now puts `black-neon-tetra` first) — no data or code defect. The run *did* catch one
+real defect, the upside-down catfish filed under Large; `V21` fixed it and that test passes. Earlier
+note, kept for history: it **first ran on 26 September 2026**: 34 tests, **6 failing, all pre-existing** —
 stock counts and image-key assertions written before `V11`–`V15` added products and photographs,
 and never updated because the suite had never run. They are stale assertions, not regressions, and
 are left for a deliberate decision rather than bumped to whatever the database says today. Two
