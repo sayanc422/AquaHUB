@@ -1,6 +1,8 @@
 package com.aquashop.catalog;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -39,6 +41,30 @@ class CatalogApiTest {
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
 
+    /*
+     * Counts are asked of the database, not written into the test. Nine
+     * assertions here once said "13" or "47" and went stale the day V17 added
+     * a hundred products -- they failed for a whole catalogue expansion
+     * without telling anyone anything about the API. What these tests are for
+     * is the API agreeing with the data: a subtree total that matches the rows
+     * beneath it, a page that lists what is filed on it. The data itself is
+     * each migration's business.
+     */
+    private int subtreeCount(String slug) {
+        return jdbc.queryForObject("""
+            WITH RECURSIVE sub AS (
+              SELECT id FROM category WHERE slug = ?
+              UNION ALL
+              SELECT c.id FROM category c JOIN sub ON c.parent_id = sub.id)
+            SELECT count(*) FROM product p JOIN sub ON p.category_id = sub.id""", Integer.class, slug);
+    }
+
+    private int directCount(String slug) {
+        return jdbc.queryForObject(
+            "SELECT count(*) FROM product p JOIN category c ON c.id = p.category_id WHERE c.slug = ?",
+            Integer.class, slug);
+    }
+
     @Test
     void listsTheTopOfTheShopNotEveryCategory() throws Exception {
         // Roots only. Returning all forty-odd would make the caller filter,
@@ -50,7 +76,7 @@ class CatalogApiTest {
            .andExpect(jsonPath("$[0].childCount").value(2))
            // Live Fishes holds no products itself; the count is the subtree's.
            .andExpect(jsonPath("$[0].productCount").value(0))
-           .andExpect(jsonPath("$[0].totalProducts").value(33))
+           .andExpect(jsonPath("$[0].totalProducts").value(subtreeCount("live-fish")))
            // A shrimp is not a fish. V7 lifted them out of Live Fishes and
            // gave them a root section of their own, between fish and plants.
            .andExpect(jsonPath("$[1].slug").value("invertebrates"))
@@ -91,7 +117,7 @@ class CatalogApiTest {
 
         mvc.perform(get("/api/categories/cichlids/products").param("deep", "true"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.length()").value(13))
+           .andExpect(jsonPath("$.length()").value(subtreeCount("cichlids")))
            .andExpect(jsonPath("$[0].categorySlug").value("malawi"));
     }
 
@@ -100,7 +126,8 @@ class CatalogApiTest {
         mvc.perform(get("/api/categories/malawi"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.children.length()").value(0))
-           .andExpect(jsonPath("$.products.length()").value(9));
+           .andExpect(jsonPath("$.products.length()").value(directCount("malawi")));
+        assertThat(directCount("malawi")).isPositive();
     }
 
     // ------------------------------------------------------------ V7 tree --
@@ -173,7 +200,15 @@ class CatalogApiTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.breadcrumb.length()").value(2))
            .andExpect(jsonPath("$.breadcrumb[1].slug").value("freshwater"))
-           .andExpect(jsonPath("$.products.length()").value(1));
+           .andExpect(jsonPath("$.products.length()").value(directCount("loaches")));
+        // And none of them has drifted back: nothing under Catfish is a loach.
+        assertThat(jdbc.queryForObject("""
+            WITH RECURSIVE sub AS (
+              SELECT id FROM category WHERE slug = 'catfish'
+              UNION ALL
+              SELECT c.id FROM category c JOIN sub ON c.parent_id = sub.id)
+            SELECT count(*) FROM product p JOIN sub ON p.category_id = sub.id
+             WHERE p.name ILIKE '%loach%'""", Integer.class)).isZero();
     }
 
     @Test
@@ -253,16 +288,24 @@ class CatalogApiTest {
      * This cannot check the files: they live in the storefront's `public/`
      * directory, in a different service, and a test that reached across that
      * boundary would be asserting on somebody else's deployment. What it can
-     * check is the convention and the count -- ten photographs have been
-     * delivered, and ten is what the catalogue should claim.
+     * check is the convention, and which products are knowingly without a
+     * photograph: V18 left seven NULL on purpose, each with a reason in the
+     * storefront's species/CREDITS.md. A new NULL, or one of these gaining a
+     * key, is a decision someone should see in a diff, not a count that
+     * silently moves.
      */
     @Test
     void anImageKeyFollowsTheSlugConventionAndNothingClaimsMore() {
         var rows = jdbc.queryForList(
             "SELECT slug, image_key FROM product WHERE image_key IS NOT NULL ORDER BY slug");
-        assertThat(rows).hasSize(10);
         assertThat(rows).allSatisfy(r ->
             assertThat(r.get("image_key")).isEqualTo("species/" + r.get("slug") + ".jpg"));
+
+        var unphotographed = jdbc.queryForList(
+            "SELECT slug FROM product WHERE image_key IS NULL", String.class);
+        assertThat(unphotographed).containsExactlyInAnyOrder(
+            "bumblebee-cichlid", "endlers-livebearer", "head-and-tail-light-tetra",
+            "scissortail-rasbora", "skunk-cory", "snowball-pleco", "tire-track-eel");
     }
 
     /**
@@ -336,7 +379,9 @@ class CatalogApiTest {
     void anUnphotographedProductHasNoKeyRatherThanAGuessedOne() throws Exception {
         // Null is handled by the storefront as a placeholder. A key invented
         // from the slug would point at a file nobody has taken.
-        mvc.perform(get("/api/products/neon-tetra"))
+        // The neon tetra was the example until it was photographed (V9); the
+        // tire track eel is one of V18's seven deliberate gaps.
+        mvc.perform(get("/api/products/tire-track-eel"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.product.imageKey").doesNotExist());
     }
@@ -348,15 +393,17 @@ class CatalogApiTest {
         // American cichlids and they are stocked now.
         mvc.perform(get("/api/categories/cichlids-south-american"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.products.length()").value(2))
+           .andExpect(jsonPath("$.products.length()").value(directCount("cichlids-south-american")))
            // One level deeper than it used to be: V7 put American Cichlids
            // between this page and Cichlids.
            .andExpect(jsonPath("$.breadcrumb.length()").value(4))
            .andExpect(jsonPath("$.breadcrumb[3].slug").value("cichlids-american"));
 
+        assertThat(directCount("cichlids-south-american")).isPositive();
+
         mvc.perform(get("/api/categories/cichlids/products").param("deep", "true"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.length()").value(13));
+           .andExpect(jsonPath("$.length()").value(subtreeCount("cichlids")));
     }
 
     @Test
@@ -410,7 +457,7 @@ class CatalogApiTest {
            .andExpect(jsonPath("$.length()").value(4))
            // Unwrapped: a node reads exactly like a tile, plus its children.
            .andExpect(jsonPath("$[0].slug").value("live-fish"))
-           .andExpect(jsonPath("$[0].totalProducts").value(47))
+           .andExpect(jsonPath("$[0].totalProducts").value(subtreeCount("live-fish")))
            .andExpect(jsonPath("$[0].children[0].slug").value("freshwater"))
            .andExpect(jsonPath("$[0].children[1].slug").value("saltwater"))
            .andExpect(jsonPath("$[0].children[1].browsable").value(false))
@@ -465,11 +512,24 @@ class CatalogApiTest {
     @Test
     void searchRanksANameMatchAboveASectionMatch() throws Exception {
         // "tetra" is in the Tetras & Characins section name, which every fish
-        // filed there matches; the two actually called tetras come first.
-        mvc.perform(get("/api/products").param("q", "tetra"))
+        // filed there matches; the ones actually called tetras come first.
+        // Asserted as an ordering, not as "cardinal first": V17 added a dozen
+        // tetras and alphabetical order among name hits is not the point.
+        String body = mvc.perform(get("/api/products").param("q", "tetra"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[0].slug").value("cardinal-tetra"))
-           .andExpect(jsonPath("$[1].slug").value("neon-tetra"));
+           .andReturn().getResponse().getContentAsString();
+        List<String> names = com.jayway.jsonpath.JsonPath.read(body, "$[*].name");
+        int lastNameHit = -1, firstSectionHit = -1;
+        for (int i = 0; i < names.size(); i++) {
+            boolean named = names.get(i).toLowerCase().contains("tetra");
+            if (named) lastNameHit = i;
+            else if (firstSectionHit < 0) firstSectionHit = i;
+        }
+        assertThat(lastNameHit).as("some product is called a tetra").isGreaterThanOrEqualTo(0);
+        assertThat(firstSectionHit).as("the section also holds non-tetras, e.g. the silver dollar")
+            .isGreaterThanOrEqualTo(0);
+        assertThat(lastNameHit).as("every name match ranks above every section-only match")
+            .isLessThan(firstSectionHit);
     }
 
     @Test
