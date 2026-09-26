@@ -112,7 +112,7 @@ public final class CatalogDtos {
             double maxSizeCm, int minTankLitres, int minGroupSize,
             Range temperatureC, Range ph, Range dgh,
             String temperament, String careLevel, String diet,
-            boolean plantSafe, String animalGroup, String careNotes) {
+            boolean plantSafe, String animalGroup, String careNotes, String description) {
 
         public static SpeciesView of(SpeciesProfile s) {
             return new SpeciesView(
@@ -123,7 +123,7 @@ public final class CatalogDtos {
                     Range.of(s.getDghMin(), s.getDghMax()),
                     s.getTemperament().name(), s.getCareLevel().name(),
                     s.getDiet(), s.isPlantSafe(), s.getAnimalGroup().name(),
-                    s.getCareNotes());
+                    s.getCareNotes(), s.getDescription());
         }
     }
 

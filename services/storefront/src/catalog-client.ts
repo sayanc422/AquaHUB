@@ -29,7 +29,7 @@ export interface SpeciesView {
   minTankLitres: number; minGroupSize: number;
   temperatureC: Range; ph: Range; dgh: Range;
   temperament: string; careLevel: string; diet: string;
-  plantSafe: boolean; careNotes: string | null;
+  plantSafe: boolean; careNotes: string | null; description: string | null;
 }
 export interface ProductDetail { product: ProductSummary; species: SpeciesView | null }
 

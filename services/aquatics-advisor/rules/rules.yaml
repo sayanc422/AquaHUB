@@ -112,10 +112,21 @@ behaviour:
   # Species with trailing fins that get attacked by fin-nippers. Held as a list
   # because it is a property of the individual animal, not of a data field the
   # catalog has.
-  long_finned_skus: [FSH-BET-01, FSH-GUP-01]
-  fin_nipper_skus: [FSH-ZEB-01]
+  #
+  # V17 added the second batch. Long-finned: angelfish, the five FANCY goldfish
+  # (the comet is single-tailed and fast, so it is not on the list), threadfin
+  # rainbowfish. Nippers: black skirt and serpae tetras, tiger barbs, Buenos
+  # Aires tetras, and pea puffers -- the puffer is the only one that nips out
+  # of appetite rather than boisterousness, but the victim cannot tell.
+  long_finned_skus: [FSH-BET-01, FSH-GUP-01,
+                     FSH-SAM-04,
+                     FSH-GLD-01, FSH-GLD-02, FSH-GLD-03, FSH-GLD-04, FSH-GLD-05,
+                     FSH-RBW-03]
+  fin_nipper_skus: [FSH-ZEB-01,
+                    FSH-TET-03, FSH-TET-04, FSH-TET-12, FSH-BRB-01, FSH-ODD-01]
   why_fin_nipping: >-
-    Zebra danios are fast and busy and will strip the fins off anything that
+    Some fish -- zebra danios, tiger barbs, serpae and black skirt tetras, pea
+    puffers -- are fast and busy and will strip the fins off anything that
     trails them. The victim usually dies of the infection, not the bite.
 
 welfare:

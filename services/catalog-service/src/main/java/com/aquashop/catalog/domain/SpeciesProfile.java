@@ -81,6 +81,16 @@ public class SpeciesProfile {
     @Column(name = "care_notes", columnDefinition = "text")
     private String careNotes;
 
+    /**
+     * What the animal is -- origin, appearance, behaviour, breeding -- as
+     * opposed to careNotes, which is what to do about it. Kept apart so the
+     * short practical note stays short. Paragraphs are separated by a blank
+     * line; the storefront splits on that. NULL for profiles nobody has
+     * written one for yet (shrimp and snails, as of V20).
+     */
+    @Column(name = "description", columnDefinition = "text")
+    private String description;
+
     protected SpeciesProfile() { }
 
     public enum Temperament { PEACEFUL, SEMI_AGGRESSIVE, AGGRESSIVE, TERRITORIAL }
@@ -105,4 +115,5 @@ public class SpeciesProfile {
     public boolean isPlantSafe() { return plantSafe; }
     public AnimalGroup getAnimalGroup() { return animalGroup; }
     public String getCareNotes() { return careNotes; }
+    public String getDescription() { return description; }
 }

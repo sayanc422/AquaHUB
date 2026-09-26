@@ -244,6 +244,11 @@ is the whole decision**; what follows is what you need to not break it.
      `care_notes` opens with "This is not a species."
 <!-- END: monster fish, arowana and section photography -->
 
+   **Addendum, 26 September 2026 — counts stale again.** `V17`–`V20` take the catalogue to 171
+   products and add an "About this fish" description column; six arowana/flowerhorn photos were
+   replaced with owner-picked Pexels images (Pexels License, not Commons — a second licence source,
+   recorded per row in `species/CREDITS.md`). Current state is in `docs/context_summary.md`.
+
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist
    anywhere in the codebase — `architecture.md`'s "staff manage tanks, stock, claims" actor

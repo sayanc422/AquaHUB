@@ -63,6 +63,15 @@ spec:
             # connection pool and take the whole shop down with it.
             - name: ORDER_TIMEOUT_MS
               value: "2000"
+            # The footer's Contact Us block. PLACEHOLDERS until the owner
+            # supplies real ones: a WhatsApp value with fewer than 10 digits
+            # renders as plain text rather than a wa.me link to nobody.
+            # Replace with e.g. "+91 98765 43210" and a real address, then
+            # `kubectl apply -k` -- no image rebuild needed.
+            - name: CONTACT_WHATSAPP
+              value: "+91 XXXXX XXXXX"
+            - name: CONTACT_EMAIL
+              value: "contact@example.com"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

@@ -35,6 +35,36 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-26 — A caption or retailer listing is a claim about the fish, not proof; check by eye
+
+**What happened:** `asian-arowana-super-red.jpg` passed V15's bar because its Commons caption said
+"Honglongyu" (red dragon fish) — but the fish photographed olive-yellow, and the shop owner caught
+it. The same week, liveaquaria.com's copy (used as a fact source for V20's descriptions) put the
+zebra loach in Indonesia and the dwarf chain loach in India (each is the other way round), and filed
+the Boeseman's rainbow under *Telmatherina*. Their care numbers were looser than ours too: a 189 L
+minimum tank for a 30 cm bala shark.
+**Pattern:** text attached to an image or a listing is someone's claim. For a morph, compare what
+the photo shows with a key feature (red tail golden = gold lower rows + dark back; crossback = gold
+over the back) — the MonsterFishKeepers "Arowana species/varieties" thread is a usable visual key.
+For facts, cross-check a retailer against the literature before putting them on a product page.
+**Where it lives:** `species/CREDITS.md` (Pexels section), `V20__species_descriptions.sql` header.
+
+### 2026-09-26 — Hashing static files right after `rollout restart` can hit the old pod
+
+**What happened:** after redeploying the storefront, all five new photos md5'd to the same hash
+— looked like a 404 page. They were fine: the requests landed on the terminating old ReplicaSet.
+Re-checked by byte size a minute later and every file matched.
+**Pattern:** `rollout status` returning does not mean the old pod has stopped answering. Verify
+after old pods are gone (`kubectl get pods`), and compare sizes/hashes, not "did it return 200".
+
+### 2026-09-26 — SQL text generated from Python: dollar-quote it
+
+**What happened:** V17's generator held prose in single-quoted Python literals and wrote
+`'Kerala''s'` meaning an escaped SQL quote — Python reads that as two adjacent literals and joins
+them into `Keralas`. Every apostrophe in V17 was lost; V19 corrected it forward.
+**Pattern:** never hand-escape SQL quotes inside another language's string literals. V20 wraps
+every value in `$d$...$d$`, which needs no escaping at all, and asserts the delimiter is absent.
+
 ### 2026-09-24 — CSS Grid's column count is fixed for the whole grid, not recalculated per row
 
 **What happened:** `.grid`/`.tiles` used `repeat(auto-fit, minmax(260px, 1fr))`. `auto-fit` does

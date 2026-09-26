@@ -3,7 +3,23 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated:** storefront visual redesign, in three passes against direct feedback — Apple-inspired
+**Last updated (26 September 2026):** the catalogue grew to **171 products** — `V17` added an
+India-popular freshwater range (102 products, 97 species profiles, four new sections), `V18` its
+photographs (95 of 102; seven stay NULL on purpose, reasons in `species/CREDITS.md`), `V19` restored
+the apostrophes V17's generator dropped. `V20` added `species_profile.description`, an "About this
+fish" text for all **141 fish profiles** (shrimp/snails still NULL), rendered above the care profile
+on the product page; facts cross-checked against liveaquaria.com's listings (131 of 141 matched) but
+the prose is original and their care numbers were deliberately *not* adopted — see V20's header.
+Same day, at the owner's request, six photos were replaced: `flowerhorn`, `silver-arowana`,
+`asian-arowana-super-red` (the old one was yellow), `asian-arowana-golden-crossback` and the
+`arowana` section tile from owner-picked Pexels photos (Pexels License), and
+`asian-arowana-red-tail-golden` from a full-body Commons sibling of the old crop. No migration was
+needed: the files kept their names. **Still weak:** `asian-arowana-green.jpg` (tail cropped at the
+source, no better licensed photo found). Contact Us footer (WhatsApp/email) reads from env vars;
+both are placeholders until the owner supplies real ones. **Prices in V17 are Claude's estimates and
+have not been reviewed by the owner.** `CatalogApiTest` was not re-run after V17–V20.
+
+**Before that:** storefront visual redesign, in three passes against direct feedback — Apple-inspired
 light/dark design system, then a nav hover dropdown plus a genuine mobile pass, then an aquarium-tinted
 palette, price hidden on the homepage shelf, bigger base type, and a flexbox rewrite of the product/tile
 grids that closed a real "dead space on a ragged last row" defect in the original CSS Grid layout

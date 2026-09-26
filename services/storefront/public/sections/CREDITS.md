@@ -47,7 +47,7 @@ on-theme).
 | `anabantoids.jpg` | Bettas & Gouramis | Wikimedia Commons, [File:Bojownik syjamski.jpg](https://commons.wikimedia.org/wiki/File:Bojownik_syjamski.jpg), Henryk Niestrój | CC BY 4.0 | ✅ Siamese fighting fish |
 | `loaches.jpg` | Loaches | Wikimedia Commons, [File:Chromobotia macracanthus (Bleeker, 1852) Clown loach.jpg](https://commons.wikimedia.org/wiki/File:Chromobotia_macracanthus_%28Bleeker%2C_1852%29_Clown_loach.jpg), Andrej Jakubík | CC BY-SA 4.0 | ✅ |
 | `badidae.jpg` | Badidae — Badis & Dario | Wikimedia Commons, [File:Dario huli.jpg](https://commons.wikimedia.org/wiki/File:Dario_huli.jpg), Beta Mahatvaraj | CC BY-SA 4.0 | ⚠️ *Dario huli*, not *Dario dario* — the only Badidae file on Commons above the 1600×900 floor; correct family, not the exact species the catalogue sells |
-| `arowana.jpg` | Arowana | Wikimedia Commons, [File:Osteoglossum bicirrhosum in Eilat underwater observatory marine park.JPG](https://commons.wikimedia.org/wiki/File:Osteoglossum_bicirrhosum_in_Eilat_underwater_observatory_marine_park.JPG), Avi1111 dr. avishai teicher | CC BY-SA 4.0 | ✅ |
+| `arowana.jpg` | Arowana | Pexels, [photo 35368093](https://www.pexels.com/photo/vibrant-arowana-and-silver-dollar-fish-in-aquarium-35368093/), Sóc Năng Động | Pexels License (free commercial use, no attribution required; credited anyway) | ✅ — replaced 26 Sep 2026 at owner request. A golden Asian arowana (the same fish as `species/asian-arowana-golden-crossback.jpg`) with a red-finned barb; Pexels's title calls the small fish a silver dollar, but it is a barb. Cropped to 16:9, saturation +12% |
 | `cichlids-african.jpg` | African Cichlids | Wikimedia Commons, [File:Maylandia lombardoi and Aulonocara sp Hybride at meenalokam 01.jpg](https://commons.wikimedia.org/wiki/File:Maylandia_lombardoi_and_Aulonocara_sp_Hybride_at_meenalokam_01.jpg), Adityamadhav83 | CC BY-SA 3.0 | ✅ |
 | `cichlids-dwarf.jpg` | Dwarf Cichlids | Wikimedia Commons, [File:Mikrogeophagus ramirezi male.jpg](https://commons.wikimedia.org/wiki/File:Mikrogeophagus_ramirezi_male.jpg), Sven Kullander | CC BY-SA 4.0 | ✅ this section is `COMING_SOON` |
 | `cichlids-american.jpg` | American Cichlids | Wikimedia Commons, [File:Astronotus ocellatus - Karlsruhe Zoo 01.jpg](https://commons.wikimedia.org/wiki/File:Astronotus_ocellatus_-_Karlsruhe_Zoo_01.jpg), H. Zell | CC BY-SA 3.0 | ⚠️ **best-effort identification** — two Oscar (*Astronotus ocellatus*) candidates were downloaded for this tile; this is the perceptual-match favourite, not pixel-confirmed |
@@ -82,3 +82,16 @@ correctly licensed before being downloaded in the first place, so the row is saf
 way. This is a materially different, and smaller, kind of uncertainty than an unverified claim would
 be, and it's recorded here rather than hidden because a future reader re-doing this comparison
 should know not to expect a clean pixel match.
+
+
+## New sections, 26 September 2026 (V17/V18)
+
+Four tiles for the sections V17 added, each a 16:9 crop of a species photograph already verified
+for `species/` in the same change (same licence check; see that file's V17/V18 section).
+
+| File | Subject | Source | Licence | Cleared for commercial use |
+|---|---|---|---|---|
+| `goldfish.jpg` | *Carassius auratus* (same source as `species/oranda-goldfish.jpg`, cropped 16:9) | Wikimedia Commons, [File:Dazed again (4972630499).jpg](https://commons.wikimedia.org/wiki/File:Dazed_again_(4972630499).jpg), Benson Kua from Toronto, Canada | CC BY-SA 2.0 | ✅ yes |
+| `sharks-algae-eaters.jpg` | *Epalzeorhynchos bicolor* (same source as `species/red-tail-shark.jpg`, cropped 16:9) | Wikimedia Commons, [File:Epalzeorhynchos bicolor1.jpg](https://commons.wikimedia.org/wiki/File:Epalzeorhynchos_bicolor1.jpg), Astellar87 | CC BY-SA 4.0 | ✅ yes |
+| `rainbowfish.jpg` | *Melanotaenia praecox* (same source as `species/praecox-rainbow.jpg`, cropped 16:9) | Wikimedia Commons, [File:Melanotaenia praecox.jpg](https://commons.wikimedia.org/wiki/File:Melanotaenia_praecox.jpg), 7TP (Krzysztof Bartosik) | CC BY-SA 4.0 | ✅ yes |
+| `oddballs.jpg` | *Polypterus ornatipinnis* (same source as `species/ornate-bichir.jpg`, cropped 16:9) | Wikimedia Commons, [File:Polypterus ornatipinnis VA 01.jpg](https://commons.wikimedia.org/wiki/File:Polypterus_ornatipinnis_VA_01.jpg), Bloopityboop | CC BY-SA 4.0 | ✅ yes |

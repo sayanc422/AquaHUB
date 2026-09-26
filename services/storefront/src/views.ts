@@ -151,7 +151,7 @@ function sidebar(tree: TreeNode[], here: string | undefined, scope: string | und
  * The suggestions are a `<datalist>`: the browser's own type-ahead, no script.
  * The cost is that it offers every product name whatever section is picked,
  * because narrowing it as the picker changes would take JavaScript; and it
- * ships every name on every page, which is a few KB at ~70 products and would
+ * ships every name on every page, which is a few KB at ~170 products and would
  * want replacing with a real suggest endpoint somewhere in the thousands.
  */
 function searchBox(chrome: Chrome, place: Place): string {
@@ -206,9 +206,49 @@ function layout(title: string, chrome: Chrome, body: string, place: Place = {}):
 ${sidebar(chrome.tree, place.here, place.scope)}
 <main>${body}</main>
 </div>
-<footer>Local development build. Livestock ships only inside a safe weather window.</footer>
+${contactFooter()}
 </body></html>`;
 }
+
+/**
+ * The shop's contact details, from the environment rather than the template,
+ * so a real number replacing the placeholder is a manifest change, not a build.
+ *
+ * WhatsApp because that is how Indian customers actually ask a fish shop a
+ * question; email for anything with a photo or an invoice attached. A value
+ * that is still the placeholder (fewer than 10 digits -- "+91 XXXXX XXXXX" has
+ * none) renders as plain text, not a link: a wa.me link to a number nobody owns
+ * looks like it works and silently goes nowhere, which is worse than no link.
+ */
+const WHATSAPP = process.env.CONTACT_WHATSAPP ?? '+91 XXXXX XXXXX';
+const EMAIL = process.env.CONTACT_EMAIL ?? 'contact@example.com';
+const WHATSAPP_GREETING = 'Hi AquaShop, I have a question about ';
+
+function contactFooter(): string {
+  const digits = WHATSAPP.replace(/\D/g, '');
+  const wa = digits.length >= 10
+    ? `<a class="contact-link" href="https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP_GREETING)}"
+          target="_blank" rel="noopener">${chatIcon}<span>WhatsApp<small>${esc(WHATSAPP)}</small></span></a>`
+    : `<span class="contact-link contact-unset">${chatIcon}<span>WhatsApp<small>${esc(WHATSAPP)}</small></span></span>`;
+  const mail = EMAIL.includes('@')
+    ? `<a class="contact-link" href="mailto:${esc(EMAIL)}">${mailIcon}<span>Email<small>${esc(EMAIL)}</small></span></a>`
+    : `<span class="contact-link contact-unset">${mailIcon}<span>Email<small>${esc(EMAIL)}</small></span></span>`;
+  return `<footer>
+  <section class="contact" id="contact" aria-labelledby="contact-h">
+    <h2 id="contact-h">Contact Us</h2>
+    <p>Questions about a fish, a tank or an order? Message us -- we reply during shop hours.</p>
+    <div class="contact-links">${wa}${mail}</div>
+  </section>
+  <p class="footnote">Livestock ships only inside a safe weather window.</p>
+</footer>`;
+}
+
+const chatIcon = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none"
+  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z"/>
+  <path fill="currentColor" d="M8.7 7.8c.2-.4.5-.4.7-.4h.5c.2 0 .4 0 .5.4l.7 1.7c.1.2.1.4 0 .6l-.5.6c-.1.1-.2.3 0 .5.4.7 1 1.4 1.7 1.9.3.2.6.4.9.5.2.1.4 0 .5-.1l.6-.7c.1-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.3 0 .3 0 1-.4 1.4-.4.5-1.3.9-2 .8-.8-.1-2.3-.6-3.7-1.9-1.4-1.3-2.2-2.8-2.4-3.6-.2-.8.2-1.8.4-2.3z"/></svg>`;
+const mailIcon = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3" y="5" width="18" height="14"
+  rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5" fill="none"
+  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 
 /**
  * A product card. `showPrice` is false on the homepage shelf on purpose --
@@ -445,6 +485,14 @@ export function productPage(chrome: Chrome, d: ProductDetail) {
       <p class="notes">${esc(s.careNotes)}</p>
     </section>` : '';
 
+  // Paragraphs are blank-line separated in the column; each is escaped on its
+  // own, so no markup from the database ever reaches the page.
+  const about = s?.description ? `
+    <section class="about">
+      <h2>About this fish</h2>
+      ${s.description.split(/\n\s*\n/).map(para => `<p>${esc(para.trim())}</p>`).join('\n      ')}
+    </section>` : '';
+
   return layout(p.name, chrome, `
     <article class="detail">
       ${photo(p.imageKey, p.name, '4/3')}
@@ -452,6 +500,7 @@ export function productPage(chrome: Chrome, d: ProductDetail) {
       <p class="lede">${esc(p.summary)}</p>
       <p class="price big">${esc(money(p))}</p>
       <p class="sku">SKU ${esc(p.sku)}</p>
+      ${about}
       ${care}
     </article>`, { here: p.categorySlug });
 }
