@@ -127,7 +127,14 @@ function sidebar(tree: TreeNode[], here: string | undefined, scope: string | und
     </details></li>`;
   };
 
-  return `<aside class="side" aria-label="Shop by category">
+  // The checkbox and its label are the phone and tablet version: a
+  // "Browse categories" bar above the page that opens the same tree. Hidden
+  // on desktop, where the sidebar is always there. Its own checkbox rather
+  // than the menu's, because a customer looking for a fish should not have to
+  // guess that the categories live behind the ☰.
+  return `<input type="checkbox" id="side-toggle" class="side-toggle-input">
+  <label for="side-toggle" class="side-toggle">Browse categories</label>
+  <aside class="side" aria-label="Shop by category">
     <p class="side-title">Browse the shop</p>
     <ul class="side-tree">${tree.map(node).join('')}</ul>
   </aside>`;
@@ -155,7 +162,7 @@ function searchBox(chrome: Chrome, place: Place): string {
       <option value="">Everything</option>${sections.join('')}
     </select>
     <input type="search" name="q" list="search-suggest" maxlength="100" autocomplete="off"
-           placeholder="Search fish, plants, supplies…" aria-label="Search the shop"
+           placeholder="Search fish, plants, supplies" aria-label="Search the shop"
            value="${esc(place.query ?? '')}">
     <button type="submit" aria-label="Search"><svg viewBox="0 0 20 20" width="17" height="17"
       aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor"
@@ -178,8 +185,7 @@ function layout(title: string, chrome: Chrome, body: string, place: Place = {}):
   ${searchBox(chrome, place)}
   <!-- Checkbox-hack menu toggle: no client-side JavaScript (ADR 0005), and it
        has to precede nav in the DOM for the ":checked ~ nav" sibling
-       selector that opens it on a phone to work at all. The same checkbox
-       also reveals the category sidebar on a phone, via :has(). -->
+       selector that opens it on a phone to work at all. -->
   <input type="checkbox" id="nav-toggle" class="nav-toggle-input">
   <label for="nav-toggle" class="nav-toggle" aria-label="Menu">&#9776;</label>
   <!-- Roots only. The hover dropdown that used to hang off each one is gone:
