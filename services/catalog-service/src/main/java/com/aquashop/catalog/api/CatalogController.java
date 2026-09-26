@@ -90,7 +90,8 @@ public class CatalogController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "unknown product"));
         return new CatalogDtos.ProductDetail(
                 CatalogDtos.ProductSummary.of(p),
-                p.getSpeciesProfile() == null ? null : CatalogDtos.SpeciesView.of(p.getSpeciesProfile()));
+                p.getSpeciesProfile() == null ? null : CatalogDtos.SpeciesView.of(p.getSpeciesProfile()),
+                p.getPlantProfile() == null ? null : CatalogDtos.PlantView.of(p.getPlantProfile()));
     }
 
     /**

@@ -126,8 +126,10 @@ cd services/notification-service && go test ./...   # integration test needs NOT
 cd services/staff-portal     && mvn test     # 3 tests, no DB (reads only, no DB of its own)
 ```
 
-`CatalogApiTest` **re-run 26 September 2026 after V17–V21: 34 tests, 9 failing, all stale
-expectations** (hard-coded product/photo counts from before the catalogue grew to 171, and a search
+`CatalogApiTest` **passes 35/35 as of V22 (26 September 2026)** — its counts are now read from the
+database rather than written into the test, so a catalogue migration no longer breaks it; only the
+list of deliberately unphotographed products is pinned. History: re-run after V17–V21 it had
+**34 tests, 9 failing, all stale expectations** (hard-coded product/photo counts from before the catalogue grew to 171, and a search
 ranking that now puts `black-neon-tetra` first) — no data or code defect. The run *did* catch one
 real defect, the upside-down catfish filed under Large; `V21` fixed it and that test passes. Earlier
 note, kept for history: it **first ran on 26 September 2026**: 34 tests, **6 failing, all pre-existing** —
@@ -251,7 +253,8 @@ is the whole decision**; what follows is what you need to not break it.
    **Addendum, 26 September 2026 — counts stale again.** `V17`–`V20` take the catalogue to 171
    products and add an "About this fish" description column; six arowana/flowerhorn photos were
    replaced with owner-picked Pexels images (Pexels License, not Commons — a second licence source,
-   recorded per row in `species/CREDITS.md`). Current state is in `docs/context_summary.md`.
+   recorded per row in `species/CREDITS.md`). Current state is in `docs/context_summary.md`. `V22` adds 49 live plants and a separate
+   `plant_profile` table (a plant is not a quiet fish — see `PlantProfile.java`); 220 products now.
 
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist

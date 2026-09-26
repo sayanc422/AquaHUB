@@ -58,6 +58,16 @@ public class Product {
     @JoinColumn(name = "species_profile_id")
     private SpeciesProfile speciesProfile;
 
+    /**
+     * Care profile for a live plant. Null for everything else, and never set
+     * together with speciesProfile (a CHECK in V22 says so). Many-to-one,
+     * unlike the species link: a plant sold potted and on driftwood is two
+     * products and one plant.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plant_profile_id")
+    private PlantProfile plantProfile;
+
     protected Product() { }
 
     public Long getId() { return id; }
@@ -71,6 +81,7 @@ public class Product {
     public Category getCategory() { return category; }
     public String getImageKey() { return imageKey; }
     public SpeciesProfile getSpeciesProfile() { return speciesProfile; }
+    public PlantProfile getPlantProfile() { return plantProfile; }
 
     public BigDecimal getPriceMajor() {
         return BigDecimal.valueOf(priceMinor, 2);

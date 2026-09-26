@@ -23,6 +23,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            select p from Product p
              join fetch p.category
              left join fetch p.speciesProfile
+             left join fetch p.plantProfile
             where p.slug = :slug
            """)
     Optional<Product> findDetailBySlug(String slug);
@@ -42,6 +43,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            select p from Product p
              join fetch p.category
              left join fetch p.speciesProfile
+             left join fetch p.plantProfile
            """)
     List<Product> findAllForSearch();
 

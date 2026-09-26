@@ -35,6 +35,32 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-26 — Long generated content thins out towards the end of each batch; measure it
+
+**What happened:** writing care text for 50 plants in batches, each batch started thorough and
+ended with one-line descriptions ("Needs cool, soft, clean water and a rest period.") that read as
+done at a glance. A word-count pass found 45 of 51 entries thin in at least one field.
+**Pattern:** for bulk content, set a floor (here: description 60 words, care 80, tankmates 35),
+measure every entry against it before generating SQL, and fix the list it prints. A shared
+paragraph for genuinely shared facts (all Anubias are cared for the same way) is fine; a one-liner
+standing in for a paragraph is not.
+
+### 2026-09-26 — Hard-coded counts in tests go stale on every catalogue migration
+
+**What happened:** nine `CatalogApiTest` assertions said "13 products", "47", "10 photographs";
+V17 broke all of them without telling anyone anything about the API. They now ask the database
+(`subtreeCount`, `directCount`) and pin only what is a decision — e.g. the exact list of products
+deliberately without a photo. This entry can be deleted once nobody adds a literal count again.
+
+### 2026-09-26 — A Commons caption can name a different species than the search term
+
+**What happened:** plant photo candidates found by searching a species name included an *Anubias
+heterophylla* returned for "Anubias congensis", a *Sagittaria latifolia* "probably" for
+*S. platyphylla*, and an aquarium carpet whose caption never named the plant. All were caught by
+reading `ImageDescription` for every pick, not by the thumbnail.
+**Pattern:** the thumbnail tells you it is a nice photo; the caption tells you it is the right
+plant. Read both. Reject hedged captions ("probably", "?") for a product photo.
+
 ### 2026-09-26 — Filing by genus put a 10 cm fish on the Large page
 
 **What happened:** V17 filed *Synodontis nigriventris* under `catfish-synodontis` because of its

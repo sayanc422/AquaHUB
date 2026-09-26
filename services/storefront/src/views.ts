@@ -463,6 +463,18 @@ export function homePage(
     <section class="grid">${featured.map(p => card(p, false)).join('')}</section>`);
 }
 
+/** A titled block of blank-line-separated paragraphs, each escaped on its own. */
+function prose(title: string, text: string): string {
+  return `
+    <section class="about">
+      <h2>${esc(title)}</h2>
+      ${text.split(/\n\s*\n/).map(para => `<p>${esc(para.trim())}</p>`).join('\n      ')}
+    </section>`;
+}
+
+/** NOT_NEEDED -> "not needed": enum names are the contract, words are the page's job. */
+const words = (e: string) => e.toLowerCase().replace(/_/g, ' ');
+
 export function productPage(chrome: Chrome, d: ProductDetail) {
   const p = d.product;
   const s = d.species;
@@ -487,11 +499,28 @@ export function productPage(chrome: Chrome, d: ProductDetail) {
 
   // Paragraphs are blank-line separated in the column; each is escaped on its
   // own, so no markup from the database ever reaches the page.
-  const about = s?.description ? `
-    <section class="about">
-      <h2>About this fish</h2>
-      ${s.description.split(/\n\s*\n/).map(para => `<p>${esc(para.trim())}</p>`).join('\n      ')}
-    </section>` : '';
+  const about = s?.description ? prose('About this fish', s.description) : '';
+  const pl = d.plant;
+  const plant = pl ? `
+    ${prose('About this plant', pl.description)}
+    <section class="care">
+      <h2>Plant care</h2>
+      <p class="sci">${esc(pl.scientificName)} &middot; ${esc(pl.family)}</p>
+      <dl>
+        <div><dt>Where it grows</dt><dd>${esc(pl.origin)}</dd></div>
+        <div><dt>Placement</dt><dd>${esc(words(pl.placement))}</dd></div>
+        <div><dt>Light</dt><dd>${esc(words(pl.lightLevel))} &middot; ${esc(pl.parMin)}&ndash;${esc(pl.parMax)} PAR at the substrate</dd></div>
+        <div><dt>CO2</dt><dd>${esc(words(pl.co2))}</dd></div>
+        <div><dt>Growth</dt><dd>${esc(words(pl.growthRate))}</dd></div>
+        <div><dt>Difficulty</dt><dd>${esc(words(pl.difficulty))}</dd></div>
+        <div><dt>Height</dt><dd>${esc(range(pl.heightCm, ' cm'))}</dd></div>
+        <div><dt>Temperature</dt><dd>${esc(range(pl.temperatureC, ' \u00B0C'))}</dd></div>
+        <div><dt>pH</dt><dd>${esc(range(pl.ph, ''))}</dd></div>
+        <div><dt>Propagation</dt><dd>${esc(pl.propagation)}</dd></div>
+      </dl>
+    </section>
+    ${prose('How to keep it', pl.careGuide)}
+    ${prose('Fish and shrimp that suit it', pl.tankmates)}` : '';
 
   return layout(p.name, chrome, `
     <article class="detail">
@@ -502,6 +531,7 @@ export function productPage(chrome: Chrome, d: ProductDetail) {
       <p class="sku">SKU ${esc(p.sku)}</p>
       ${about}
       ${care}
+      ${plant}
     </article>`, { here: p.categorySlug });
 }
 

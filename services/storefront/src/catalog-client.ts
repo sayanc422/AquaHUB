@@ -31,7 +31,14 @@ export interface SpeciesView {
   temperament: string; careLevel: string; diet: string;
   plantSafe: boolean; careNotes: string | null; description: string | null;
 }
-export interface ProductDetail { product: ProductSummary; species: SpeciesView | null }
+export interface PlantView {
+  scientificName: string; commonName: string; family: string; origin: string;
+  placement: string; lightLevel: string; parMin: number; parMax: number;
+  co2: string; growthRate: string; difficulty: string;
+  heightCm: Range; temperatureC: Range; ph: Range;
+  propagation: string; description: string; careGuide: string; tankmates: string;
+}
+export interface ProductDetail { product: ProductSummary; species: SpeciesView | null; plant?: PlantView | null }
 
 export class UpstreamError extends Error {
   constructor(readonly status: number, message: string) { super(message); }

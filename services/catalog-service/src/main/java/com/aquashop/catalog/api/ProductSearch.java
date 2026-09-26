@@ -54,7 +54,10 @@ final class ProductSearch {
 
             String name = squash(p.getName());
             SpeciesProfile s = p.getSpeciesProfile();
-            String species = s == null ? "" : squash(s.getCommonName() + " " + s.getScientificName());
+            // A plant's names rank like a fish's: "Microsorum" finds Java Fern.
+            var pl = p.getPlantProfile();
+            String species = (s == null ? "" : squash(s.getCommonName() + " " + s.getScientificName()))
+                    + (pl == null ? "" : ' ' + squash(pl.getCommonName() + " " + pl.getScientificName()));
             StringBuilder rest = new StringBuilder(squash(p.getSummary()));
             for (Category c : trail) rest.append(' ').append(squash(c.getName()));
             String everything = name + ' ' + species + ' ' + rest;

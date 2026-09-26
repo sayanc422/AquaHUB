@@ -127,5 +127,31 @@ public final class CatalogDtos {
         }
     }
 
-    public record ProductDetail(ProductSummary product, SpeciesView species) { }
+    /**
+     * A plant's care profile on the wire. Enums go out as their names, as the
+     * species view's do; the storefront decides how to word them.
+     */
+    public record PlantView(
+            String scientificName, String commonName, String family, String origin,
+            String placement, String lightLevel, int parMin, int parMax,
+            String co2, String growthRate, String difficulty,
+            Range heightCm, Range temperatureC, Range ph,
+            String propagation, String description, String careGuide, String tankmates) {
+
+        public static PlantView of(com.aquashop.catalog.domain.PlantProfile p) {
+            return new PlantView(
+                    p.getScientificName(), p.getCommonName(), p.getFamily(), p.getOrigin(),
+                    p.getPlacement().name(), p.getLightLevel().name(), p.getParMin(), p.getParMax(),
+                    p.getCo2().name(), p.getGrowthRate().name(), p.getDifficulty().name(),
+                    Range.of(p.getHeightMinCm(), p.getHeightMaxCm()),
+                    Range.of(p.getTempMinC(), p.getTempMaxC()),
+                    Range.of(p.getPhMin(), p.getPhMax()),
+                    p.getPropagation(), p.getDescription(), p.getCareGuide(), p.getTankmates());
+        }
+    }
+
+    // `plant` was added after `species`; both are null for dry goods, and at
+    // most one is set. Additive, so existing readers (the advisor reads only
+    // `species`) are unaffected.
+    public record ProductDetail(ProductSummary product, SpeciesView species, PlantView plant) { }
 }

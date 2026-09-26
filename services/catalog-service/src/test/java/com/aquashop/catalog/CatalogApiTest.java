@@ -289,7 +289,7 @@ class CatalogApiTest {
      * directory, in a different service, and a test that reached across that
      * boundary would be asserting on somebody else's deployment. What it can
      * check is the convention, and which products are knowingly without a
-     * photograph: V18 left seven NULL on purpose, each with a reason in the
+     * photograph: V18 left seven NULL on purpose and V22 twelve, each with a reason in the
      * storefront's species/CREDITS.md. A new NULL, or one of these gaining a
      * key, is a decision someone should see in a diff, not a count that
      * silently moves.
@@ -305,7 +305,11 @@ class CatalogApiTest {
             "SELECT slug FROM product WHERE image_key IS NULL", String.class);
         assertThat(unphotographed).containsExactlyInAnyOrder(
             "bumblebee-cichlid", "endlers-livebearer", "head-and-tail-light-tetra",
-            "scissortail-rasbora", "skunk-cory", "snowball-pleco", "tire-track-eel");
+            "scissortail-rasbora", "skunk-cory", "snowball-pleco", "tire-track-eel",
+            // V22's twelve plants with no licensed photograph of the right plant.
+            "anubias-hastifolia", "dwarf-baby-tears", "green-myrio", "hygrophila-araguaia",
+            "kleiner-bar-sword", "ludwigia-peruensis", "oriental-sword", "red-flame-sword",
+            "red-pearl-sword", "red-rubin-sword", "rotala-nanjenshan", "ruffle-sword");
     }
 
     /**
@@ -442,6 +446,27 @@ class CatalogApiTest {
         mvc.perform(get("/api/products/heater-100w"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.species").doesNotExist());
+    }
+
+    @Test
+    void aPlantCarriesAPlantProfileAndNoSpeciesProfile() throws Exception {
+        // V22: plants get their own care profile, never a fish one.
+        mvc.perform(get("/api/products/java-fern"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.species").doesNotExist())
+           .andExpect(jsonPath("$.plant.scientificName").value("Microsorum pteropus"))
+           .andExpect(jsonPath("$.plant.lightLevel").value("LOW"))
+           .andExpect(jsonPath("$.plant.placement").value("EPIPHYTE"))
+           .andExpect(jsonPath("$.plant.careGuide").isNotEmpty());
+        // The three plants sold before V22 have profiles too.
+        assertThat(jdbc.queryForObject("""
+            SELECT count(*) FROM product p JOIN category c ON c.id = p.category_id
+              JOIN category r ON r.id = c.parent_id
+             WHERE r.slug = 'plants' AND p.plant_profile_id IS NULL""", Integer.class)).isZero();
+        // And search finds a plant by its scientific name.
+        mvc.perform(get("/api/products").param("q", "Microsorum"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].slug").value("java-fern"));
     }
 
     @Test

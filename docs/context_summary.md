@@ -3,7 +3,20 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Last updated (26 September 2026):** the catalogue grew to **171 products** — `V17` added an
+**Latest (26 September 2026, later):** `V22` added the live plant range — **49 new plants** from
+liveaquaria's aquarium-plant collections plus care profiles for the 3 already sold, in a new
+`plant_profile` table (light level + PAR, CO2, growth, difficulty, placement, height, temp, pH,
+propagation, and three prose fields: about / how to keep it / fish that suit it). `product` gained
+`plant_profile_id` (CHECK: never alongside `species_profile_id`); the product page renders a plant
+care section; search matches plant names. New section `plants-rosette` (Swords, Crypts & Bulbs);
+`plants-foreground` is ACTIVE; the crypt and vallisneria were moved out of the wrong sections.
+Left out on purpose: water hyacinth and water lettuce (Indian invasives), peace lily and Acorus
+(not aquatic), pond/bog plants. **37 of 49 have photographs**; 12 stay NULL (named sword
+cultivars and a few stems — reasons in `species/CREDITS.md`). **Plant prices are Claude's
+estimates, unreviewed.** `CatalogApiTest` now derives counts from the DB and passes 35/35; advisor
+35/35. The catalogue is **220 products**.
+
+**Earlier the same day:** the catalogue grew to **171 products** — `V17` added an
 India-popular freshwater range (102 products, 97 species profiles, four new sections), `V18` its
 photographs (95 of 102; seven stay NULL on purpose, reasons in `species/CREDITS.md`), `V19` restored
 the apostrophes V17's generator dropped. `V20` added `species_profile.description`, an "About this
