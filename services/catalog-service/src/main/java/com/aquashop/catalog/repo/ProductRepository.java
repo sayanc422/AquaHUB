@@ -27,13 +27,23 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            """)
     Optional<Product> findDetailBySlug(String slug);
 
+    /**
+     * Every product with everything search matches against: its category and
+     * its species profile.
+     *
+     * <p>Search itself runs in Java over this list (see {@code ProductSearch}),
+     * not in SQL. What makes it useful -- matching a category four levels up,
+     * "spider wood" finding "Spiderwood", ranking a name hit above a care-note
+     * hit -- is awkward in JPQL and easy here. The cost is loading the whole
+     * catalogue per search, which is ~70 rows today and would need revisiting
+     * (a Postgres tsvector, most likely) somewhere in the thousands.
+     */
     @Query("""
            select p from Product p
              join fetch p.category
-            where lower(p.name) like lower(concat('%', :q, '%'))
-            order by p.name
+             left join fetch p.speciesProfile
            """)
-    List<Product> search(String q);
+    List<Product> findAllForSearch();
 
     /**
      * The whole catalog, with categories fetched.

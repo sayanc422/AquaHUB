@@ -404,6 +404,81 @@ class CatalogApiTest {
     }
 
     @Test
+    void theTreeIsTheWholeCatalogueInOneCallWithCountsOnEveryNode() throws Exception {
+        mvc.perform(get("/api/category-tree"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(4))
+           // Unwrapped: a node reads exactly like a tile, plus its children.
+           .andExpect(jsonPath("$[0].slug").value("live-fish"))
+           .andExpect(jsonPath("$[0].totalProducts").value(47))
+           .andExpect(jsonPath("$[0].children[0].slug").value("freshwater"))
+           .andExpect(jsonPath("$[0].children[1].slug").value("saltwater"))
+           .andExpect(jsonPath("$[0].children[1].browsable").value(false))
+           .andExpect(jsonPath("$[0].children[0].children[0].slug").value("cichlids"))
+           .andExpect(jsonPath("$[0].children[0].children[0].children[0].children[0].slug").value("malawi"));
+    }
+
+    @Test
+    void searchMatchesACategoryAboveTheProductNotJustItsName() throws Exception {
+        // No Lake Malawi fish is *named* a cichlid. "cichlid" still finds them,
+        // because the customer typing it means the section, not the word.
+        mvc.perform(get("/api/products").param("q", "cichlid"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[?(@.slug == 'demasoni')]").exists())
+           .andExpect(jsonPath("$[?(@.slug == 'neon-tetra')]").doesNotExist());
+    }
+
+    @Test
+    void searchMatchesTheScientificName() throws Exception {
+        mvc.perform(get("/api/products").param("q", "Corydoras sterbai"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(1))
+           .andExpect(jsonPath("$[0].categorySlug").value("catfish-corydoras"));
+    }
+
+    @Test
+    void searchIgnoresTheSpaceACustomerPutsInAOneWordName() throws Exception {
+        mvc.perform(get("/api/products").param("q", "spider wood"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].slug").value("spiderwood-medium"));
+        // And the other way round: V16's summary says driftwood in one word.
+        mvc.perform(get("/api/products").param("q", "drift wood").param("in", "supplies"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(1))
+           .andExpect(jsonPath("$[0].slug").value("spiderwood-medium"));
+    }
+
+    @Test
+    void searchCanBeNarrowedToOneSectionOfTheShop() throws Exception {
+        // The "Aquarium Supplies" choice beside the search box: whatever else
+        // "wood" might match, beneath supplies it can only be hardscape, and a
+        // fish name searched there finds nothing rather than leaking out.
+        mvc.perform(get("/api/products").param("q", "wood").param("in", "supplies"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[*].categorySlug", org.hamcrest.Matchers.everyItem(
+                   org.hamcrest.Matchers.is("hardscape"))));
+        mvc.perform(get("/api/products").param("q", "tetra").param("in", "supplies"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void searchRanksANameMatchAboveASectionMatch() throws Exception {
+        // "tetra" is in the Tetras & Characins section name, which every fish
+        // filed there matches; the two actually called tetras come first.
+        mvc.perform(get("/api/products").param("q", "tetra"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].slug").value("cardinal-tetra"))
+           .andExpect(jsonPath("$[1].slug").value("neon-tetra"));
+    }
+
+    @Test
+    void searchingInAnUnknownSectionIsNotFound() throws Exception {
+        mvc.perform(get("/api/products").param("q", "x").param("in", "no-such-section"))
+           .andExpect(status().isNotFound());
+    }
+
+    @Test
     void readinessProbeIsExposed() throws Exception {
         mvc.perform(get("/actuator/health/readiness")).andExpect(status().isOk());
     }

@@ -1,5 +1,6 @@
 package com.aquashop.catalog.api;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.aquashop.catalog.domain.Category;
 import com.aquashop.catalog.domain.CategoryStatus;
 import com.aquashop.catalog.repo.CategoryNode;
@@ -55,6 +56,17 @@ public final class CatalogDtos {
                     c.getStatus().name(), c.getStatus().isBrowsable(), c.getImageKey(), 0, 0, 0);
         }
     }
+
+    /**
+     * The whole category tree, for a navigation sidebar.
+     *
+     * <p>Unwrapped, so each node is a {@link CategoryView} with a
+     * {@code children} array beside its own fields rather than nested inside a
+     * {@code category} key. A client reads a node exactly as it reads a tile.
+     */
+    public record CategoryTreeNode(
+            @JsonUnwrapped CategoryView category,
+            List<CategoryTreeNode> children) { }
 
     /**
      * Everything one category page needs, in one response.

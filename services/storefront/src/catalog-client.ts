@@ -71,17 +71,12 @@ export interface CategoryPage {
 }
 
 /**
- * A root category plus the flattened list of subcategories its nav dropdown
- * should link to directly. Built in `server.ts`'s `nav()`, not here -- this
- * type just carries the shape across the module boundary into `views.ts`.
- *
- * `menu` skips a level for a root whose only child is itself a pass-through
- * branch (`live-fish` -> `freshwater` -> nine real sections): a dropdown
- * offering "Freshwater, Saltwater" makes a customer click twice to reach
- * "Cichlids". Where a child has no children of its own, it appears in `menu`
- * unchanged.
+ * One node of the category tree: exactly a tile's fields, plus what hangs
+ * beneath it. The catalog assembles the whole tree in one call
+ * (`/api/category-tree`) so the sidebar costs one upstream request, not one per
+ * category.
  */
-export interface NavCategory extends CategoryView { menu: CategoryView[] }
+export interface TreeNode extends CategoryView { children: TreeNode[] }
 
 export const catalog = {
   categories: () => get<CategoryView[]>('/api/categories'),
@@ -89,6 +84,12 @@ export const catalog = {
   byCategory: (slug: string, deep = false) =>
     get<ProductSummary[]>(
       `/api/categories/${encodeURIComponent(slug)}/products${deep ? '?deep=true' : ''}`),
+  tree: () => get<TreeNode[]>('/api/category-tree'),
+  /** `scope` is a category slug to search beneath, or undefined for everything. */
+  search: (q: string, scope?: string) =>
+    get<ProductSummary[]>(`/api/products?q=${encodeURIComponent(q)}`
+      + (scope ? `&in=${encodeURIComponent(scope)}` : '')),
+  all: () => get<ProductSummary[]>('/api/products'),
   product: (slug: string) => get<ProductDetail>(`/api/products/${encodeURIComponent(slug)}`),
   ping: () => get<unknown>('/actuator/health/readiness'),
 };

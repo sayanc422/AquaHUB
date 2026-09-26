@@ -126,10 +126,22 @@ cd services/notification-service && go test ./...   # integration test needs NOT
 cd services/staff-portal     && mvn test     # 3 tests, no DB (reads only, no DB of its own)
 ```
 
-`CatalogApiTest` requires Testcontainers and has never been executed in any session. Its numbers
-were verified by hand against a running service, which is not the same thing — a contradiction
-inside it (two tests asserting different counts from the same endpoint) survived undetected because
-of exactly that gap.
+`CatalogApiTest` **first ran on 26 September 2026**: 34 tests, **6 failing, all pre-existing** —
+stock counts and image-key assertions written before `V11`–`V15` added products and photographs,
+and never updated because the suite had never run. They are stale assertions, not regressions, and
+are left for a deliberate decision rather than bumped to whatever the database says today. Two
+things are needed to run it on this machine, since there is no local Maven and the project's
+Testcontainers speaks a Docker API (1.32) older than Docker 29 accepts (1.40+):
+
+```bash
+echo "api.version=1.44" > /tmp/docker-java.properties
+docker run --rm -v "$PWD":/build -w /build -v aquashop-m2:/root/.m2 \
+  -v /tmp/docker-java.properties:/root/.docker-java.properties \
+  -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=172.17.0.1 \
+  maven:3.9-eclipse-temurin-21 mvn -B -q test
+```
+
+`target/` comes out root-owned from that container.
 
 <!-- BEGIN: custom tank enquiries (23 September 2026) -->
 ## Custom tank enquiries — the one encrypted table
@@ -240,9 +252,11 @@ is the whole decision**; what follows is what you need to not break it.
 <!-- BEGIN: storefront visual redesign (24 September 2026) -->
 6. **The storefront looks nothing like the dark, teal-accented theme earlier sessions built.**
    `services/storefront/public/styles.css` was rewritten in three passes against direct user
-   feedback: an Apple-inspired light/dark design system, then a nav hover dropdown (touch devices
-   get an always-expanded inline panel instead, behind a checkbox-hack hamburger — no JS, ADR 0005
-   still holds), then an aquarium-tinted palette (blue-white background, green accent), price hidden
+   feedback: an Apple-inspired light/dark design system, then a nav hover dropdown (since replaced,
+   26 September 2026, by a category sidebar of native `<details>` with a half-opacity photo preview
+   on hover, plus a header search box with a section picker — `GET /search`, backed by
+   `GET /api/products?q=&in=` and the new `GET /api/category-tree`; still no JS, ADR 0005 holds),
+   then an aquarium-tinted palette (blue-white background, green accent), price hidden
    on the homepage shelf only, bigger base type, and a flexbox rewrite of `.grid`/`.tiles` that fixed
    a real defect: CSS Grid's column count is fixed for the whole grid, so a ragged last row (six
    cards splitting 4-then-2) left dead space beside the short row instead of the items stretching to

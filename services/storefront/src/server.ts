@@ -3,11 +3,11 @@ import fastifyStatic from '@fastify/static';
 import fastifyFormbody from '@fastify/formbody';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { catalog, UpstreamError, type NavCategory } from './catalog-client.js';
+import { catalog, UpstreamError } from './catalog-client.js';
 import { orders } from './order-client.js';
 import {
-  homePage, categoryPage, productPage, errorPage, inquiryThanksPage,
-  type InquiryFormState,
+  homePage, categoryPage, productPage, errorPage, inquiryThanksPage, searchPage,
+  type Chrome, type InquiryFormState,
 } from './views.js';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
@@ -21,39 +21,24 @@ await app.register(fastifyStatic, { root: join(here, '..', 'public'), prefix: '/
 await app.register(fastifyFormbody);
 
 /**
- * The nav is on every page, so it is cached briefly in memory. This is a
- * deliberate, bounded staleness: a category rename takes up to 60s to appear.
- * The alternative is one upstream call per page render for data that changes
+ * The page frame -- sidebar tree, top bar, search suggestions -- is on every
+ * page, so it is cached briefly in memory. This is a deliberate, bounded
+ * staleness: a category rename or a new product takes up to 60s to appear.
+ * The alternative is two upstream calls per page render for data that changes
  * a few times a year.
  *
- * Building the hover dropdown means each root needs its subcategories too --
- * up to two levels deep, so a pass-through branch like `freshwater` (the only
- * child of `live-fish`) contributes its own nine children to the menu instead
- * of making a customer click through an intermediate page to see them. Worth
- * doing here rather than in `views.ts`: the shape of the dropdown is a fact
- * about the catalogue tree, not about how a page renders.
+ * The tree is required: without it there is no navigation, and the error
+ * page is the honest answer. The suggestions are not. A failed product list
+ * leaves a search box with no type-ahead, which still searches.
  */
-let navCache: { at: number; value: NavCategory[] } | null = null;
-async function nav(): Promise<NavCategory[]> {
+let navCache: { at: number; value: Chrome } | null = null;
+async function nav(): Promise<Chrome> {
   if (navCache && Date.now() - navCache.at < 60_000) return navCache.value;
-  const roots = await catalog.categories();
-  const value = await Promise.all(roots.map(async (root): Promise<NavCategory> => {
-    if (root.childCount === 0) return { ...root, menu: [] };
-    try {
-      const { children } = await catalog.page(root.slug);
-      const menu = (await Promise.all(children.map(async child => {
-        if (child.childCount === 0) return [child];
-        const grandchildren = await catalog.page(child.slug);
-        return grandchildren.children;
-      }))).flat();
-      return { ...root, menu };
-    } catch {
-      // The dropdown is a convenience on top of a link that already works --
-      // a slow or failing catalog call here should fall back to "no
-      // dropdown", not take out the whole nav bar.
-      return { ...root, menu: [] };
-    }
-  }));
+  const [tree, products] = await Promise.all([
+    catalog.tree(),
+    catalog.all().catch(() => []),
+  ]);
+  const value = { tree, suggestions: [...new Set(products.map(p => p.name))] };
   navCache = { at: Date.now(), value };
   return value;
 }
@@ -212,6 +197,32 @@ app.get<{ Querystring: { ref?: string } }>('/inquiries/thanks', async (req, repl
   reply.type('text/html').send(inquiryThanksPage(categories, ref));
 });
 
+/**
+ * Search, across the whole shop or under one of its top-level sections.
+ *
+ * `in` is honoured only if it names a root section that is open for browsing:
+ * the picker offers nothing else, so anything else is a hand-edited URL, and
+ * searching everything is a better answer to that than an error page.
+ *
+ * An empty query is not a search. With a section picked it goes to that
+ * section's full listing -- the nearest thing to "show me everything in
+ * supplies" -- and without one, to the shop front.
+ */
+const MAX_QUERY = 100;
+
+app.get<{ Querystring: { q?: string; in?: string } }>('/search', async (req, reply) => {
+  const chrome = await nav();
+  const query = String(req.query.q ?? '').trim().slice(0, MAX_QUERY);
+  const scope = chrome.tree.find(r => r.browsable && r.slug === req.query.in);
+
+  if (!query) {
+    reply.redirect(scope ? `/c/${encodeURIComponent(scope.slug)}?all=1` : '/', 303);
+    return;
+  }
+  const results = await catalog.search(query, scope?.slug);
+  reply.type('text/html').send(searchPage(chrome, query, scope, results));
+});
+
 app.get<{ Params: { slug: string } }>('/p/:slug', async (req, reply) => {
   const categories = await nav();
   const detail = await catalog.product(req.params.slug);
@@ -221,7 +232,7 @@ app.get<{ Params: { slug: string } }>('/p/:slug', async (req, reply) => {
 app.setErrorHandler(async (err, _req, reply) => {
   const status = err instanceof UpstreamError && err.status === 404 ? 404 : 502;
   app.log.error({ err }, 'request failed');
-  const categories = navCache?.value ?? [];
+  const categories = navCache?.value ?? { tree: [], suggestions: [] };
   reply.code(status).type('text/html')
        .send(errorPage(categories, status, status === 404 ? 'We could not find that.' : 'The catalog is not answering right now.'));
 });

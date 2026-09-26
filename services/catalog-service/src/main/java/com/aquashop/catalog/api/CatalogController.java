@@ -4,12 +4,16 @@ import com.aquashop.catalog.domain.Category;
 import com.aquashop.catalog.domain.Product;
 import com.aquashop.catalog.repo.CategoryNode;
 import com.aquashop.catalog.repo.CategoryRepository;
+import com.aquashop.catalog.repo.CategoryTreeRow;
 import com.aquashop.catalog.repo.ProductRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -89,11 +93,56 @@ public class CatalogController {
                 p.getSpeciesProfile() == null ? null : CatalogDtos.SpeciesView.of(p.getSpeciesProfile()));
     }
 
+    /**
+     * The whole tree in one response.
+     *
+     * <p>A separate path rather than {@code /categories/tree}, which would
+     * quietly shadow any category that was ever given the slug "tree".
+     */
+    @GetMapping("/category-tree")
+    public List<CatalogDtos.CategoryTreeNode> tree() {
+        Map<String, List<CategoryTreeRow>> byParent = new HashMap<>();
+        for (CategoryTreeRow row : categories.everyNode()) {
+            // Keyed "" for the roots: HashMap would take a null key, but a
+            // sentinel makes the lookup below say what it means.
+            byParent.computeIfAbsent(row.getParentSlug() == null ? "" : row.getParentSlug(),
+                    k -> new ArrayList<>()).add(row);
+        }
+        return branch(byParent, "");
+    }
+
+    private static List<CatalogDtos.CategoryTreeNode> branch(
+            Map<String, List<CategoryTreeRow>> byParent, String parentSlug) {
+        return byParent.getOrDefault(parentSlug, List.of()).stream()
+                .map(row -> new CatalogDtos.CategoryTreeNode(
+                        CatalogDtos.CategoryView.of(row), branch(byParent, row.getSlug())))
+                .toList();
+    }
+
+    /**
+     * Search, or the whole catalogue when {@code q} is blank.
+     *
+     * @param in a category slug to search beneath -- the "Aquarium Supplies"
+     *           choice beside the search box. Unknown slugs are a 404 rather
+     *           than silently searching everything, so a caller with a stale
+     *           slug finds out.
+     */
     @GetMapping("/products")
-    public List<CatalogDtos.ProductSummary> search(@RequestParam(name = "q", defaultValue = "") String q) {
-        // findAllWithCategory(), not the inherited findAll(): the latter leaves
-        // the category to be lazy-loaded in the DTO, where there is no session.
-        return (q.isBlank() ? products.findAllWithCategory() : products.search(q)).stream()
+    public List<CatalogDtos.ProductSummary> search(
+            @RequestParam(name = "q", defaultValue = "") String q,
+            @RequestParam(name = "in", required = false) String in) {
+        String scope = in == null || in.isBlank() ? null : in;
+        if (scope != null && categories.findBySlug(scope).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "unknown category");
+        }
+        if (q.isBlank() && scope == null) {
+            // findAllWithCategory(), not the inherited findAll(): the latter
+            // leaves the category to be lazy-loaded in the DTO, where there is
+            // no session.
+            return products.findAllWithCategory().stream().map(CatalogDtos.ProductSummary::of).toList();
+        }
+        return new ProductSearch(categories.findAllWithParent())
+                .run(products.findAllForSearch(), q, scope).stream()
                 .map(CatalogDtos.ProductSummary::of)
                 .toList();
     }

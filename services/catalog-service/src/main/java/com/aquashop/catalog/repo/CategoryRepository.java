@@ -55,6 +55,49 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     List<CategoryNode> childrenOf(@Param("parentSlug") String parentSlug);
 
     /**
+     * Every category, with the same counts as {@link #childrenOf}, plus the
+     * parent's slug so the caller can assemble the tree.
+     *
+     * <p>This is what the storefront's sidebar draws from. One query for the
+     * whole tree, rather than the storefront walking it one
+     * {@code /categories/{slug}} call per node -- forty round trips to draw a
+     * menu. Ordered so that siblings come out in display order; the grouping
+     * into a tree happens in the controller.
+     */
+    @Query(value = """
+        WITH RECURSIVE sub AS (
+            SELECT id AS root_id, id FROM category
+            UNION ALL
+            SELECT s.root_id, c.id FROM category c JOIN sub s ON c.parent_id = s.id
+        )
+        SELECT c.slug          AS slug,
+               c.name          AS name,
+               c.teaser        AS teaser,
+               c.description   AS description,
+               c.status        AS status,
+               c.image_key     AS imageKey,
+               p.slug          AS parentSlug,
+               (SELECT count(*) FROM category k WHERE k.parent_id = c.id)        AS childCount,
+               (SELECT count(*) FROM product x WHERE x.category_id = c.id)       AS productCount,
+               (SELECT count(*) FROM product x JOIN sub s ON s.id = x.category_id
+                 WHERE s.root_id = c.id)                                         AS totalProducts
+          FROM category c
+          LEFT JOIN category p ON p.id = c.parent_id
+         ORDER BY c.sort_order, c.name
+        """, nativeQuery = true)
+    List<CategoryTreeRow> everyNode();
+
+    /**
+     * Every category with its parent fetched, for walking ancestors in memory.
+     *
+     * <p>All forty rows come back in one persistence context, so every
+     * {@code getParent()} resolves to an instance already in this list rather
+     * than a proxy that would need a session later.
+     */
+    @Query("select c from Category c left join fetch c.parent")
+    List<Category> findAllWithParent();
+
+    /**
      * The trail from the shop front down to this category, excluding it.
      *
      * <p>Six levels deep, a customer without a breadcrumb has no way back and
