@@ -309,7 +309,58 @@ class CatalogApiTest {
             // V22's twelve plants with no licensed photograph of the right plant.
             "anubias-hastifolia", "dwarf-baby-tears", "green-myrio", "hygrophila-araguaia",
             "kleiner-bar-sword", "ludwigia-peruensis", "oriental-sword", "red-flame-sword",
-            "red-pearl-sword", "red-rubin-sword", "rotala-nanjenshan", "ruffle-sword");
+            "red-pearl-sword", "red-rubin-sword", "rotala-nanjenshan", "ruffle-sword",
+            // V23's bettas and gouramis, photographed in the next change
+            // (development plan item 3). Delete these lines when they are.
+            "betta-male-crowntail", "betta-male-plakat", "betta-male-double-tail",
+            "betta-male-veiltail", "betta-female", "peaceful-betta", "emerald-betta",
+            "mahachai-betta", "whiteseam-betta", "snakehead-betta", "wine-red-betta",
+            "banded-gourami", "thick-lipped-gourami", "moonlight-gourami",
+            "snakeskin-gourami", "croaking-gourami", "giant-gourami");
+    }
+
+    /**
+     * Six betta forms are one species. V23 lists them separately because a
+     * crowntail and a plakat are different purchases (the goldfish argument
+     * from V17), but a second Betta splendens profile would be a second source
+     * of truth for the same fish's water, and the advisor reads the profile.
+     */
+    @Test
+    void theBettaFormsShareOneCareProfile() {
+        assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM species_profile WHERE scientific_name = 'Betta splendens'",
+            Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("""
+            SELECT count(*) FROM product p JOIN species_profile s ON s.id = p.species_profile_id
+             WHERE s.scientific_name = 'Betta splendens'""", Integer.class)).isEqualTo(6);
+    }
+
+    /**
+     * Bettas & Gouramis is a branch now, like Cichlids: it holds no products of
+     * its own, and every labyrinth fish sits in one of its three sections.
+     */
+    @Test
+    void bettasAndGouramisIsABranchOfThreeSections() throws Exception {
+        mvc.perform(get("/api/categories/anabantoids"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.children.length()").value(3))
+           .andExpect(jsonPath("$.children[0].slug").value("bettas"))
+           .andExpect(jsonPath("$.children[1].slug").value("bettas-wild"))
+           .andExpect(jsonPath("$.children[2].slug").value("gouramis"))
+           .andExpect(jsonPath("$.products.length()").value(0));
+    }
+
+    /**
+     * An IUCN-listed wild betta is sold captive-bred, and the first words a
+     * customer reads say so. A legal and ethical fact goes before the colour.
+     */
+    @Test
+    void aThreatenedWildBettaSaysCaptiveBredFirst() {
+        var summaries = jdbc.queryForList("""
+            SELECT p.summary FROM product p JOIN species_profile s ON s.id = p.species_profile_id
+             WHERE s.scientific_name IN ('Betta albimarginata', 'Betta channoides', 'Betta coccina')""",
+            String.class);
+        assertThat(summaries).hasSize(3).allSatisfy(x -> assertThat(x).startsWith("Captive-bred only"));
     }
 
     /**

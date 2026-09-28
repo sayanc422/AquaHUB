@@ -105,7 +105,11 @@ instruction it needs.
 **Owner priority now: bettas, gouramis, shrimp and other invertebrates** — the business will lead
 with them. Deeper writing, more species and more varieties in those departments.
 
-- [ ] **1. Bettas & gouramis.** Split `anabantoids` into Bettas (*Betta splendens* forms), Wild
+- [x] **1. Bettas & gouramis.** *Done 28 Sep 2026 (V23, rules v4).* 3 sections, 17 products, 12
+      profiles; `CatalogApiTest` 38/38, advisor 35/35; the checker refuses halfmoon + crowntail,
+      flags crowntail + tiger barbs, passes a whiteseam pair. The 17 are unphotographed until item 3,
+      and are listed in the test. Original brief follows.
+      **Bettas & gouramis.** Split `anabantoids` into Bettas (*Betta splendens* forms), Wild
       Bettas (small and mouthbrooding species) and Gouramis & Paradise Fish; add betta forms, wild
       bettas and more gouramis, each with a full care profile and an "About this fish" of real
       depth. The owner's request overrides V17's "one product per species" fold for bettas. Add new

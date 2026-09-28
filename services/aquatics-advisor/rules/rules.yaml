@@ -14,8 +14,8 @@
 # A rule that cannot explain itself in a sentence an aquarist would use is a
 # rule that should not be in here.
 
-version: 3
-updated: 2026-09-15
+version: 4
+updated: 2026-09-28
 
 water:
   # An overlap narrower than this is technically possible and practically a
@@ -118,7 +118,9 @@ behaviour:
   # rainbowfish. Nippers: black skirt and serpae tetras, tiger barbs, Buenos
   # Aires tetras, and pea puffers -- the puffer is the only one that nips out
   # of appetite rather than boisterousness, but the victim cannot tell.
-  long_finned_skus: [FSH-BET-01, FSH-GUP-01,
+  # V23 (28 September 2026): the crowntail, double tail and veiltail betta
+  # forms. The plakat and the female are short-finned and are not listed.
+  long_finned_skus: [FSH-BET-01, FSH-BET-02, FSH-BET-04, FSH-BET-05, FSH-GUP-01,
                      FSH-SAM-04,
                      FSH-GLD-01, FSH-GLD-02, FSH-GLD-03, FSH-GLD-04, FSH-GLD-05,
                      FSH-RBW-03]

@@ -35,6 +35,16 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-28 — Advisor rules ship in its image, and each answer names their version
+
+**What happened:** adding betta SKUs to `rules.yaml` almost went out under the old `version: 3`,
+which would have made a new rule's answers indistinguishable from the old rule's.
+**Pattern:** any `rules.yaml` change bumps `version` and `updated`, and the
+`aquashop.io/rules-version` annotation in `platform-repo/dev/advisor/deployment.yaml`, then rebuilds
+the advisor image. It is not a ConfigMap edit. Verify through the storefront checker, whose footer
+prints the version. The storefront caches the product list for 60 s, so after a catalogue change
+poll until a new fish name resolves (`until curl … | grep -q "The verdict"`) rather than sleeping.
+
 ### 2026-09-28 — A box the wrong shape for its photo crops the fish; text over it hides the rest
 
 **What happened:** the owner's first look at the redesign found a betta shown as one fin (a 4:3
