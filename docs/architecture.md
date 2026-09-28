@@ -19,6 +19,9 @@ succeeded — the first two failed a memory preflight sitting right at this mach
 WSL2 ceiling; the third passed the preflight but hit a real rollout deadlock (§8, RELEASE-NOTES) — but
 once up, its measured footprint (2234 MiB) came in well under the ~5.2 GB estimate that stood in for
 it until now. `platform` and `observability` remain unbuilt and unexercised.
+**The storefront was rebuilt as the customer-facing layer on 28 September 2026** (§3, storefront):
+a premium redesign, a public tank checker in front of `aquatics-advisor` — its first customer-facing
+door — and a measured 84–96% cut in bytes per desktop page view.
 Phases 6–7 are planned. See [context_summary.md](context_summary.md) for
 current state, [RELEASE-NOTES.md](../RELEASE-NOTES.md) for what has been measured, and
 [adr/](adr/) for the decisions and their costs.
@@ -125,6 +128,24 @@ migrating to MSK is a heavier lift than the local-to-cloud mapping makes it look
   same decision as everything else here — and it is the BFF's only call to `order-service`. Readiness
   deliberately does **not** check `order-service`: a shop that cannot reach it still sells everything
   it has, and failing readiness to protect one form would take the site down.
+- **The tank checker** (`/compatibility`, 28 September 2026) is the BFF's call to
+  `aquatics-advisor`, and the advisor's first customer-facing door. A GET form, so a checked tank is
+  a URL; customers type fish names, which the BFF resolves to SKUs from its cached product list, so
+  a typo is a 400 the customer can fix rather than a 404 from the advisor. Bounded at 4 s rather
+  than 2 s, because a first check of a many-species tank is one catalog hop per uncached species.
+  Readiness does not check the advisor, for the same reason it does not check `order-service`.
+  Verified with the advisor scaled to zero: an honest 502 in 16 ms, the customer's tank kept in the
+  form, the rest of the shop unaffected.
+- **What it sends is measured.** HTML goes out Brotli- or gzip-compressed (the shop front: 58 KB
+  raw, 10 KB on the wire). Every photograph has 480 and 960 px WebP variants, generated at image
+  build time by `scripts/image-variants.py` rather than committed, and served through `srcset`.
+  CSS and fonts are cached for a year behind a content-hashed URL; photographs for a day, because
+  this shop replaces photos under the same name. First-visit bytes per desktop page fell from
+  4.8–7.1 MB to 0.2–0.8 MB (RELEASE-NOTES, 28 September 2026).
+- **View transitions, speculation rules and scroll-driven animation** make it feel like an app in
+  Chromium browsers without becoming one. They are declarations the browser reads, not code of
+  ours, and [ADR 0022](adr/0022-declarative-browser-features-are-not-client-javascript.md) records
+  why that keeps ADR 0005 intact, and what it costs.
 
 ---
 
@@ -311,6 +332,9 @@ restart every healthy pod.
 **Three verdicts, not two.** No overlap at all is a refusal; a narrow overlap is a caution. Collapsing
 them would force every judgement call into an extreme, and most stocking questions are neither.
 
+**Customers reach it through the storefront's tank checker** (§3, since 28 September 2026). Until
+then it was an API nobody outside the cluster could call.
+
 **Not proven:** nothing tests the HTTP layer or the catalog client, and the image is
 `python:3.11-slim` rather than distroless — a shell and a package manager in the one service whose
 input is free-form customer data.
@@ -472,11 +496,9 @@ State these plainly. They make the project more credible, not less.
   root-relative, `/orders` not `/staff/orders`) and a path prefix would break every link past the
   first page. Not yet exercised in-cluster: sustained
   load, a `kill -9` mid-checkout against the in-cluster saga specifically, and the
-  `platform`/`observability` profiles —
-  `observability`'s ~9.2 GB estimate does not fit
-  the current, unconfigured 7.4 GB WSL2 ceiling (§8) at all; the `.wslconfig` override that targets 11 GB
-  has been written but not yet applied (needs `wsl --shutdown`, which ends whatever session runs it —
-  not done as of this writing).
+  `platform`/`observability` profiles. The `.wslconfig` override is now applied (~11 GB measured
+  since 22 September 2026, up from 7.4 GB), so `observability`'s ~9.2 GB estimate fits on paper;
+  it is still unbuilt and unmeasured.
 - ~~The checkout saga is not crash-safe.~~ **Closed.** `SagaRecovery` scans for orders stuck in
   `PAID` or `STOCK_RESERVED` and finishes them; demonstrated with a real `kill -9` mid-checkout. A
   state scan rather than an outbox — see [ADR 0018](adr/0018-recover-from-state-not-from-an-outbox.md),
@@ -489,6 +511,13 @@ State these plainly. They make the project more credible, not less.
 - The advisor's predation rule uses adult length because the catalog does not record mouth gape. It
   will not catch a large peaceful fish with a big mouth, and that is stated in `rules.yaml`.
 - The observability stack and the image build cannot both run on this machine.
+- **The storefront has no cart or checkout.** `order-service` has had a cart API and a crash-safe
+  checkout saga since Phase 3, and nothing on the shop front calls it: a customer can browse, check a
+  tank and send an enquiry, but cannot buy. Every page's call to action leads to the enquiry form
+  for that reason.
+- The storefront's premium behaviour (view transitions, prerendering) runs in Chromium browsers
+  only; Firefox and Safari get plain page loads. Every mobile check is a headless Chromium at a
+  phone-sized viewport, not a real device.
 
 ---
 
@@ -507,8 +536,10 @@ State these plainly. They make the project more credible, not less.
 
 Generated by `docs/diagrams/generate.py` and committed as SVG so changes appear in diffs.
 
-- `docs/diagrams/architecture.svg` — system architecture, Phase 1 solid and later phases dimmed
-- `docs/diagrams/deployment.svg` — what runs locally beside the AWS target design
+- `docs/diagrams/architecture.svg` — system architecture: all eight services built, which ones the
+  storefront calls, planned pieces (NATS, observability, GitOps) dashed
+- `docs/diagrams/deployment.svg` — what runs locally, with per-pod memory measured 28 September
+  2026, beside the AWS target design
 - `docs/diagrams/delivery-flow.svg` — two repositories, CI, GitOps promotion
 
 A styled, printable version of this document with the diagrams embedded is at

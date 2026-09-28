@@ -9,3 +9,4 @@ dist/
 node_modules/
 target/
 .claude/worktrees/
+services/storefront/public/variants/

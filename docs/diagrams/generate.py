@@ -134,7 +134,7 @@ def legend(x, y, items):
 def architecture():
     W, H = 1480, 1120
     s = head(W, H, "AquaShop system architecture")
-    s += title_bar("AquaShop System Architecture", "Target design. Six services are built and have run together in k3d; two remain planned.",
+    s += title_bar("AquaShop System Architecture", "All eight services are built and run together in k3d. Messaging, observability and GitOps remain planned.",
                    "System")
     s += legend(1000, 44, [("BUILT, RUNS IN k3d", TEAL), ("PLANNED", DIM)])
 
@@ -167,9 +167,10 @@ def architecture():
     # --- BFF
     s += panel(48, 400, 1384, 128, "Backend for frontend", TEAL)
     s += box(72, 438, 320, 72, "storefront", "TypeScript / Fastify",
-             "SSR HTML, 2s upstream timeout", TEAL, TEAL, badge="BUILT", badge_color=TEAL)
-    s += text(420, 466, "Aggregates service calls, owns no data, holds a 60s in-memory cache of the category nav.", 12.5, MUTED)
-    s += text(420, 488, "Liveness does not call the catalog: a catalog outage must not restart every storefront pod.", 12, DIM)
+             "SSR HTML, br/gzip, bounded upstream calls", TEAL, TEAL, badge="BUILT", badge_color=TEAL)
+    s += text(420, 458, "Calls three services: catalog (every page), order (enquiry form), advisor (tank checker).", 12.5, MUTED)
+    s += text(420, 480, "Owns no data; a 60s in-memory cache holds the category tree and product list.", 12, DIM)
+    s += text(420, 500, "Readiness checks the catalog only: an order or advisor outage fails one feature, not the shop.", 12, DIM)
     s += arrow(182, 236, 182, 432, TEAL, "arrowT")
 
     # --- services
@@ -180,21 +181,27 @@ def architecture():
         ("inventory-service", "Go", "tank stock, TTL holds", TEAL, False),
         ("payment-service", "Rust / Axum", "auth, capture, ledger", TEAL, False),
         ("aquatics-advisor", "Python / FastAPI", "compatibility rules", TEAL, False),
-        ("notification-service", "Go", "email + webhook fan-out", DIM, True),
-        ("staff-portal", "JSP / WildFly", "back-office", DIM, True),
+        ("notification-service", "Go", "email + webhook fan-out", TEAL, False),
+        ("staff-portal", "JSP / WildFly", "read-only back-office", TEAL, False),
     ]
+    # Only the three services the storefront actually calls get an arrow from
+    # it. The saga in order-service calls inventory and payment and pushes to
+    # notification; staff-portal is reached through its own ingress host.
+    called_by_bff = {"catalog-service", "order-service", "aquatics-advisor"}
+    # 172 wide with 16 between: seven boxes at the old 182 + 18 ran 22 px
+    # past the panel's right edge.
     x = 72
     for name, stack, owns, color, dashed in svc:
-        w = 182
+        w = 172
         s += box(x, 596, w, 96, name.replace("-service", ""), stack, owns,
                  color, color if color == TEAL else MUTED, dashed=dashed)
-        if not dashed:
+        if name in called_by_bff:
             s += arrow(x + w / 2, 512, x + w / 2, 590, TEAL, "arrowT")
-        x += w + 18
-    s += text(230, 728, "Every language choice is justified by a property of the service, never by curiosity. "
-                       "Rust holds the money state machine because", 12, MUTED)
-    s += text(230, 748, "exhaustive compile-time matching over transitions is worth its slow build; that cost is named in the ADR.",
-              12, DIM)
+        x += w + 16
+    s += text(190, 722, "order-service drives the checkout saga: it calls inventory (reserve, commit) and payment (authorise), "
+                      "then pushes to notification.", 12, MUTED)
+    s += text(190, 742, "Every language choice is justified by a property of the service. Rust holds the money state machine "
+                      "because exhaustive matching is worth its slow build.", 12, DIM)
 
     # --- messaging
     s += panel(48, 800, 660, 118, "Asynchronous", VIOLET)
@@ -207,12 +214,12 @@ def architecture():
     # --- data
     s += panel(736, 800, 696, 118, "Data — shared instance, isolated databases", BLUE)
     s += box(760, 838, 648, 62, "PostgreSQL 16 (StatefulSet, local-path PVC)",
-             "catalog | orders | inventory | payments | advisor | notify", accent=BLUE, title_color=BLUE)
+             "catalog | orders | inventory | payments | notify  (advisor owns none)", accent=BLUE, title_color=BLUE)
     s += text(760, 946, "One database and one login role per service; each role has CONNECT on its own database only.", 11.5, MUTED)
     s += text(760, 964, "Faithful: credential isolation, no cross-service joins. NOT faithful: blast radius — one restart", 11.5, ORANGE)
     s += text(760, 982, "takes every service down, which per-service RDS instances in the target design would not.", 11.5, ORANGE)
 
-    s += (f'<path d="M163,700 L163,792 L900,792 L900,830" fill="none" stroke="{TEAL}" '
+    s += (f'<path d="M158,700 L158,792 L900,792 L900,830" fill="none" stroke="{TEAL}" '
           f'stroke-width="1.6" marker-end="url(#arrowT)"/>')
     s += text(560, 784, "JDBC / Hikari, pool max 10", 10.5, TEAL, mono=True)
 
@@ -225,40 +232,43 @@ def architecture():
 
 # ---------------------------------------------------------------- diagram 2 --
 def deployment():
-    W, H = 1480, 1160
+    W, H = 1480, 1260
     s = head(W, H, "AquaShop deployment topology")
     s += title_bar("Deployment Topology", "What actually runs, beside what it is designed to become.", "Deployment")
     s += legend(1010, 44, [("RUNS LOCALLY", TEAL), ("VALIDATED, NOT APPLIED", ORANGE)])
 
     # ---- left: local
-    s += panel(48, 120, 760, 880, "Actually running — Windows 11 / WSL2 / 16 GB", TEAL)
+    s += panel(48, 120, 760, 980, "Actually running — Windows 11 / WSL2 / 16 GB", TEAL)
     s += box(72, 158, 712, 56, "Windows 11 host", "16 GB total, ~4-5 GB reserved for Windows",
              accent=LINE, title_color=MUTED)
-    s += box(88, 230, 680, 56, "WSL2 (Ubuntu)", "7.4 GB usable, unconfigured — design targets 11 GB via .wslconfig, not yet applied",
+    s += box(88, 230, 680, 56, "WSL2 (Ubuntu)", "~11 GB usable via .wslconfig (was 7.4 GB unconfigured; applied by 22 Sep 2026)",
              accent=LINE, title_color=MUTED)
     s += box(104, 302, 648, 56, "Docker Engine (native in WSL, not Docker Desktop)", "one container per k3d node",
              accent=LINE, title_color=MUTED)
-    s += box(120, 374, 616, 606, "k3d node container — k3s v1.30", "traefik: disabled | servicelb: disabled | metrics-server: disabled",
+    s += box(120, 374, 616, 706, "k3d node container — k3s v1.30", "traefik: disabled | servicelb: disabled | metrics-server: disabled",
              accent=TEAL, title_color=TEAL, fill=PANEL)
 
     s += text(144, 446, "NAMESPACE  ingress-nginx", 11.5, MUTED, weight="700", mono=True)
     s += box(144, 458, 568, 50, "ingress-nginx controller", "hostPort 80/443 -> 127.0.0.1", accent=LINE, title_color=INK)
     s += text(144, 542, "NAMESPACE  cert-manager", 11.5, MUTED, weight="700", mono=True)
     s += box(144, 554, 568, 50, "cert-manager + CA issuer", "self-signed root, in-cluster leaf", accent=LINE, title_color=INK)
-    s += text(144, 638, "NAMESPACE  aquashop-dev   (ResourceQuota 3Gi requests / 4Gi limits) — core + commerce, both run", 11.5, MUTED, weight="700", mono=True)
-    s += box(144, 650, 180, 70, "storefront", "Node, 30 MiB measured", accent=TEAL, title_color=TEAL)
-    s += box(338, 650, 180, 70, "catalog-service", "JVM, 215 MiB measured", accent=TEAL, title_color=TEAL)
-    s += box(532, 650, 180, 70, "order-service", "JVM, 224 MiB measured", accent=TEAL, title_color=TEAL)
-    s += box(144, 734, 180, 70, "inventory-service", "Go, 3 MiB measured", accent=TEAL, title_color=TEAL)
-    s += box(338, 734, 180, 70, "payment-service", "Rust, 2 MiB measured", accent=TEAL, title_color=TEAL)
-    s += box(532, 734, 180, 70, "aquatics-advisor", "Python, 43 MiB measured", accent=TEAL, title_color=TEAL)
-    s += box(144, 818, 568, 70, "postgres (StatefulSet, PVC on local-path)",
-             "59 MiB measured — databases: catalog, orders, inventory, payments, advisor", accent=BLUE, title_color=BLUE)
-    s += text(144, 924, "Namespaces uat and prod exist as Argo CD Applications but sit at replicas: 0.", 11.5, ORANGE)
-    s += text(144, 944, "One environment is materialised at a time. None of them has ever run concurrently.", 11.5, ORANGE)
+    s += text(144, 638, "NAMESPACE  aquashop-dev   (ResourceQuota 3Gi / 4Gi) — full-app: all eight run", 11.5, MUTED, weight="700", mono=True)
+    # kubectl top pods, 28 Sep 2026, full-app settled for ~40 h.
+    s += box(144, 650, 180, 70, "storefront", "Node, 33 MiB", accent=TEAL, title_color=TEAL)
+    s += box(338, 650, 180, 70, "catalog-service", "JVM, 272 MiB", accent=TEAL, title_color=TEAL)
+    s += box(532, 650, 180, 70, "order-service", "JVM, 220 MiB", accent=TEAL, title_color=TEAL)
+    s += box(144, 734, 180, 70, "inventory-service", "Go, 4 MiB", accent=TEAL, title_color=TEAL)
+    s += box(338, 734, 180, 70, "payment-service", "Rust, 1 MiB", accent=TEAL, title_color=TEAL)
+    s += box(532, 734, 180, 70, "aquatics-advisor", "Python, 43 MiB", accent=TEAL, title_color=TEAL)
+    s += box(144, 818, 180, 70, "notification-service", "Go, 4 MiB", accent=TEAL, title_color=TEAL)
+    s += box(338, 818, 374, 70, "staff-portal", "WildFly, 383 MiB  (own ingress host: staff.*)", accent=TEAL, title_color=TEAL)
+    s += box(144, 902, 568, 70, "postgres (StatefulSet, PVC on local-path)",
+             "61 MiB — databases: catalog, orders, inventory, payments, notify", accent=BLUE, title_color=BLUE)
+    s += text(144, 1008, "No uat or prod overlay exists yet; Argo CD (the platform profile) has no manifests.", 11.5, ORANGE)
+    s += text(144, 1028, "One environment is materialised at a time. None has ever run concurrently with another.", 11.5, ORANGE)
 
     # ---- right: AWS target
-    s += panel(832, 120, 600, 880, "Target design — AWS (never applied)", ORANGE)
+    s += panel(832, 120, 600, 980, "Target design — AWS (never applied)", ORANGE)
     s += box(856, 158, 552, 52, "Route 53  ->  ACM  ->  ALB (internet-facing)",
              "public subnets, 2 AZs", accent=ORANGE, title_color=ORANGE)
     s += box(856, 226, 552, 52, "AWS Load Balancer Controller", "reads Ingress, writes target groups (IP mode)",
@@ -291,8 +301,8 @@ def deployment():
     s += arrow(790, 500, 826, 500, ORANGE, "arrowO", dashed=True)
     s += text(808, 478, "maps to", 10, ORANGE, anchor="middle")
 
-    s += footer(W, 1060,
-                "Measured (kubectl top node, 16 Sep 2026): core alone 1.32 GiB, core + commerce together 2.05 GiB.",
+    s += footer(W, 1150,
+                "Measured, kubectl top node: core 1.32 GiB and core+commerce 2.05 GiB (16 Sep); full-app 2.0 GiB (28 Sep 2026).",
                 "AquaShop  /  docs/diagrams/deployment.svg")
     s += "</svg>"
     (OUT / "deployment.svg").write_text(s, encoding="utf-8")

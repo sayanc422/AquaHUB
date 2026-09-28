@@ -63,6 +63,17 @@ spec:
             # connection pool and take the whole shop down with it.
             - name: ORDER_TIMEOUT_MS
               value: "2000"
+            # The tank checker (/compatibility). Same shape as ORDER_BASE_URL:
+            # the `core` profile has no advisor, so the checker page renders
+            # there and every check answers "not answering just now" -- an
+            # honest 502 with the customer's tank kept in the form. Readiness
+            # does not check it, for the same reason it does not check orders.
+            - name: ADVISOR_BASE_URL
+              value: http://aquatics-advisor.aquashop-dev.svc.cluster.local:8084
+            # 4 s, not 2: the advisor makes one catalog call per uncached
+            # species, so a first check of a six-species tank is several hops.
+            - name: ADVISOR_TIMEOUT_MS
+              value: "4000"
             # The footer's Contact Us block. PLACEHOLDERS until the owner
             # supplies real ones: a WhatsApp value with fewer than 10 digits
             # renders as plain text rather than a wa.me link to nobody.

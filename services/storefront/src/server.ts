@@ -1,19 +1,64 @@
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyFormbody from '@fastify/formbody';
+import fastifyCompress from '@fastify/compress';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { catalog, UpstreamError } from './catalog-client.js';
 import { orders } from './order-client.js';
+import { advisor } from './advisor-client.js';
 import {
   homePage, categoryPage, productPage, errorPage, inquiryThanksPage, searchPage,
-  type Chrome, type InquiryFormState,
+  compatibilityPage, enquiryPrefill, isSort, CHECKER_ROWS,
+  type Chrome, type InquiryFormState, type TankForm, type TankOutcome,
 } from './views.js';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 const here = dirname(fileURLToPath(import.meta.url));
 
-await app.register(fastifyStatic, { root: join(here, '..', 'public'), prefix: '/static/' });
+// Compression before anything that sends a body. The HTML was going out raw --
+// 33 KB for the shop front, most of it the search box's product-name datalist,
+// which is the most compressible thing on the page. JPEG and WebP are already
+// compressed and are skipped by content type; 1 KB is the floor below which
+// the gzip framing costs more than it saves.
+//
+// Every async handler below ends `return reply.….send(…)`, and must. An async
+// handler that calls `send()` and returns nothing resolves while the
+// compression stream is still writing, Fastify closes the response, and the
+// browser gets `content-encoding: br` with a zero-byte body -- a blank white
+// page with no error anywhere but a "premature close" in this log. It worked
+// before this plugin only because an uncompressed send finishes synchronously.
+await app.register(fastifyCompress, { global: true, threshold: 1024, encodings: ['br', 'gzip'] });
+
+/**
+ * Static files, with a cache policy per kind of file rather than the plugin's
+ * `max-age=0`, which made every page view revalidate every photograph.
+ *
+ * - **CSS and fonts: a year, immutable.** The stylesheet's URL carries its
+ *   content hash (views.ts) and a font file never changes under its name, so
+ *   a changed file is always a changed URL.
+ * - **Photographs: a day, then a week of stale-while-revalidate.** *Not*
+ *   immutable: this shop replaces photographs under the same name
+ *   (context_summary.md, 26 September 2026: six of them, "the files kept their
+ *   names"). The cost is that a replaced photo can take a day to reach a
+ *   returning customer. Content-hashed image names would fix that and would
+ *   need a migration over every `image_key`, which is not worth it for a
+ *   photograph.
+ */
+await app.register(fastifyStatic, {
+  root: join(here, '..', 'public'),
+  prefix: '/static/',
+  cacheControl: false,
+  setHeaders(res, path) {
+    if (/\.(css|woff2)$/.test(path)) {
+      res.setHeader('cache-control', 'public, max-age=31536000, immutable');
+    } else if (/\.(jpe?g|webp|png)$/.test(path)) {
+      res.setHeader('cache-control', 'public, max-age=86400, stale-while-revalidate=604800');
+    } else {
+      res.setHeader('cache-control', 'public, max-age=300');
+    }
+  },
+});
 
 // This BFF was GET-only until the tank-enquiry form existed, so it had no body
 // parser at all. `application/x-www-form-urlencoded` is what a plain HTML form
@@ -38,19 +83,28 @@ async function nav(): Promise<Chrome> {
     catalog.tree(),
     catalog.all().catch(() => []),
   ]);
-  const value = { tree, suggestions: [...new Set(products.map(p => p.name))] };
+  const value = { tree, products, suggestions: [...new Set(products.map(p => p.name))] };
   navCache = { at: Date.now(), value };
   return value;
 }
 
-app.get('/', async (_req, reply) => {
-  // The shop front shows its top sections and a handful of what is actually in
-  // stock beneath them -- an empty grid of three doors tells a customer nothing.
-  const [categories, fish] = await Promise.all([
-    nav(),
-    catalog.byCategory('freshwater', true),
-  ]);
-  reply.type('text/html').send(homePage(categories, fish.slice(0, 6)));
+/**
+ * The shop front.
+ *
+ * One upstream call at most, and usually none: the sections, the collections
+ * and the shelf all come from the cached frame. It used to make a second,
+ * uncached call for the shelf on every render.
+ *
+ * `?enquire=` is how a product page or the tank checker hands a fish (or a
+ * whole planned tank) to the enquiry form: slugs and counts, resolved against
+ * the catalogue, so only names the shop sells are ever written into the box.
+ */
+app.get<{ Querystring: { enquire?: string; litres?: string } }>('/', async (req, reply) => {
+  const chrome = await nav();
+  const message = req.query.enquire
+    ? enquiryPrefill(chrome.products, String(req.query.enquire).slice(0, 600), req.query.litres)
+    : undefined;
+  return reply.type('text/html').send(homePage(chrome, message ? { message } : {}));
 });
 
 /**
@@ -64,7 +118,7 @@ app.get('/', async (_req, reply) => {
  * levels is five correct guesses before a customer sees a fish, so every level
  * that has sections also offers a way past them.
  */
-app.get<{ Params: { slug: string }; Querystring: { all?: string } }>(
+app.get<{ Params: { slug: string }; Querystring: { all?: string; sort?: string } }>(
   '/c/:slug',
   async (req, reply) => {
     const categories = await nav();
@@ -73,8 +127,7 @@ app.get<{ Params: { slug: string }; Querystring: { all?: string } }>(
       page = await catalog.page(req.params.slug);
     } catch (err) {
       if (err instanceof UpstreamError && err.status === 404) {
-        reply.code(404).type('text/html').send(errorPage(categories, 404, 'No such category.'));
-        return;
+        return reply.code(404).type('text/html').send(errorPage(categories, 404, 'No such category.'));
       }
       throw err;
     }
@@ -84,8 +137,9 @@ app.get<{ Params: { slug: string }; Querystring: { all?: string } }>(
       ? await catalog.byCategory(page.category.slug, true)
       : page.products;
 
-    reply.type('text/html')
-         .send(categoryPage(categories, page, products, wantsAll));
+    const sort = isSort(req.query.sort) ? req.query.sort : 'featured';
+    return reply.type('text/html')
+         .send(categoryPage(categories, page, products, wantsAll, sort));
   });
 
 /**
@@ -146,9 +200,7 @@ app.post<{ Body: Record<string, unknown> }>(
     // would need the typed-in paragraph carried in a cookie or a query string,
     // and a customer's free text does not belong in either.
     if (!('ok' in checked)) {
-      const [categories, fish] = await Promise.all([nav(), catalog.byCategory('freshwater', true)]);
-      reply.code(400).type('text/html').send(homePage(categories, fish.slice(0, 6), checked));
-      return;
+      return reply.code(400).type('text/html').send(homePage(await nav(), checked));
     }
 
     let accepted;
@@ -159,7 +211,7 @@ app.post<{ Body: Record<string, unknown> }>(
       // redirect — and they have to type the whole thing again to retry, which
       // is how a transient upstream blip turns into a lost enquiry.
       app.log.error({ err }, 'tank inquiry not accepted by order-service');
-      const [categories, fish] = await Promise.all([nav(), catalog.byCategory('freshwater', true)]);
+      const categories = await nav();
       const upstream = err instanceof UpstreamError ? err.status : 0;
       // 503 is passed through rather than flattened into 502, because the two
       // mean different things to the person reading the page. 502 is "try
@@ -168,7 +220,7 @@ app.post<{ Body: Record<string, unknown> }>(
       // operator creates the Secret. Telling someone to try again when it
       // cannot work is the kind of soft lie this project does not tell.
       const status = upstream === 400 ? 400 : upstream === 503 ? 503 : 502;
-      reply.code(status).type('text/html').send(homePage(categories, fish.slice(0, 6), {
+      return reply.code(status).type('text/html').send(homePage(categories, {
         ...checked.draft,
         error: status === 400
           ? 'The shop could not accept that as written. Please check the email and phone number.'
@@ -177,13 +229,12 @@ app.post<{ Body: Record<string, unknown> }>(
               + 'Your message is still here; please copy it and email the shop directly.'
             : 'We could not reach the shop just now. Your message is still here — try sending it again.',
       }));
-      return;
     }
 
     // Post/redirect/get, so a refresh on the confirmation page does not submit
     // the enquiry a second time. The id is safe in a URL: nothing resolves it
     // back to the customer's details, because no endpoint reads this table.
-    reply.code(303).header('location', `/inquiries/thanks?ref=${encodeURIComponent(accepted.id)}`).send();
+    return reply.code(303).header('location', `/inquiries/thanks?ref=${encodeURIComponent(accepted.id)}`).send();
   });
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -194,7 +245,7 @@ app.get<{ Querystring: { ref?: string } }>('/inquiries/thanks', async (req, repl
   // query parameter onto a page is how a reflected-content bug starts, and the
   // escaping in views.ts should not be the only thing standing in the way.
   const ref = req.query.ref && UUID_SHAPE.test(req.query.ref) ? req.query.ref : null;
-  reply.type('text/html').send(inquiryThanksPage(categories, ref));
+  return reply.type('text/html').send(inquiryThanksPage(categories, ref));
 });
 
 /**
@@ -216,24 +267,98 @@ app.get<{ Querystring: { q?: string; in?: string } }>('/search', async (req, rep
   const scope = chrome.tree.find(r => r.browsable && r.slug === req.query.in);
 
   if (!query) {
-    reply.redirect(scope ? `/c/${encodeURIComponent(scope.slug)}?all=1` : '/', 303);
-    return;
+    return reply.redirect(scope ? `/c/${encodeURIComponent(scope.slug)}?all=1` : '/', 303);
   }
   const results = await catalog.search(query, scope?.slug);
-  reply.type('text/html').send(searchPage(chrome, query, scope, results));
+  return reply.type('text/html').send(searchPage(chrome, query, scope, results));
 });
 
 app.get<{ Params: { slug: string } }>('/p/:slug', async (req, reply) => {
   const categories = await nav();
   const detail = await catalog.product(req.params.slug);
-  reply.type('text/html').send(productPage(categories, detail));
+  return reply.type('text/html').send(productPage(categories, detail));
 });
+
+/**
+ * The tank checker: "will these fish live together?"
+ *
+ * A GET form, so a checked tank is a URL -- the customer can bookmark it, send
+ * it to the person they share the tank with, or come back to it from the
+ * product page's "Check it with my tank" link, which arrives pre-filled.
+ *
+ * Names, not SKUs, are what the customer types, and they are resolved here
+ * against the cached product list. That keeps the form free of a <select>
+ * with 160 options per row, and it means an unknown name is caught before the
+ * advisor is asked anything: a typo is the customer's to fix, not a 404 to
+ * explain.
+ *
+ * The advisor being down is not the storefront being down. The page still
+ * renders, the form keeps what was typed, and the message says whose fault it
+ * is. Readiness does not check the advisor, for the reason it does not check
+ * order-service: one feature does not get to take the shop down with it.
+ */
+const toArray = (v: unknown): string[] =>
+  (Array.isArray(v) ? v : v === undefined ? [] : [v]).map(x => String(x));
+
+app.get<{ Querystring: { litres?: string; f?: string | string[]; n?: string | string[] } }>(
+  '/compatibility', async (req, reply) => {
+    const chrome = await nav();
+    const names = toArray(req.query.f).slice(0, CHECKER_ROWS);
+    const qtys = toArray(req.query.n);
+    const form: TankForm = {
+      litres: String(req.query.litres ?? '').slice(0, 6),
+      rows: names.map((fish, i) => ({ fish: fish.slice(0, 80), qty: (qtys[i] ?? '').slice(0, 4) })),
+    };
+
+    const filled = form.rows.filter(r => r.fish.trim());
+    const litres = Number(form.litres);
+    // Nothing asked yet, or asked from a product page before the tank size is
+    // known: show the form, pre-filled, and no verdict.
+    if (!filled.length || !form.litres) {
+      return reply.type('text/html').send(compatibilityPage(chrome, form));
+    }
+
+    const outcome: TankOutcome = {};
+    let status = 200;
+    const byName = new Map(chrome.products.filter(p => p.livestock).map(p => [p.name.toLowerCase(), p]));
+    outcome.unknown = filled.map(r => r.fish.trim()).filter(n => !byName.has(n.toLowerCase()));
+
+    if (!(litres > 0 && litres <= 10_000)) {
+      outcome.error = 'Tank size has to be a number of litres between 1 and 10,000.';
+      status = 400;
+    } else if (outcome.unknown.length) {
+      status = 400;
+    } else {
+      // Two rows of the same fish are one group of that fish, not two species
+      // that happen to share a name: the advisor would otherwise run its
+      // same-species rules against a pair it thinks are strangers.
+      const counts = new Map<string, number>();
+      for (const r of filled) {
+        const sku = byName.get(r.fish.trim().toLowerCase())!.sku;
+        const n = Math.min(500, Math.max(1, Math.floor(Number(r.qty)) || 1));
+        counts.set(sku, (counts.get(sku) ?? 0) + n);
+      }
+      try {
+        outcome.assessment = await advisor.check({
+          volumeLitres: litres,
+          inhabitants: [...counts].map(([sku, quantity]) => ({ sku, quantity })),
+        });
+      } catch (err) {
+        app.log.error({ err }, 'tank check failed');
+        status = 502;
+        outcome.error = err instanceof UpstreamError && err.status === 404
+          ? 'One of those animals has no care profile the checker can read yet, so it cannot be checked. Ask the shop instead.'
+          : 'The tank checker is not answering just now. Your tank is still in the form; try again in a minute.';
+      }
+    }
+    return reply.code(status).type('text/html').send(compatibilityPage(chrome, form, outcome));
+  });
 
 app.setErrorHandler(async (err, _req, reply) => {
   const status = err instanceof UpstreamError && err.status === 404 ? 404 : 502;
   app.log.error({ err }, 'request failed');
-  const categories = navCache?.value ?? { tree: [], suggestions: [] };
-  reply.code(status).type('text/html')
+  const categories = navCache?.value ?? { tree: [], suggestions: [], products: [] };
+  return reply.code(status).type('text/html')
        .send(errorPage(categories, status, status === 404 ? 'We could not find that.' : 'The catalog is not answering right now.'));
 });
 

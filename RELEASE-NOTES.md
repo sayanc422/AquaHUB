@@ -5,6 +5,145 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## The storefront becomes the shop: a premium redesign, a public tank checker, and 84–96% fewer bytes (28 September 2026)
+
+The brief: make the site look premium, make it faster, and give it something the thousands of other
+fish and aquarium shops don't have, so that a visitor wants to buy a fish. Almost all of this is in
+`services/storefront`, plus one env block in `platform-repo/dev/storefront/deployment.yaml`, a new
+[ADR 0022](docs/adr/0022-declarative-browser-features-are-not-client-javascript.md), and the diagrams
+and PDF, which were stale in ways that went beyond this change (see "Also corrected" below).
+
+**The thing no other shop has: "Will they live together?"** `aquatics-advisor` has been able to say
+whether a tank works, and quote the rule that says no, since Phase 5, but nobody outside the cluster
+could call it. `/compatibility` is its first customer-facing door. The customer types a tank size and
+fish names from a type-ahead, and gets a verdict (ok / with care / will not work), the water band
+every fish in the tank can live in, drawn as gauges, the litres the stocking needs fully grown, and
+one card per finding naming the fish and quoting the rule. It is a GET form, so a checked tank is a
+link. Every product page has "Check it with my tank", which opens it pre-filled with that fish at its
+minimum group size, and every verdict has "Ask the shop to put this tank together", which hands the
+exact stocking to the enquiry form. A compact version of the checker sits on the shop front.
+
+**The look.** The page is water: bright at the surface, darker as you scroll, and the footer is the
+deep. A full-bleed hero on the catalogue's own lead photograph, with CSS-only caustic light and
+rising bubbles, switched off under `prefers-reduced-motion`. A display serif, Fraunces (SIL OFL,
+self-hosted, 37 KB + 46 KB), over the system sans. Section tiles now carry the photo with the name
+set over it, and a four-panel editorial "Collections" mosaic sits on the shop front. Three promises
+sit under the hero, and each one is a rule enforced in code, not copy: the CHECK constraint that
+makes a livestock product without a care profile impossible, the advisor's rules, and
+`ShippingCalendar`'s Monday–Wednesday livestock days. Product pages are two-column, with at-a-glance
+facts, pH/temperature/hardness drawn as bands on fixed scales, and a related-fish row. Category pages
+open on the section's photograph and get sort links. The shelf on the shop front rotates daily,
+seeded by date so every pod shows the same shelf.
+
+**App-like, without an app.** Cross-document view transitions (a card's photo grows into the product
+page's hero), speculation rules (prefetch on hover, prerender product pages on press), and
+scroll-driven reveals. All three are declarations the browser reads, not code of ours, and ADR 0022
+records why that keeps ADR 0005 intact and what it costs. Chromium only; other browsers get plain
+page loads.
+
+### Measured
+
+**Bytes per page view**, with the previous build (`git archive HEAD`) and the new one run side by side
+against the same catalog, in the same headless Chromium, scrolled to the end so lazy images count:
+
+| Page, first visit | Before | After |
+|---|---|---|
+| Home, 1440 px | 4,846 KB | **760 KB** (−84%) |
+| Lake Malawi, 1440 px | 7,094 KB | **648 KB** (−91%) |
+| Product, 1440 px | 5,162 KB | **229 KB** (−96%) |
+| Home, 390 px @3× | 1,979 KB | **986 KB** (−50%) |
+| Lake Malawi, 390 px @3× | 2,175 KB | **832 KB** (−62%) |
+| Product, 390 px @3× | 243 KB | 374 KB (**+54%**) |
+
+The phone product page got heavier. It now shows four related fish and loads the display font, and
+that is the trade. Repeat visits went from ~40 KB (a 304 revalidation for every file, because
+`@fastify/static` defaulted to `max-age=0`) to ~8 KB. Where the savings came from:
+
+- **Cards were loading full 1600 px JPEGs (200–690 KB each).** Every photograph now has 480 and
+  960 px WebP variants, built by `scripts/image-variants.py` in a Dockerfile stage (246 source
+  images, 492 files), not committed, and served through `srcset`. `IMAGE_VARIANTS=1` is set only in
+  the image, so `npm run dev` on a bare checkout still shows photos.
+- **HTML went out uncompressed.** `@fastify/compress`: the shop front is 57,936 bytes raw, 10,049
+  with Brotli.
+- **The sidebar's hover previews loaded without a hover.** The old code's comment said the forty
+  preview photos "are not fetched until someone actually hovers." Measured, a desktop visit to the
+  shop front fetched fifteen of them (24 images for a page showing 9). The preview box was
+  `visibility:hidden`, and lazy-loading ignores that. It is now `display:none` until hovered, with
+  `@starting-style` for the fade. Re-measured: one section image before hovering, two after.
+- CSS and fonts are cached for a year, `immutable`, behind a content-hashed URL. Photos are cached
+  for a day plus a week of stale-while-revalidate, *not* immutable, because this shop replaces photos
+  under the same name.
+
+**Pod memory:** storefront 27–33 MiB after the change (160 MiB limit), in line with the 32 MiB
+measured on 17 September.
+
+**Behaviour**, all against the live `full-app` cluster: a compatible tank (neon tetra + harlequin
+rasbora, 120 L) returns "These can live together"; an unknown fish name returns 400 naming it; a
+non-numeric tank size returns 400; a `<script>` typed as a fish name comes back escaped; a product
+page's link arrives pre-filled; unknown sort values fall back to Featured; the enquiry prefill
+accepts only known slugs. **With `aquatics-advisor` scaled to zero**, the checker answers 502 in
+16 ms, the tank stays in the form, the shop front answers 200, and readiness stays `ok`. The advisor
+was scaled back straight afterwards. The enquiry form still works end to end (400 re-render keeps
+the text; success is a 303). That left one encrypted row in the dev database, with a message that
+says it is a test. Zero console errors and zero horizontal overflow at 1440 and 390 px, light and
+dark.
+
+### Found by running it
+
+- **Every compressed page was a blank white page.** Typecheck passed, and `curl` returned full HTML
+  because plain `curl` sends no `Accept-Encoding`. The first browser screenshot was white. Every
+  route was an `async` handler that called `reply.send()` without returning `reply`, which Fastify's
+  docs say not to do. Uncompressed, the send finished synchronously and it never mattered. With the
+  compression stream in the path, the handler's promise resolved first and Fastify closed the
+  response: `content-encoding: br`, zero bytes, and "premature close" in the log. Every handler now
+  `return`s its reply, and a comment at the plugin registration says why.
+- The custom-build steps rendered one word per line: bare text beside a `<b>` inside a two-column
+  grid `<li>` became its own grid item in the 1.8 rem number column.
+- The arowana photo, as the tall lead panel of the collections mosaic, cropped to a slab of scales.
+  The panel order is now layout-aware.
+
+### Also corrected (stale before this change)
+
+- `architecture.svg` showed `notification-service` and `staff-portal` as *planned* (both have run
+  since 17 September), drew storefront arrows to inventory and payment (it has never called either;
+  the saga in `order-service` does), listed an `advisor` database (there is none, per ADR 0017), and
+  its seventh service box overflowed the panel.
+- `deployment.svg` said WSL2 had "7.4 GB, not yet applied" (it has ~11 GB since 22 September),
+  showed six services, and claimed "uat and prod exist as Argo CD Applications at replicas: 0"
+  (nothing like that exists; `platform-repo/` has only `dev/`). It now carries per-pod memory
+  measured today.
+- `architecture.pdf`'s status page said `full-app` had "no code or manifests". The PDF is
+  regenerated, with a new page for the storefront (11 pages, 15 physical).
+
+### Still unproven
+
+- **There is still no cart or checkout on the shop front.** `order-service` has had a cart API and a
+  crash-safe saga since Phase 3, and nothing customer-facing calls it. Every call to action leads to
+  the enquiry form. This is the largest gap between "inspired to buy a fish" and buying one.
+- No real phone, no Safari, no Firefox: everything was checked in headless Chromium. View
+  transitions and speculation rules do nothing outside Chromium.
+- Speculative prefetch is real load on the catalog for pages nobody opens. It is not measured under
+  load, because nothing here has been.
+- The shop front's section photo `plants.jpg` shows what look like dyed tetras. It was left in place
+  (not this change's call) but kept out of the collections mosaic.
+
+## Catalogue to 220 products; a category sidebar and search (26 September 2026, backfilled)
+
+*Written on 28 September from `docs/context_summary.md` and the commit history, because this work
+shipped without an entry here. Nothing below was re-measured for this note.*
+
+- `V17`–`V22` took the catalogue from 69 to **220 products**: an India-popular freshwater range
+  (V17, 102 products and 97 species profiles), its photographs (V18), an apostrophe fix for V17's
+  generator (V19), an "About this fish" description for all 141 fish profiles (V20), the upside-down
+  catfish moved from Large to Small (V21), and 49 live plants with a new `plant_profile` table (V22).
+  Prices in V17 and V22 are Claude's estimates, not reviewed by the owner.
+- The nav hover dropdown was replaced by a category sidebar (native `<details>`, a hover photo
+  preview) and a header search box with a section picker, backed by `GET /api/products?q=&in=` and
+  `GET /api/category-tree`.
+- `CatalogApiTest` now derives its counts from the database and passes; advisor 35/35.
+
+---
+
 ## Storefront visual redesign: Apple-inspired, then corrected against real feedback (24 September 2026)
 
 Four commits, all in `services/storefront`, no other service touched. The brief was explicit —

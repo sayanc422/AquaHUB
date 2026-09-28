@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
@@ -11,13 +13,14 @@
     "lint": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "fastify": "^4.28.1",
-    "@fastify/static": "^7.0.4",
+    "@fastify/compress": "^7.0.3",
     "@fastify/formbody": "^7.4.0",
+    "@fastify/static": "^7.0.4",
+    "fastify": "^4.28.1",
     "undici": "^6.19.8"
   },
   "devDependencies": {
-    "typescript": "^5.6.2",
-    "@types/node": "^22.5.5"
+    "@types/node": "^22.5.5",
+    "typescript": "^5.6.2"
   }
 }

@@ -69,7 +69,7 @@ why the advisor's rules are a YAML file. Match that when you add code.
 | `services/order-service` | Java. Checkout as a saga with compensation and crash recovery. Also custom tank enquiries (ADR 0021) |
 | `services/payment-service` | Rust / Axum. Append-only ledger, enforced by a Postgres trigger |
 | `services/aquatics-advisor` | Python / FastAPI. Whether a tank will work. No database of its own |
-| `services/storefront` | TypeScript / Fastify. Server-rendered |
+| `services/storefront` | TypeScript / Fastify. Server-rendered. Calls catalog, order (enquiries) and advisor (tank checker, `/compatibility`) |
 | `services/notification-service` | Go. Email/webhook fan-out, pushed to by `order-service` (ADR 0020). Runs in k3d, 5 MiB measured |
 | `services/staff-portal` | JSP / Jakarta EE on WildFly. Read-only back-office. Runs in k3d, 456 MiB measured |
 | `platform-repo/dev/` | The dev overlay. Moves to its own repository at Phase 4 |
@@ -107,6 +107,14 @@ why the advisor's rules are a YAML file. Match that when you add code.
   is not enough — kubelet cannot verify a `USER nonroot` (a name) without running the container, and
   every service hits `CreateContainerConfigError` until the numeric UID is spelled out in the pod
   securityContext. All six `platform-repo/dev/*/deployment.yaml` files carry this now.
+- **Every async Fastify handler in the storefront ends `return reply.….send(…)`.** Without the
+  `return`, `@fastify/compress` sends `content-encoding: br` with a zero-byte body, which shows as a
+  blank white page, while plain `curl` (no `Accept-Encoding`) shows a perfect one. Test with
+  `-H 'Accept-Encoding: br'` or a browser.
+- **Storefront photos have WebP variants that exist only inside the image.** `scripts/image-variants.py`
+  runs in a Dockerfile stage and `IMAGE_VARIANTS=1` is set there. A CDN move must carry
+  `variants/` along with the originals. A photo replaced under the same name reaches returning
+  customers within a day (`max-age=86400`), not instantly.
 - **A Dockerfile's pinned toolchain version is a claim that gets stale silently.** `go.mod`'s `go`
   directive and `Cargo.lock`'s resolved transitive dependencies can both drift ahead of what a
   Dockerfile pins, and `mvn`/`go build`/`cargo build` inside CI or a local dev shell won't catch it
@@ -274,6 +282,11 @@ is the whole decision**; what follows is what you need to not break it.
    cards splitting 4-then-2) left dead space beside the short row instead of the items stretching to
    fill it. Full account in RELEASE-NOTES; the CSS Grid lesson and a `position: sticky` +
    screenshot-tool false-positive are both in `agent_learningz.md`.
+   **Superseded 28 September 2026** by a premium redesign (deep-water hero, Fraunces serif, photo
+   tiles, gauges, dark footer), a public tank checker, and measured 84–96% smaller desktop pages. See
+   RELEASE-NOTES and [ADR 0022](docs/adr/0022-declarative-browser-features-are-not-client-javascript.md).
+   **The storefront still has no cart or checkout**, although `order-service` has had both since
+   Phase 3; wiring them in is the obvious next piece of work.
 <!-- END: storefront visual redesign -->
 
 ## Git

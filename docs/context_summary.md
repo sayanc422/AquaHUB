@@ -3,7 +3,26 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (26 September 2026, later):** `V22` added the live plant range — **49 new plants** from
+**Latest (28 September 2026): the storefront was rebuilt as the customer-facing layer.** A premium
+redesign (full-bleed "deep water" hero, Fraunces display serif self-hosted under the OFL, photo tiles,
+a collections mosaic, a dark footer, and a page that darkens as it scrolls), a public **tank checker**
+at `/compatibility` that makes `aquatics-advisor` customer-facing for the first time
+(`ADVISOR_BASE_URL`, 4 s timeout, not in readiness), water parameters drawn as gauges on product
+pages, sort links, a daily-rotating shelf, and enquiry prefill (`/?enquire=slug:qty,…`) from product
+pages and checker verdicts. Efficiency, measured old-vs-new side by side: first-visit desktop bytes
+down 84–96% (home 4.8 MB → 760 KB); phone home −50%; phone product page **+54%** (related fish plus
+fonts). How: Brotli/gzip, WebP variants built at image-build time (`scripts/image-variants.py`,
+`IMAGE_VARIANTS=1` set only in the image), per-type cache headers, and hover previews that really do
+wait for a hover. View transitions and speculation rules are allowed under
+[ADR 0022](adr/0022-declarative-browser-features-are-not-client-javascript.md). Diagrams and PDF are
+regenerated and were corrected for older staleness (notification and staff-portal had been shown as
+"planned", a non-existent advisor database, WSL at 7.4 GB). **Biggest open item for the shop: there
+is no cart or checkout on the storefront**; `order-service`'s cart API and saga are unreachable from
+the shop front, so every call to action goes to the enquiry form. Owner decisions pending: real
+WhatsApp/email values (the WhatsApp button on product pages appears only once the number is real),
+and whether to replace `sections/plants.jpg` (what look like dyed tetras).
+
+**Earlier (26 September 2026, later):** `V22` added the live plant range — **49 new plants** from
 liveaquaria's aquarium-plant collections plus care profiles for the 3 already sold, in a new
 `plant_profile` table (light level + PAR, CO2, growth, difficulty, placement, height, temp, pH,
 propagation, and three prose fields: about / how to keep it / fish that suit it). `product` gained
@@ -167,7 +186,9 @@ aquashop/
     k3d-cluster.yaml        traefik, servicelb, metrics-server all disabled
   services/
     catalog-service/        Java 21, Spring Boot 3.3, Flyway, Testcontainers, distroless
-    storefront/             TypeScript, Fastify BFF, SSR HTML, distroless
+    storefront/             TypeScript, Fastify BFF, SSR HTML, distroless; tank checker,
+                            br/gzip, WebP variants built in the Dockerfile (scripts/image-variants.py),
+                            self-hosted Fraunces font (public/fonts, OFL)
     inventory-service/      Go 1.24, pgx, embedded migrations, distroless static
     order-service/          Java 21, Spring Boot 3.3, checkout saga, dispatch calendar
     payment-service/        Rust 1.94, Axum, sqlx, append-only ledger, distroless/cc
@@ -178,9 +199,11 @@ aquashop/
                             inventory, order, payment, advisor, notification, staff-portal, ingress
   docs/
     architecture.md         full prose architecture
-    architecture.pdf        13 pages, styled, diagrams embedded, current through the k3d run
+    architecture.pdf        11 sections / 15 physical pages, diagrams + storefront screenshots,
+                            current to 28 Sep 2026 (rendered with page.pdf in the playwright image)
+    screenshots/            storefront screenshots embedded in the PDF
     architecture-pdf.html   source of the PDF
-    adr/                    twenty decision records, each with its cost
+    adr/                    twenty-two decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
     runbooks/               five runbooks; four reproduced locally, one written from docs
     diagrams/generate.py    generates all three SVGs

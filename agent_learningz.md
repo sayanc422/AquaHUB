@@ -35,6 +35,45 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-28 — `curl` said the page was fine; the browser got a blank page
+
+**What happened:** after adding `@fastify/compress`, typecheck passed and `curl` returned full HTML,
+but every page in Chromium was white. Plain `curl` sends no `Accept-Encoding`, so it never took the
+compressed path, where async handlers that didn't `return reply` sent zero-byte bodies.
+**Pattern:** verify with the headers a real client sends (`curl -H 'Accept-Encoding: br'`), or with
+a real browser, which is cheap here: `mcr.microsoft.com/playwright:v1.48.0-jammy` is already pulled,
+so run a script with `--network host`. A blank screenshot with no console errors means check the
+response body size first. **Where:** the rule is in `CLAUDE.md`; the reason is in `server.ts`.
+
+### 2026-09-28 — A comment stated a performance fact nobody had measured, and it was false
+
+**What happened:** `views.ts` said the sidebar's preview photos "are not fetched until someone
+actually hovers." Measuring bytes per page showed 15 unhovered previews loading on every desktop
+visit (`visibility:hidden` doesn't stop lazy-loading; `display:none` does).
+**Pattern:** a comment about what the browser *does* (fetches, caches, lazy-loads) is a claim to
+measure, not to trust. The cheap way: build the old version from `git archive HEAD`, run old and new
+side by side against the same backend, and sum `Network.loadingFinished.encodedDataLength` over CDP
+after scrolling to the end. It gives before/after numbers from the same setup in one run.
+
+### 2026-09-28 — Derived documents drift silently; check them against the cluster, not each other
+
+**What happened:** the diagrams and PDF were 11 days stale. They showed two running services as
+"planned", listed an `advisor` database that never existed, a WSL ceiling fixed a week earlier, and
+Argo CD applications that were never built. Each doc agreed with the others, and none agreed with
+`kubectl`/`psql`.
+**Pattern:** when a change touches topology, regenerate `docs/diagrams/generate.py` and the PDF in the
+same session, and check every factual box against a live command (`kubectl top pods`, `\l` in
+Postgres, `ls platform-repo`). Rendering tip: a Playwright `fullPage` screenshot of a bare `.svg`
+file hangs, so inline the SVG with `setContent` instead.
+
+### 2026-09-28 — A plausible statistic from memory nearly went into an ADR
+
+**What happened:** ADR 0022 briefly said "about 70% of Indian web traffic is Chrome on Android",
+from recall, with no source. It was caught and removed before commit.
+**Pattern:** any number in a doc needs a source or a measurement, or it gets labelled an estimate.
+Recall is not a source. This is `CLAUDE.md`'s "never soften a limitation", applied to your own
+confident-sounding prose.
+
 ### 2026-09-26 — Long generated content thins out towards the end of each batch; measure it
 
 **What happened:** writing care text for 50 plants in batches, each batch started thorough and

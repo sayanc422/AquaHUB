@@ -83,11 +83,12 @@
 
   <div style="height:8mm"></div>
   <span class="pill t">PHASES 1&ndash;5 COMPLETE</span>&nbsp;
-  <span class="pill t">CORE + COMMERCE RUN IN k3d</span>&nbsp;
+  <span class="pill t">ALL 8 SERVICES RUN IN k3d</span>&nbsp;
+  <span class="pill t">STOREFRONT REBUILT 28 SEP</span>&nbsp;
   <span class="pill v">PHASES 6&ndash;7 PLANNED</span>&nbsp;
   <span class="pill o">AWS: VALIDATED, NOT APPLIED</span>
 
-  <div class="foot">AquaShop architecture &middot; core+commerce measured in k3d 16 Sep 2026<span class="r">docs/architecture.md</span></div>
+  <div class="foot">AquaShop architecture &middot; current to 28 September 2026<span class="r">docs/architecture.md</span></div>
 </div>
 
 <!-- -------------------------------------------------------- the product -->
@@ -160,15 +161,15 @@
   <h2><span class="bar"></span>System architecture</h2>
   <img class="diagram" src="diagrams/architecture.svg">
   <div class="foot">Generated from <span class="mono">docs/diagrams/generate.py</span>; committed as SVG so
-    changes appear in diffs. Six of eight services (all but notification-service and staff-portal)
-    are built and have run together in k3d.<span class="r">3</span></div>
+    changes appear in diffs. All eight services are built and run together in k3d; arrows from the
+    storefront go only to the three services it actually calls.<span class="r">3</span></div>
 </div>
 
 <!-- -------------------------------------------------------- deployment -->
 <div class="page">
   <h2><span class="bar"></span>Deployment topology</h2>
   <img class="diagram" src="diagrams/deployment.svg">
-  <div class="foot">Left: what runs, measured 16 September 2026. Right: what it is designed to become, and has never
+  <div class="foot">Left: what runs, per-pod memory measured 28 September 2026. Right: what it is designed to become, and has never
     been.<span class="r">4</span></div>
 </div>
 
@@ -450,16 +451,71 @@
 </div>
 
 <!-- ---------------------------------------------------------- status -->
+<!-- -------------------------------------------------------- storefront -->
+<div class="page">
+  <h2><span class="bar"></span>The storefront &mdash; the customer-facing layer (28 Sep 2026)</h2>
+  <p class="muted" style="max-width:340mm">Rebuilt to make a visitor want to keep fish, without giving up
+    ADR 0005: still one server-rendered HTML page per URL, still working with JavaScript off. What
+    changed is what it looks like, what it sends, and one feature no other fish shop has.</p>
+  <img src="screenshots/storefront-home.jpg" style="display:block;width:100%;border-radius:10px;border:1px solid #2b3654;margin:2mm 0 6mm">
+  <div class="cols">
+    <div class="col">
+      <div class="panel teal">
+        <div class="label teal">The tank checker &mdash; aquatics-advisor's first customer-facing door</div>
+        <p style="color:#e6ecf5">A customer types a tank size and the fish they want; the storefront resolves names to SKUs and
+          asks the advisor. The verdict names the fish and quotes the shop's own rule for every no, and
+          shows the water band the whole tank can live in. A GET form, so a checked tank is a link.</p>
+        <p class="small muted" style="margin:0">Verified with the advisor scaled to zero: an honest 502 in 16 ms,
+          the customer's tank kept in the form, every other page unaffected.</p>
+      </div>
+      <img src="screenshots/storefront-tank-checker.jpg" style="display:block;width:100%;border-radius:10px;border:1px solid #2b3654">
+    </div>
+    <div class="col">
+      <div class="panel">
+        <div class="label">Bytes on the wire, first visit, measured</div>
+        <table>
+          <tr><th>Page</th><th>Before</th><th>After</th></tr>
+          <tr><td class="k">Home, desktop</td><td class="n">4,846 KB</td><td class="teal">760 KB</td></tr>
+          <tr><td class="k">Lake Malawi, desktop</td><td class="n">7,094 KB</td><td class="teal">648 KB</td></tr>
+          <tr><td class="k">Product, desktop</td><td class="n">5,162 KB</td><td class="teal">229 KB</td></tr>
+          <tr><td class="k">Home, phone 3&times;</td><td class="n">1,979 KB</td><td class="teal">986 KB</td></tr>
+          <tr><td class="k">Product, phone 3&times;</td><td class="n">243 KB</td><td class="orange">374 KB</td></tr>
+        </table>
+        <p class="small muted" style="margin:4mm 0 0">Old and new builds side by side against the same catalog,
+          headless Chromium, scrolled to the end. The phone product page grew: it now shows related fish
+          and loads the display font. Repeat visits fell from ~40 KB of revalidation to ~8 KB.</p>
+      </div>
+      <div class="panel">
+        <div class="label">How</div>
+        <ul class="small">
+          <li><b>Brotli/gzip</b> on HTML: the shop front is 58 KB raw, 10 KB sent.</li>
+          <li><b>WebP variants</b> (480/960 px) built at image-build time, served by <span class="mono">srcset</span>. Cards had been loading 1600 px JPEGs.</li>
+          <li><b>Cache policy</b>: CSS and fonts immutable behind a content hash; photos a day (they get replaced under the same name).</li>
+          <li><b>Hover previews</b> that really do wait for a hover: the old ones loaded 15 photos per desktop visit.</li>
+          <li><b>View transitions and speculation rules</b>: declarative, no code of ours (ADR 0022).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Not proven: no real phone, no Safari, no load. The storefront has no cart; order-service's
+    checkout is not reachable from the shop front yet.<span class="r">10</span></div>
+</div>
+
+<!-- ------------------------------------------------------------ status -->
 <div class="page">
   <h2><span class="bar"></span>Status &mdash; what's built, what's measured, what's next</h2>
   <div class="cols">
     <div class="col">
       <div class="panel teal">
-        <div class="label teal">Built and exercised in k3d (16 Sep 2026)</div>
+        <div class="label teal">Built and exercised in k3d (16 &ndash; 28 Sep 2026)</div>
         <ul>
-          <li><b>All six services</b> &mdash; catalog-service, storefront, inventory-service, order-service,
-            payment-service, aquatics-advisor &mdash; up together as the <span class="mono">core</span> +
-            <span class="mono">commerce</span> profiles.</li>
+          <li><b>All eight services</b> up together as <span class="mono">full-app</span>: 2234 MiB on
+            17 Sep, ~2.0 GiB on 28 Sep. notification-service (Go, 4 MiB) and staff-portal (WildFly,
+            383 MiB, its own ingress host) included.</li>
+          <li><b>A catalogue of 220 products</b> across 45 sections, with care profiles for every animal
+            and plant, and a photograph on almost all of them.</li>
+          <li><b>Custom tank enquiries</b>, encrypted by Postgres (ADR 0021), and a <b>tank checker</b>
+            on the shop front in front of aquatics-advisor.</li>
           <li><b>Probes, resource limits, ingress/TLS</b> exercised in-cluster for the first time.</li>
           <li><b>A live checkout saga</b> across three services, ending <span class="mono">CONFIRMED</span>
             with a committed reservation and a correct dispatch window.</li>
@@ -475,7 +531,7 @@
         <table>
           <tr><td class="k">Phase 6</td><td class="n">Observability (OTel, RED + business metrics, burn-rate alerts) and the delivery layer (Argo CD app-of-apps across dev/uat/prod). NATS arrives, and notification-service moves from ADR 0020's fire-and-forget HTTP push to a real subscription. Saga crash-recovery is already closed without an outbox (ADR 0018); an outbox still arrives here, but for reliably publishing domain events to NATS, not for crash-safety.</td></tr>
           <tr><td class="k">Phase 7</td><td class="n">The full local-to-cloud document (only the Phase 1 extract exists today) and remaining Terraform hardening: NetworkPolicies, PDBs, HPA on a custom RPS metric.</td></tr>
-          <tr><td class="k">full-app</td><td class="n">notification-service and staff-portal (WildFly) &mdash; planned, no code or manifests exist yet.</td></tr>
+          <tr><td class="k">Storefront</td><td class="n">A cart and checkout on the shop front. order-service's cart API and crash-safe saga have existed since Phase 3; nothing customer-facing calls them.</td></tr>
         </table>
       </div>
     </div>
@@ -483,15 +539,15 @@
       <div class="panel orange">
         <div class="label orange">Known limitations, stated plainly</div>
         <ul>
-          <li>Secrets are plaintext in Git at Phase 1.</li>
+          <li>Secrets are plaintext in Git, except the enquiry encryption key (ADR 0021), which is created by hand.</li>
           <li>Single-node cluster: PDBs, anti-affinity, node drains and multi-AZ behaviour cannot be exercised.</li>
           <li>Only one environment is materialised at a time; none has run concurrently with another.</li>
           <li>The AWS layer has never been applied. Module wiring is proven; AWS behaviour is not.</li>
           <li>No sustained-load figures exist, in or out of k3d &mdash; only single-threaded smoke-test numbers.</li>
-          <li><span class="mono">full-app</span>, <span class="mono">platform</span> and
-            <span class="mono">observability</span> profiles have never run. <span class="mono">observability</span>'s
-            ~9.2 GB estimate does not fit the current, unconfigured 7.4 GB WSL2 ceiling at all &mdash; only
-            the intended 11 GB one, which requires a <span class="mono">.wslconfig</span> change not yet made.</li>
+          <li><span class="mono">platform</span> and <span class="mono">observability</span> have never run and
+            have no manifests. WSL2 now has ~11 GB (applied by 22 Sep), so observability's ~9.2 GB estimate
+            fits on paper; it is still an estimate.</li>
+          <li>The storefront's premium behaviour runs in Chromium only, and has never been seen on a real phone.</li>
           <li>payment-service's acquirer is a stub: no partial captures, chargebacks, 3-D Secure or settlement.</li>
           <li>aquatics-advisor has no HTTP-layer or catalog-client tests, and ships on
             <span class="mono">python:3.11-slim</span> rather than distroless.</li>
@@ -502,7 +558,7 @@
     </div>
   </div>
   <div class="foot">Each phase ends in something demonstrable. Phase 1 ended with a fish in a
-    browser; this k3d run ends with a saga in a cluster.<span class="r">10</span></div>
+    browser; this k3d run ends with a saga in a cluster.<span class="r">11</span></div>
 </div>
 
 </body></html>
