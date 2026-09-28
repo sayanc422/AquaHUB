@@ -93,6 +93,40 @@ resolves the `observability` profile's ~9.2 GB-estimate-vs-7.4 GB-ceiling mismat
 `observability` has still never been built or run, so its own estimate remains unmeasured, but the
 ceiling that used to make it impossible no longer applies.
 
+## Development plan — pick up at the first unticked item
+
+*Owner's working agreement (28 September 2026):* work through this list in order, tick each item
+here when it is done and verified, update `agent_learningz.md` as lessons happen (not only at the
+end), and **commit and push after every item**. A fresh session reads `CLAUDE.md`, then
+`agent_learningz.md`, then this section, and starts at the first `[ ]`. If a session stops
+mid-item, the next one resumes it; "continue from the plan in docs/context_summary.md" is the whole
+instruction it needs.
+
+**Owner priority now: bettas, gouramis, shrimp and other invertebrates** — the business will lead
+with them. Deeper writing, more species and more varieties in those departments.
+
+- [ ] **1. Bettas & gouramis.** Split `anabantoids` into Bettas (*Betta splendens* forms), Wild
+      Bettas (small and mouthbrooding species) and Gouramis & Paradise Fish; add betta forms, wild
+      bettas and more gouramis, each with a full care profile and an "About this fish" of real
+      depth. The owner's request overrides V17's "one product per species" fold for bettas. Add new
+      long-finned SKUs to the advisor's `rules.yaml`; confirm by running the checker that two male
+      bettas of *different forms* are still refused. Update `CatalogApiTest` deliberately.
+- [ ] **2. Shrimp & invertebrates.** Split `inverts-shrimp` into Neocaridina colour shrimp,
+      Caridina crystal & bee shrimp, and filter-feeding & other shrimp; add colour forms, bee shrimp,
+      bamboo/vampire/whisker shrimp and a few snails; write an "About this shrimp/snail" for
+      **every** invertebrate (all were NULL). Render a multi-paragraph shrimp-keeping guide from the
+      section description, and make product pages say "About this shrimp", not "About this fish".
+- [ ] **3. Photographs** for everything items 1 and 2 add: product photos (4:3) and section photos
+      (16:9), Commons-licensed and credited, caption checked against the photo.
+- [ ] **4. Crop audit.** Screenshot every product and category page and flag any animal that is cut
+      off. Known suspect: `oscar.jpg`, which is not quite 4:3.
+- [ ] **5. Docs refresh.** Release notes, diagrams if topology changed, PDF status page.
+
+**Held by the owner (do not start without asking):** cart and checkout on the storefront; real
+WhatsApp and email values; replacing `sections/plants.jpg`; renaming "Badidae -- Badis & Dario";
+reviewing the estimated prices; crabs and crayfish (they need a new `animal_group` and advisor
+rules, not just rows).
+
 ---
 
 ## Decisions already made — do not re-litigate these
