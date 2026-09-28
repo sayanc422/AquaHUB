@@ -5,6 +5,61 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Owner review, round 1: a sticky sidebar and no cropped fish (28 September 2026, later)
+
+The owner's first look at the redesign, three requests, all in `services/storefront`. The missing
+features (cart, real contact details) are on hold at the owner's request.
+
+**The sidebar stays in view.** From 1200px up, "Browse the shop" is `position:sticky` under the
+header, capped at the viewport, and scrolls on its own (`overscroll-behavior:contain`, thin
+scrollbar). This reverses an earlier "deliberately not sticky", whose two reasons (a tall sticky
+column hides its bottom; a scroll box clips the hover preview) are answered in the stylesheet's
+comment. **Measured with a browser:** at 1280, 1366, 1536 and 1920 the sidebar's top equals the
+header's bottom (65px). A wheel over the sidebar scrolls it to its end (e.g. `scrollTop` 502 of
+1517−1015 at 1920) and the page does not move. The Goldfish preview's centre sits 0.1px from its
+row's centre. At 1199px the sidebar falls back to static.
+
+**Found by measuring, before it shipped:** the header was not the 58px its CSS variable claimed. It
+was 68px at 1536, and **two rows (125px) at every width up to ~1400px**, including 1366px, one of the
+most common laptop widths. A sticky sidebar there would have lost its top 66px under the header.
+From 1200px the header is now pinned to one 64px row (tighter nav spacing, a 240px search
+minimum). Measured at 1200–1920: 65px, no horizontal overflow, search box at least 263px wide.
+
+**No fish cropped.** The collections mosaic had squeezed 4:3 photos into 4:5 and 16:10 boxes with
+text over them, which showed a betta's fin and an arowana with no back. The rule now, stated in
+`views.ts` and the stylesheet: *the box takes the photo's shape, and nothing is written over the
+fish.*
+- **Arowana: a full-width 12:5 panorama** on `species/asian-arowana-red-tail-golden.jpg`, which shows
+  nose to tail, with the caption beside it on wide screens and below it on narrow ones. The focal
+  point is measured from the source (fish at y≈238–663 of 1050, so 35%). A first guess of 52% cut
+  the back off again, and a screenshot caught it.
+- **Bettas, Badis & Dario (the owner's suggestion), Goldfish: 4:3 tiles** that match their 4:3 photos
+  exactly, captions below.
+- **A new betta:** a female crowntail (dark blue body, red fins) in a planted tank, from Wikimedia
+  Commons, public domain (PD-self, DefenderRegina, 2010), 3072×2304, scaled to 1600×1200 and not
+  cropped. 64 licensed candidates were screened by thumbnail *and* caption. Recorded in the new
+  `public/collections/CREDITS.md`, and its WebP variants come from the same build stage as every
+  other photo.
+- **Category tiles** are now 16:9 to match the section photos, with the caption below. Switching to
+  16:9 with the old overlay text briefly made things worse: the text covered the fish and pushed the
+  stock count out of the top of two-line tiles. Caught in review and fixed.
+- **The category banner** is now a split, text on the left and the photo on the right at its own
+  16:9. The old full-bleed banner cropped every section photo to a ~3.6:1 strip. On the Arowana page
+  that meant an eye and a belly: this was the owner's "horizontal tile cutting the upper side".
+
+**Checked:** 390 and 1366px, five pages each: zero horizontal overflow and zero console errors.
+Phone views of the panorama, tiles and banner were reviewed by eye.
+
+### Still unproven
+- Anchor positioning is Chromium-only today. In Firefox and Safari the desktop sidebar still sticks
+  and scrolls, but shows no hover preview, on purpose, rather than a misplaced one.
+- The sidebar's own scroll position resets on each page load, so a deep section can open below the
+  fold of the sidebar. Scrolling it into view needs JavaScript, which ADR 0005/0022 rule out.
+- The section name "Badidae -- Badis & Dario" (from the catalogue) reads oddly on a shop-front
+  panel. Renaming it is a catalogue migration and the owner's call.
+
+---
+
 ## The storefront becomes the shop: a premium redesign, a public tank checker, and 84–96% fewer bytes (28 September 2026)
 
 The brief: make the site look premium, make it faster, and give it something the thousands of other

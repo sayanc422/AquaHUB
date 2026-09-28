@@ -115,6 +115,11 @@ why the advisor's rules are a YAML file. Match that when you add code.
   runs in a Dockerfile stage and `IMAGE_VARIANTS=1` is set there. A CDN move must carry
   `variants/` along with the originals. A photo replaced under the same name reaches returning
   customers within a day (`max-age=86400`), not instantly.
+- **Storefront photos keep their own shape.** Species photos are 4:3 and section photos 16:9. A
+  box of another shape crops the animal, and text goes beside or below a photo, never over it. If a
+  shape must differ, set `object-position` from where the fish is measured to sit in the source.
+  The desktop header is pinned to one `--nav-h` row from 1200px because the sticky sidebar's `top`
+  depends on it; adding a nav link means re-measuring that it still fits at 1200px.
 - **A Dockerfile's pinned toolchain version is a claim that gets stale silently.** `go.mod`'s `go`
   directive and `Cargo.lock`'s resolved transitive dependencies can both drift ahead of what a
   Dockerfile pins, and `mvn`/`go build`/`cargo build` inside CI or a local dev shell won't catch it

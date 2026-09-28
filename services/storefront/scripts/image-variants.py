@@ -26,7 +26,7 @@ from PIL import Image
 
 WIDTHS = (480, 960)
 QUALITY = 78          # WebP q78 is visually lossless at card size on these photos
-SOURCES = ("species", "sections")
+SOURCES = ("species", "sections", "collections")
 
 
 def main(public: Path, out: Path) -> int:

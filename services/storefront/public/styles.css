@@ -149,6 +149,19 @@ h1 em,h2 em{font-style:italic;font-weight:400;color:var(--accent)}
 .top nav > a:hover::after{transform:scaleX(1)}
 .nav-cta{color:var(--accent) !important;opacity:1 !important;font-weight:600}
 
+/* Desktop header: one row, exactly --nav-h tall, so the sticky sidebar
+   knows where it ends. Tighter nav spacing and a narrower search minimum are
+   what make brand + search + six links fit from 1200px. */
+@media (min-width:1200px){
+  :root{--nav-h:64px}
+  .top-inner{flex-wrap:nowrap;height:var(--nav-h);gap:0 1.1rem}
+  .search{flex:1 1 240px;margin:0}
+  .search select{max-width:7.5rem}
+  .top nav{flex:none;flex-wrap:nowrap;gap:0}
+  .top nav > a{padding:.9rem .5rem;font-size:.78rem;white-space:nowrap}
+  .top nav > a::after{left:.5rem;right:.5rem}
+}
+
 /* A root section that is announced but not open. Never happens today (all
    four roots are browsable), but the nav renders it rather than hiding it. */
 .nav-soon{display:block;padding:.9rem .75rem;font-size:.8rem;opacity:.35}
@@ -265,10 +278,32 @@ h1 em,h2 em{font-style:italic;font-weight:400;color:var(--accent)}
 main{min-width:0;padding:0 0 4rem}
 
 /* ---- category sidebar -------------------------------------------------- */
-/* Deliberately not sticky. A sticky column taller than the viewport hides
-   its own bottom until the page ends, and a scrolling one (overflow:auto)
-   would clip the hover preview that has to escape it to the right. */
+/* Sticky, with its own scroll, on desktop: the owner wanted the tree in
+   view wherever the page is (28 September 2026). This reverses an earlier
+   "deliberately not sticky", whose two reasons are answered here:
+   - "a sticky column taller than the viewport hides its own bottom" -- so
+     it is capped at the viewport and scrolls inside itself, and
+     `overscroll-behavior:contain` stops the end of the list scrolling the
+     page underneath;
+   - "overflow:auto would clip the hover preview" -- so the preview is
+     `position:fixed`, which a scroll box does not clip, and placed beside
+     the hovered row by CSS anchor positioning (see `.peek`). A browser
+     without anchor positioning shows no preview on desktop rather than one
+     in the wrong place.
+   `top` is the header's height, which from 1200px is pinned to one row of
+   exactly --nav-h (see "desktop header" below). Measured before that pin, the
+   header wrapped to two rows (125px) at every width up to ~1400px -- 1366px
+   laptops included -- and a sticky sidebar under it lost its top 66px.
+   Below 1200px the header may wrap, so the sidebar scrolls with the page
+   there, as before. */
 .side{padding:2rem 0 3rem;font-size:.86rem}
+@media (min-width:1200px){
+  .side{position:sticky;top:calc(var(--nav-h) + 1px);max-height:calc(100vh - var(--nav-h) - 1px);
+    overflow-y:auto;overscroll-behavior:contain;padding:1.5rem .5rem 2rem 0;
+    scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--muted) 45%,transparent) transparent}
+  /* No fade mask at the edges: a mask applies to every descendant, fixed ones
+     included, and would erase the hover preview outside the column. */
+}
 .side-title{font-size:.68rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
   color:var(--gold);margin:0 0 .7rem .7rem}
 .side ul{list-style:none;margin:0;padding:0}
@@ -325,7 +360,7 @@ main{min-width:0;padding:0 0 4rem}
    preview without the fade. */
 .peek{display:none}
 @media (hover:hover){
-  .peek{position:absolute;left:calc(100% + 14px);top:50%;z-index:40;
+  .peek{position:absolute;left:calc(100% + 14px);top:50%;z-index:60;
     width:230px;aspect-ratio:16/9;border-radius:var(--radius-md);overflow:hidden;
     background:var(--abyss);box-shadow:var(--shadow-hover);pointer-events:none;
     transform:translate(0,-50%);
@@ -335,6 +370,14 @@ main{min-width:0;padding:0 0 4rem}
     text-shadow:0 1px 10px rgba(0,0,0,.6)}
   .side-link:hover > .peek{display:block;opacity:1}
   @starting-style{ .side-link:hover > .peek{opacity:0;transform:translate(-6px,-50%)} }
+}
+/* In the sticky, scrolling sidebar an absolutely placed preview would be
+   clipped by the scroll box. Fixed positioning escapes it, and the anchor
+   ties it back to the row being hovered. Without anchor support, no preview. */
+@media (hover:hover) and (min-width:1200px){
+  .side-link:hover{anchor-name:--peek-row}
+  .peek{position:fixed;position-anchor:--peek-row;left:calc(anchor(right) + 14px);top:anchor(center)}
+  @supports not (anchor-name:--a){ .side-link:hover > .peek{display:none} }
 }
 
 /* Which section a search result is filed in. */
@@ -440,17 +483,19 @@ a.card:hover .card-foot svg{transform:translateX(4px)}
 .sku{color:var(--muted);font-size:.74rem;font-family:ui-monospace,"SF Mono",Menlo,monospace}
 
 /* ---- section tiles --------------------------------------------------- */
-/* The photograph is the tile. Same flexbox reasoning as `.grid` above -- a
-   category page's own subsections rarely divide evenly into full rows. */
+/* Photo on top at its own 16:9, caption beneath -- the same rule as the
+   collections. Text laid over a short 16:9 photo covered most of the fish
+   and, on two-line names, pushed the count out of the top of the tile.
+   Same flexbox reasoning as `.grid` above -- a category page's own
+   subsections rarely divide evenly into full rows. */
 .tiles{display:flex;flex-wrap:wrap;gap:1.25rem;margin-bottom:1rem}
-.tile{position:relative;flex:1 1 min(100%,250px);max-width:460px;display:block;overflow:hidden;
+.tile{position:relative;flex:1 1 min(100%,250px);max-width:460px;display:flex;flex-direction:column;overflow:hidden;
   border-radius:var(--radius-lg);background:var(--abyss);color:#fff;box-shadow:var(--shadow);
   transition:transform .45s var(--ease),box-shadow .45s var(--ease)}
 a.tile:hover{transform:translateY(-6px);box-shadow:var(--shadow-hover)}
-.tile .shot{transition:transform 1.2s var(--ease),opacity .4s;opacity:.92}
-a.tile:hover .shot{transform:scale(1.07);opacity:1}
-.tile-body{position:absolute;inset:auto 0 0 0;padding:3.5rem 1.2rem 1.1rem;
-  background:linear-gradient(0deg,rgba(2,12,20,.92) 0,rgba(2,12,20,.62) 45%,transparent 100%)}
+.tile .shot{transition:transform 1.2s var(--ease)}
+a.tile:hover .shot{transform:scale(1.05)}
+.tile-body{position:relative;flex:1;padding:1rem 1.2rem 1.15rem;background:var(--abyss)}
 .tile .count{display:block;margin:0 0 .3rem;font-size:.66rem;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:#9ff3d4}
 .tile .name{display:block;font-size:1.4rem;color:#fff}
@@ -463,34 +508,35 @@ a.tile:hover .shot{transform:scale(1.07);opacity:1}
 .tile.soon .count{color:#f3c98a}
 
 /* ---- collections (home) ----------------------------------------------- */
-/* An editorial mosaic, and the one grid on the site that is CSS Grid: its
-   panel count is editorial and fixed at four, so there is no ragged last row
-   for Grid to strand (see `.grid` above). If a panel drops out -- a section
-   closed, a slug renamed -- `:has()` falls back to the flex layout rather
-   than leaving the mosaic's empty cell in the middle of the shop front. */
+/* A panorama for the arowana, then a row of 4:3 tiles. The photo keeps its
+   own shape in both (see `collections` in views.ts) and the caption sits
+   below it, so no fish is cropped to fit a box or hidden under text. The
+   earlier mosaic forced 4:3 photos into 4:5 and 16:10 boxes and showed a
+   betta's fin and an arowana with no back. Flex, not grid, for the row:
+   `.grid`'s ragged-last-row reasoning applies if a panel drops out. */
 .collections{display:flex;flex-wrap:wrap;gap:1.25rem}
-.collection{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:flex-end;
-  flex:1 1 min(100%,300px);min-height:300px;border-radius:var(--radius-xl);color:#fff;background:var(--abyss);
-  box-shadow:var(--shadow);transition:box-shadow .45s var(--ease)}
-.collection > .shot{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto !important;z-index:-2;
-  transition:transform 1.4s var(--ease)}
-.collection::before{content:"";position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(0deg,rgba(2,12,20,.9) 0,rgba(2,12,20,.35) 55%,rgba(2,12,20,.05) 100%)}
-.collection:hover{box-shadow:var(--shadow-hover)}
-.collection:hover > .shot{transform:scale(1.06)}
-.collection-text{display:flex;flex-direction:column;padding:1.6rem 1.7rem}
-.collection .eyebrow{color:#e7cf8f;margin-bottom:.4rem}
-.collection-name{font-size:clamp(1.6rem,2.6vw,2.2rem);font-weight:500;letter-spacing:-.02em;line-height:1.05}
-.collection-teaser{margin:.4rem 0 .9rem;color:rgba(233,244,247,.84);font-size:.9rem;max-width:36ch}
-.collection-go{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:600;color:#9ff3d4}
+.collection{display:flex;flex-direction:column;overflow:hidden;flex:1 1 min(100%,280px);
+  border-radius:var(--radius-xl);color:#fff;background:var(--abyss);
+  box-shadow:var(--shadow);transition:box-shadow .45s var(--ease),transform .45s var(--ease)}
+.collection:hover{box-shadow:var(--shadow-hover);transform:translateY(-4px)}
+.collection-shot{display:block;overflow:hidden;background:#000}
+.collection-shot .shot{object-position:var(--focus,50% 50%);transition:transform 1.4s var(--ease)}
+.collection:hover .collection-shot .shot{transform:scale(1.04)}
+.collection-text{display:flex;flex-direction:column;flex:1;padding:1.3rem 1.5rem 1.4rem}
+.collection .eyebrow{color:#e7cf8f;margin-bottom:.35rem}
+.collection-name{font-size:clamp(1.45rem,2.2vw,1.9rem);font-weight:500;letter-spacing:-.02em;line-height:1.05}
+.collection-teaser{margin:.35rem 0 .9rem;color:rgba(233,244,247,.8);font-size:.88rem;max-width:40ch}
+.collection-go{margin-top:auto;display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:600;color:#9ff3d4}
 .collection-go svg{transition:transform .3s var(--ease)}
 .collection:hover .collection-go svg{transform:translateX(4px)}
-@media (min-width:1100px){
-  .collections:has(> :nth-child(4)){display:grid;grid-template-columns:1.15fr 1fr 1fr;
-    grid-template-rows:repeat(2,minmax(270px,auto))}
-  .collections:has(> :nth-child(4)) .collection-lead{grid-row:1 / span 2}
-  .collections:has(> :nth-child(4)) > :nth-child(4){grid-column:2 / span 2}
-  .collection-lead .collection-name{font-size:clamp(2.2rem,3.4vw,3rem)}
+/* The feature: photo across the full width at 12:5, caption beside it on a
+   wide screen and beneath it on a narrow one. */
+.collection-feature{width:100%;margin-bottom:1.25rem}
+.collection-feature .collection-name{font-size:clamp(1.9rem,3.4vw,2.8rem)}
+@media (min-width:1300px){
+  .collection-feature{flex-direction:row;align-items:stretch}
+  .collection-feature .collection-shot{flex:1 1 auto;min-width:0}
+  .collection-feature .collection-text{flex:0 0 300px;justify-content:center;padding:2rem}
 }
 
 /* ---- tank checker teaser (home) --------------------------------------- */
@@ -518,13 +564,21 @@ a.tile:hover .shot{transform:scale(1.07);opacity:1}
 .unit input:focus{outline:none}
 
 /* ---- category banner --------------------------------------------------- */
-.banner{position:relative;isolation:isolate;overflow:hidden;margin:1.75rem 0 2rem;border-radius:var(--radius-xl);
-  background:var(--abyss);color:#fff;min-height:300px;display:flex;align-items:flex-end}
-.banner > .shot{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto !important;z-index:-2}
-.banner::before{content:"";position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(90deg,rgba(2,12,20,.88) 0,rgba(2,12,20,.55) 45%,rgba(2,12,20,.1) 100%),
-    linear-gradient(0deg,rgba(2,12,20,.6),transparent 60%)}
-.banner-text{padding:2rem clamp(1.4rem,3vw,2.6rem) 2.1rem;max-width:760px}
+/* Split: the words on the left, the section's photograph on the right at
+   its own 16:9, with nothing written over it. The first version laid the
+   text over the photo in a ~3.6:1 strip, which on the Arowana page left an
+   eye and a belly. On a narrow screen the photo stacks on top. */
+.banner{overflow:hidden;margin:1.75rem 0 2rem;border-radius:var(--radius-xl);background:var(--abyss);color:#fff;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center}
+/* Its own 16:9, centred, never stretched to the text's height: a long
+   description made the row taller than the photo, and `height:100%` then
+   cropped the arowana's tail off. */
+.banner > .shot{order:2;align-self:center}
+.banner-text{order:1;padding:2rem clamp(1.4rem,3vw,2.6rem) 2.1rem}
+@media (max-width:1099px){
+  .banner{grid-template-columns:minmax(0,1fr)}
+  .banner > .shot{order:0}
+}
 .banner h1{margin:.6rem 0 .5rem;color:#fff}
 .banner .lede{margin:0;color:rgba(233,244,247,.85)}
 .banner .trail{margin:0}
@@ -745,6 +799,7 @@ a.contact-link:hover{background:rgba(255,255,255,.1);transform:translateY(-2px)}
   /* The picker's longest option would otherwise take half the bar and
      leave three letters of query visible. */
   .search select{max-width:6.6rem;font-size:.72rem;padding-left:.75rem;padding-right:.2rem}
+  .search input{padding:.5rem .45rem}
   .hero-inner{padding:4.5rem 1rem 2rem}
   /* Two by two: four stats wrapped 2+2 by flex left a divider hanging on
      the start of the second row. */
@@ -753,7 +808,6 @@ a.contact-link:hover{background:rgba(255,255,255,.1);transform:translateY(-2px)}
   .hero-stats li:nth-child(odd){padding-left:0;border-left:0}
   .hero-stats b{font-size:1.5rem}
   .hero-cta .btn{flex:1 1 100%}
-  .banner{min-height:240px}
   h1{margin-top:2rem}
   .block,.checker-teaser,.inquiry{margin-top:3.25rem}
   .care dl div{flex-direction:column;gap:.15rem;padding:.7rem 0}

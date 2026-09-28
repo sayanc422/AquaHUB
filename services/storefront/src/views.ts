@@ -417,6 +417,8 @@ const card = (p: ProductSummary, showPrice = true, where?: string) => `
 
 /**
  * A section tile: the photograph is the tile, with the name set over it.
+ * 16:9, because every section photograph is 16:9 (sections/README.md): a
+ * 4:3 box cut a quarter off each one.
  *
  * A section that is announced but not stocked renders as an inert `<span>`
  * rather than a dead `<a>`: a link that goes nowhere is worse than no link,
@@ -431,7 +433,7 @@ const tile = (c: CategoryView) => {
         : (c.childCount > 0 ? `${c.childCount} sections` : 'Nothing stocked yet'))
     : 'Coming soon';
   const inner = `
-    ${photo(c.imageKey, '', '4/3', { sizes: '(max-width: 640px) 92vw, 420px' })}
+    ${photo(c.imageKey, '', '16/9', { sizes: '(max-width: 640px) 92vw, 460px' })}
     <div class="tile-body">
       <span class="count">${esc(count)}</span>
       <span class="name">${esc(c.name)}</span>
@@ -512,8 +514,9 @@ export function categoryPage(
   // The section's photograph as a banner under its name. Every category has
   // one since V14, and a page that opens on the kind of water these fish come
   // from sells them better than a heading alone.
+  // Beside the name, at its own 16:9 -- never cropped to a strip under text.
   const banner = c.imageKey
-    ? `<div class="banner">${photo(c.imageKey, '', '21/8', { eager: true, sizes: '(max-width: 900px) 94vw, 1100px' })}
+    ? `<div class="banner">${photo(c.imageKey, '', '16/9', { eager: true, sizes: '(max-width: 1100px) 94vw, 640px' })}
          <div class="banner-text">${crumbs(page.breadcrumb, c.name)}
            <h1>${esc(c.name)}</h1>
            <p class="lede">${esc(c.description ?? c.teaser ?? '')}</p></div></div>`
@@ -624,39 +627,77 @@ export function inquiryThanksPage(chrome: Chrome, reference: string | null) {
 
 /**
  * The homepage's editorial collections: a handful of sections worth a closer
- * look, each on its own photograph.
+ * look, each on a photograph chosen for the panel it sits in.
  *
- * The slugs and the one-line eyebrows are editorial and live here; the names,
- * teasers, counts and photographs come from the catalog, so a renamed section
- * renames its collection panel. A slug that is missing or not open for
- * browsing is skipped rather than rendered as a dead panel.
+ * Two rules, both learnt from the owner's first look at this block
+ * (28 September 2026), when a tall panel showed a betta's fin and nothing
+ * else and a wide one cut the arowana's back off:
+ *
+ * - **The panel takes the photograph's shape, not the other way round.**
+ *   Every species photograph is 4:3, so the three tiles are 4:3 and show the
+ *   whole fish. The arowana is a long fish and gets a panorama of its own,
+ *   on a photograph where it runs nose to tail across the frame.
+ * - **Nothing is written over the fish.** The caption sits under the photo.
+ *
+ * The photographs are editorial and live here, not in the catalog: a
+ * collection is a shop-front decision about how to show a section, and the
+ * section's own tile photo (16:9, a scene) is the wrong shape for it. Each
+ * one is a key like every other photo, so a CDN move is unchanged. The
+ * names, teasers and counts still come from the catalog, and a slug that is
+ * missing or closed drops its panel rather than rendering a dead one.
  */
-// Order is layout: the first panel is the tall one and the fourth the wide
-// one, so a portrait-friendly photograph leads and a landscape one closes.
-// The arowana led at first and its tall crop showed nothing but scales.
-const COLLECTIONS: [slug: string, eyebrow: string][] = [
-  ['anabantoids', 'Living jewels'],
-  ['goldfish', 'Fancy goldfish'],
-  ['tetras', 'Schools of colour'],
-  ['arowana', 'Showpiece fish'],
+interface Collection { slug: string; eyebrow: string; image: string; alt: string; focus?: string }
+
+const FEATURE: Collection = {
+  slug: 'arowana', eyebrow: 'Showpiece fish',
+  image: 'species/asian-arowana-red-tail-golden.jpg',
+  alt: 'A red tail golden Asian arowana swimming the length of a dark tank',
+  // Measured, not guessed: in the 1400x1050 source the fish runs from y~238
+  // (top of the back) to y~663 (anal fin). A 12:5 frame shows 583 px of
+  // height, so centring the fish is an offset of ~35%. The first guess, 52%,
+  // cut the back off -- the exact complaint this panel exists to answer.
+  focus: '50% 35%',
+};
+const COLLECTIONS: Collection[] = [
+  { slug: 'anabantoids', eyebrow: 'Living jewels', image: 'collections/betta-female-crowntail.jpg',
+    alt: 'A female crowntail betta, dark blue with red fins, in a planted tank' },
+  { slug: 'badidae', eyebrow: 'Small and scarlet', image: 'species/scarlet-badis.jpg',
+    alt: 'A scarlet badis over sand' },
+  { slug: 'goldfish', eyebrow: 'Fancy goldfish', image: 'species/ryukin-goldfish.jpg',
+    alt: 'A red and white ryukin goldfish' },
 ];
 
+const stocked = (c: Collection, tree: TreeNode[]) => {
+  const n = findNode(tree, c.slug);
+  return n?.browsable && n.totalProducts > 0 ? n : undefined;
+};
+
+const caption = (c: Collection, n: TreeNode) => `
+  <span class="collection-text"><span class="eyebrow">${esc(c.eyebrow)}</span>
+    <span class="collection-name">${esc(n.name)}</span>
+    <span class="collection-teaser">${esc(n.teaser ?? '')}</span>
+    <span class="collection-go">${n.totalProducts} in stock ${icons.arrow}</span></span>`;
+
 function collections(tree: TreeNode[]): string {
-  const panels = COLLECTIONS
-    .map(([slug, eyebrow]) => ({ n: findNode(tree, slug), eyebrow }))
-    .filter((x): x is { n: TreeNode; eyebrow: string } => !!x.n?.browsable && x.n.totalProducts > 0)
-    .map(({ n, eyebrow }, i) => `
-      <a class="collection${i === 0 ? ' collection-lead' : ''} reveal" href="/c/${esc(n.slug)}">
-        ${photo(n.imageKey, '', i === 0 ? '4/5' : '16/10', { sizes: i === 0 ? '(max-width: 900px) 92vw, 560px' : '(max-width: 900px) 92vw, 520px' })}
-        <span class="collection-text"><span class="eyebrow">${esc(eyebrow)}</span>
-          <span class="collection-name">${esc(n.name)}</span>
-          <span class="collection-teaser">${esc(n.teaser ?? '')}</span>
-          <span class="collection-go">${n.totalProducts} in stock ${icons.arrow}</span></span>
+  const f = stocked(FEATURE, tree);
+  const feature = f ? `
+    <a class="collection collection-feature reveal" href="/c/${esc(f.slug)}">
+      <span class="collection-shot" style="--focus:${esc(FEATURE.focus ?? '50% 50%')}">${photo(FEATURE.image, FEATURE.alt, '12/5',
+        { sizes: '(max-width: 900px) 94vw, 1100px' })}</span>
+      ${caption(FEATURE, f)}
+    </a>` : '';
+  const tiles = COLLECTIONS.map(c => ({ c, n: stocked(c, tree) }))
+    .filter((x): x is { c: Collection; n: TreeNode } => !!x.n)
+    .map(({ c, n }) => `
+      <a class="collection reveal" href="/c/${esc(n.slug)}">
+        <span class="collection-shot">${photo(c.image, c.alt, '4/3', { sizes: '(max-width: 900px) 92vw, 380px' })}</span>
+        ${caption(c, n)}
       </a>`);
-  if (!panels.length) return '';
+  if (!feature && !tiles.length) return '';
   return `<section class="block">
       <div class="block-head"><p class="eyebrow">Collections</p><h2>Fish worth building a tank around</h2></div>
-      <div class="collections">${panels.join('')}</div>
+      ${feature}
+      ${tiles.length ? `<div class="collections">${tiles.join('')}</div>` : ''}
     </section>`;
 }
 

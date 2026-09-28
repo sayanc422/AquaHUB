@@ -35,6 +35,31 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-28 — A box the wrong shape for its photo crops the fish; text over it hides the rest
+
+**What happened:** the owner's first look at the redesign found a betta shown as one fin (a 4:3
+photo in a 4:5 box), an arowana with no back (16:10 box, text over the body), a category banner
+showing an eye and a belly (16:9 photo in a ~3.6:1 strip), and 16:9 tiles whose overlay text pushed
+the count out of the tile. My own screenshot review had passed all of them. I was checking that
+things *rendered*, not that each *fish* was whole.
+**Pattern:** a fixed box should match its photo's shape (species photos are 4:3, section photos
+16:9), and captions go beside or below the photo, not over the animal. When a shape must differ,
+as with the 12:5 arowana panorama, measure where the subject sits in the source and set
+`object-position` from that. The guessed 52% cut the back off; the measured 35% didn't. When
+reviewing a screenshot, ask of every photo: is the whole animal in frame?
+
+### 2026-09-28 — "The header is 58px" was a CSS variable, not a measurement
+
+**What happened:** making the sidebar sticky under the header, `top: var(--nav-h)` assumed 58px. The
+live header was 68px at 1536px and **wrapped to two rows (125px) at every width up to ~1400px**,
+1366px laptops included, which would have hidden the sidebar's top 66px. Fixed by pinning the
+header to one 64px row from 1200px and only making the sidebar sticky there. Also caught before it
+shipped: a fade `mask-image` on the scroll box would have erased the `position:fixed` hover preview,
+because masks and opacity apply to every descendant, fixed ones included.
+**Pattern:** for anything positioned relative to another element, measure that element's live
+`getBoundingClientRect()` across a sweep of widths (1100–1920) before writing the offset. When testing
+scroll, disable `scroll-behavior:smooth` first, or the page will still be moving when you measure.
+
 ### 2026-09-28 — `curl` said the page was fine; the browser got a blank page
 
 **What happened:** after adding `@fastify/compress`, typecheck passed and `curl` returned full HTML,

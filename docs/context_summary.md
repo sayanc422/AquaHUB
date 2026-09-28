@@ -3,7 +3,23 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (28 September 2026): the storefront was rebuilt as the customer-facing layer.** A premium
+**Latest (28 September 2026, later): owner review of the redesign, round 1.** The owner asked
+to *hold the missing features* (cart/checkout, contact details) until they have absorbed the look,
+and to fix three things. All three are done and verified in a browser:
+(1) **the category sidebar is sticky with its own scroll** from 1200px up. The header is pinned to
+one 64px row there, because it had been wrapping to two rows up to ~1400px. Hover previews moved to
+`position:fixed` plus CSS anchor positioning, so the scroll box doesn't clip them; a browser without
+anchor positioning shows no preview. Below 1200px the sidebar scrolls with the page as before.
+(2) **No fish is cropped any more on the shop front, the category tiles or the category banners.**
+The arowana gets a full-width 12:5 panorama (`species/asian-arowana-red-tail-golden.jpg`, focal
+point measured). Bettas, badis and goldfish get 4:3 tiles that match their 4:3 photos. Captions sit
+below or beside photos, never over them. Section tiles are 16:9 with the caption below, and the
+category banner is a split with the photo at 16:9. (3) **A new betta photo**: a female crowntail,
+public domain, from Commons (`public/collections/`, with a new `CREDITS.md` there). Owner's
+standing instructions: update this file and `agent_learningz.md` as work goes along, and push to Git
+at the end of each round.
+
+**Earlier the same day: the storefront was rebuilt as the customer-facing layer.** A premium
 redesign (full-bleed "deep water" hero, Fraunces display serif self-hosted under the OFL, photo tiles,
 a collections mosaic, a dark footer, and a page that darkens as it scrolls), a public **tank checker**
 at `/compatibility` that makes `aquatics-advisor` customer-facing for the first time
