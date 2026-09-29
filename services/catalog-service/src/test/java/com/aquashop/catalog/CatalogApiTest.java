@@ -235,17 +235,36 @@ class CatalogApiTest {
            .andExpect(jsonPath("$.children[0].slug").value("inverts-shrimp"))
            .andExpect(jsonPath("$.children[1].slug").value("inverts-snails"));
 
+        // V24: shrimp is a branch, split by the water each shrimp needs.
         mvc.perform(get("/api/categories/inverts-shrimp"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.products.length()").value(6));
+           .andExpect(jsonPath("$.products.length()").value(0))
+           .andExpect(jsonPath("$.children.length()").value(3))
+           .andExpect(jsonPath("$.children[0].slug").value("shrimp-neocaridina"))
+           .andExpect(jsonPath("$.children[1].slug").value("shrimp-caridina"))
+           .andExpect(jsonPath("$.children[2].slug").value("shrimp-other"));
         mvc.perform(get("/api/categories/inverts-snails"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.products.length()").value(5));
+           .andExpect(jsonPath("$.products.length()").value(7));
     }
 
     /**
-     * Red Cherry, Blue Dream, Blue Velvet and Yellow are one species in four
-     * colours. Four species_profile rows would claim otherwise -- and would
+     * Every invertebrate carries an "About" description. V20 wrote them for
+     * fish only, and for two years of catalogue a shrimp page had nothing to
+     * say about the animal; V24 closed that. A new shrimp or snail without one
+     * is the same gap reopening.
+     */
+    @Test
+    void everyInvertebrateHasADescription() {
+        var missing = jdbc.queryForList(
+            "SELECT scientific_name FROM species_profile WHERE animal_group <> 'FISH' AND description IS NULL",
+            String.class);
+        assertThat(missing).as("invertebrates with no description").isEmpty();
+    }
+
+    /**
+     * Red Cherry, Blue Dream, Blue Velvet, Yellow and V24's seven more are one
+     * species in eleven colours. Eleven species_profile rows would claim otherwise -- and would
      * contradict the advice the shop gives, which is to keep one colour per
      * tank precisely because they interbreed.
      */
@@ -260,7 +279,7 @@ class CatalogApiTest {
             SELECT count(*) FROM product p
               JOIN species_profile s ON s.id = p.species_profile_id
              WHERE s.scientific_name = 'Neocaridina davidi'""", Integer.class);
-        assertThat(colours).isEqualTo(4);
+        assertThat(colours).isEqualTo(11);
     }
 
     /**
@@ -316,7 +335,13 @@ class CatalogApiTest {
             "betta-male-veiltail", "betta-female", "peaceful-betta", "emerald-betta",
             "mahachai-betta", "whiteseam-betta", "snakehead-betta", "wine-red-betta",
             "banded-gourami", "thick-lipped-gourami", "moonlight-gourami",
-            "snakeskin-gourami", "croaking-gourami", "giant-gourami");
+            "snakeskin-gourami", "croaking-gourami", "giant-gourami",
+            // V24's shrimp and snails, same plan item.
+            "orange-sakura-shrimp", "bloody-mary-shrimp", "black-rose-shrimp",
+            "green-jade-shrimp", "chocolate-shrimp", "red-rili-shrimp", "snowball-shrimp",
+            "crystal-red-shrimp", "crystal-black-shrimp", "blue-bolt-shrimp",
+            "orange-eyed-blue-tiger-shrimp", "bamboo-shrimp", "vampire-shrimp",
+            "indian-whisker-shrimp", "horned-nerite-snail", "blue-mystery-snail");
     }
 
     /**

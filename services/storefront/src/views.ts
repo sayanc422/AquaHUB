@@ -477,10 +477,23 @@ export function sortProducts(products: ProductSummary[], sort: Sort): ProductSum
   return by;
 }
 
+/**
+ * A section's description, split in two: the first paragraph is the lede under
+ * the name, and anything after it is a keeping guide rendered below the
+ * listing. The shrimp sections carry several paragraphs (V24), which is where
+ * the shop's shrimp-care writing lives: in the catalogue beside the animals,
+ * not in this file. A one-paragraph description renders exactly as before.
+ */
+function splitDescription(text: string | null): { lede: string; guide: string[] } {
+  const paras = (text ?? '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  return { lede: paras[0] ?? '', guide: paras.slice(1) };
+}
+
 export function categoryPage(
   chrome: Chrome, page: CategoryPage, products: ProductSummary[], showingAll: boolean, sort: Sort = 'featured',
 ) {
   const c = page.category;
+  const { lede, guide } = splitDescription(c.description ?? c.teaser);
   const hasSections = page.children.length > 0;
 
   // The escape hatch. Without it the deepest fish in the shop is five correct
@@ -519,15 +532,22 @@ export function categoryPage(
     ? `<div class="banner">${photo(c.imageKey, '', '16/9', { eager: true, sizes: '(max-width: 1100px) 94vw, 640px' })}
          <div class="banner-text">${crumbs(page.breadcrumb, c.name)}
            <h1>${esc(c.name)}</h1>
-           <p class="lede">${esc(c.description ?? c.teaser ?? '')}</p></div></div>`
+           <p class="lede">${esc(lede)}</p></div></div>`
     : `${crumbs(page.breadcrumb, c.name)}<h1>${esc(c.name)}</h1>
-       <p class="lede">${esc(c.description ?? c.teaser ?? '')}</p>`;
+       <p class="lede">${esc(lede)}</p>`;
+
+  const keeping = guide.length
+    ? `<section class="guide reveal"><p class="eyebrow">Keeping them well</p>
+         <h2>${esc(c.name)}: what they need</h2>
+         ${guide.map(p => `<p>${esc(p)}</p>`).join('')}</section>`
+    : '';
 
   return layout(c.name, chrome, `
     ${banner}
     ${shortcut}
     ${sections}
-    ${listing}`, { here: c.slug, description: c.description ?? c.teaser ?? undefined });
+    ${listing}
+    ${keeping}`, { here: c.slug, description: lede || undefined });
 }
 
 /**
@@ -933,7 +953,10 @@ export function productPage(chrome: Chrome, d: ProductDetail) {
 
   // Paragraphs are blank-line separated in the column; each is escaped on its
   // own, so no markup from the database ever reaches the page.
-  const about = s?.description ? prose('About this fish', s.description) : '';
+  // A shrimp is not a fish (ADR 0019), and the heading over its description
+  // should not call it one.
+  const kind = s?.animalGroup === 'SHRIMP' ? 'shrimp' : s?.animalGroup === 'SNAIL' ? 'snail' : 'fish';
+  const about = s?.description ? prose(`About this ${kind}`, s.description) : '';
   const plant = pl ? `
     ${prose('About this plant', pl.description)}
     <section class="care reveal">

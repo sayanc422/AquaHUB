@@ -14,7 +14,7 @@
 # A rule that cannot explain itself in a sentence an aquarist would use is a
 # rule that should not be in here.
 
-version: 4
+version: 5
 updated: 2026-09-28
 
 water:
@@ -126,6 +126,16 @@ behaviour:
                      FSH-RBW-03]
   fin_nipper_skus: [FSH-ZEB-01,
                     FSH-TET-03, FSH-TET-04, FSH-TET-12, FSH-BRB-01, FSH-ODD-01]
+  # Animals that hunt shrimp, whatever the size rule says (v5, 28 September
+  # 2026). The Indian whisker shrimp, a predatory river prawn, is the reason
+  # the list exists: at 7 cm against a 3 cm cherry shrimp it is under the
+  # predation ratio, and the checker passed a tank its own care note forbids.
+  # Add a fish here when its appetite for shrimp is the known fact about it.
+  shrimp_eater_skus: [INV-WHS-01]
+  why_shrimp_predation: >-
+    Shrimp are prey for anything that can catch them, and a predatory shrimp or
+    a shrimp-hunting fish clears a colony a few at a time, at night, until the
+    tank that looked fine has none left.
   why_fin_nipping: >-
     Some fish -- zebra danios, tiger barbs, serpae and black skirt tetras, pea
     puffers -- are fast and busy and will strip the fins off anything that

@@ -30,6 +30,8 @@ export interface SpeciesView {
   temperatureC: Range; ph: Range; dgh: Range;
   temperament: string; careLevel: string; diet: string;
   plantSafe: boolean; careNotes: string | null; description: string | null;
+  /** FISH, SHRIMP or SNAIL (ADR 0019): what kind of animal the page is about. */
+  animalGroup?: string;
 }
 export interface PlantView {
   scientificName: string; commonName: string; family: string; origin: string;

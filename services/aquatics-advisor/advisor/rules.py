@@ -204,6 +204,7 @@ def check_behaviour(tank_litres: float, inhabitants: list[Inhabitant], rules: Ru
     ratio = rules.num("behaviour", "predation_size_ratio")
     long_finned = rules.skus("behaviour", "long_finned_skus")
     nippers = rules.skus("behaviour", "fin_nipper_skus")
+    shrimp_eaters = rules.skus("behaviour", "shrimp_eater_skus")
 
     # A species kept with itself. `combinations` never pairs a species with
     # itself, so without this the single most common fatal mistake in the hobby
@@ -299,6 +300,33 @@ def check_behaviour(tank_litres: float, inhabitants: list[Inhabitant], rules: Ru
                     species=[nipper.sku, victim.sku],
                 )
             )
+
+        # Shrimp eaten by something the size rule cannot see. A 7 cm whisker
+        # shrimp takes a 3 cm cherry shrimp at night, and neither length nor
+        # temperament says so. Like fin-nipping, which animals hunt shrimp is
+        # a list in rules.yaml, a fact about the animal the catalog does not
+        # carry. The prey has to be a shrimp and smaller than the eater: a
+        # bamboo shrimp outgrows a whisker shrimp, and a snail is not prey here.
+        if pair & shrimp_eaters:
+            eater = a if a.sku in shrimp_eaters else b
+            prey = b if eater is a else a
+            if (
+                prey.animal_group == "SHRIMP"
+                and prey.sku not in shrimp_eaters
+                and prey.max_size_cm < eater.max_size_cm
+            ):
+                findings.append(
+                    Finding(
+                        verdict=Verdict.REFUSED,
+                        rule="behaviour.shrimp_predation",
+                        detail=(
+                            f"{eater.common_name} hunts shrimp, and {prey.common_name} "
+                            f"({prey.max_size_cm:g} cm) is small enough to catch. "
+                            f"{rules.why('behaviour', 'why_shrimp_predation')}"
+                        ),
+                        species=[eater.sku, prey.sku],
+                    )
+                )
     return findings
 
 

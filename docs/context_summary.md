@@ -115,7 +115,12 @@ with them. Deeper writing, more species and more varieties in those departments.
       depth. The owner's request overrides V17's "one product per species" fold for bettas. Add new
       long-finned SKUs to the advisor's `rules.yaml`; confirm by running the checker that two male
       bettas of *different forms* are still refused. Update `CatalogApiTest` deliberately.
-- [ ] **2. Shrimp & invertebrates.** Split `inverts-shrimp` into Neocaridina colour shrimp,
+- [x] **2. Shrimp & invertebrates.** *Done 28 Sep 2026 (V24, advisor rules v5).* Shrimp split into
+      Neocaridina (11 colours), Caridina (bee + tiger, 4), other (5); snails 7; every invertebrate
+      now has a description, locked by a test. Section guides render below listings. Found by
+      running: the checker passed cherry + whisker shrimp. Fixed with a `shrimp_eater_skus` rule
+      (advisor 38/38), now refused live. `CatalogApiTest` 39/39. Original brief follows.
+      **Shrimp & invertebrates.** Split `inverts-shrimp` into Neocaridina colour shrimp,
       Caridina crystal & bee shrimp, and filter-feeding & other shrimp; add colour forms, bee shrimp,
       bamboo/vampire/whisker shrimp and a few snails; write an "About this shrimp/snail" for
       **every** invertebrate (all were NULL). Render a multi-paragraph shrimp-keeping guide from the

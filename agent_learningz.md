@@ -35,6 +35,16 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-28 — A limitation written into a migration header is still a wrong answer on the site
+
+**What happened:** V24's header honestly recorded that the advisor would not catch a whisker
+shrimp eating cherry shrimp. Running the checker showed what that meant for a customer: "These can
+live together", for the one tank the product's own care note forbids.
+**Pattern:** before shipping a known gap, run the exact customer path it affects. If the answer
+would mislead someone buying today, fix it (here, one data-driven rule and three tests) instead of
+documenting it. Write the test first, and prove it can fail by emptying the rule's data in a
+throwaway copy.
+
 ### 2026-09-28 — Advisor rules ship in its image, and each answer names their version
 
 **What happened:** adding betta SKUs to `rules.yaml` almost went out under the old `version: 3`,
