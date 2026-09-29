@@ -5,6 +5,35 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Photographs for the betta, gourami and shrimp departments (29 September 2026, V25)
+
+Development plan item 3. **24 of the 33 products V23/V24 added now have a photograph, and all six
+new sections (Bettas, Wild Bettas, Gouramis & Paradise Fish, and the three shrimp sections) have a
+16:9 banner.** All are from Wikimedia Commons, CC0/PD/CC BY/CC BY-SA. Each file's licence,
+Restrictions field and artist were re-read from the API by title. Every file was looked at against
+its caption, and every crop was checked for a whole animal. Provenance, crop box and a caveat per
+file are in `species/CREDITS.md` and `sections/CREDITS.md`.
+
+**Nine stay without a photo, on purpose.** Commons has none of the right species *and form*:
+the male crowntail (every candidate is cut through the fish or is a crowntail plakat), emerald betta
+(only a hybrid), thick-lipped gourami (a map and an engraving), and the bloody mary, black rose,
+green jade, chocolate and snowball shrimp, plus the blue mystery snail. A photo of the right species
+in the wrong form would be a wrong product page, so they show the placeholder.
+
+**Four are marked not launch-eligible:** orange sakura (1.39× upscale), crystal black (1.26×),
+orange-eyed blue tiger (1.3×), and the snakeskin gourami, the only lateral photo of the species on
+Commons, which shows a caught fish on a tiled floor.
+
+**Measured:** `CatalogApiTest` 39/39, with its list of deliberately unphotographed products updated.
+In k3d, Flyway applied v25 to the live database. All 30 files were served byte-identical to the
+repo (md5). Headless Chromium over the six new category pages and three product pages found
+0 broken images, and placeholders only on the nine NULL products.
+
+**Not done:** the crop audit across the whole catalogue (plan item 4) and a docs refresh of the
+diagrams and PDF (item 5). The topology did not change, so neither was affected by this change.
+
+---
+
 ## Owner review, round 1: a sticky sidebar and no cropped fish (28 September 2026, later)
 
 The owner's first look at the redesign, three requests, all in `services/storefront`. The missing

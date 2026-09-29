@@ -3,7 +3,17 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (28 September 2026, later): owner review of the redesign, round 1.** The owner asked
+**Latest (29 September 2026): development plan item 3, photographs, done (`V25`).** 24 of the
+33 products added by V23/V24 now have a licensed Commons photograph, and all six new sections have a
+16:9 banner. **Nine stay NULL on purpose**, because Commons has no photo of the right species *and
+form*: male crowntail, emerald betta, thick-lipped gourami, and the bloody mary, black rose, green
+jade, chocolate and snowball shrimp, plus the blue mystery snail. The reason for each is in
+`species/CREDITS.md`. Four files are marked **not launch-eligible**: three are upscaled (orange
+sakura, crystal black, OEBT) and the snakeskin gourami is a caught fish on a tiled floor.
+`CatalogApiTest` 39/39. Deployed to k3d: Flyway applied v25, all 30 files served byte-identical, no
+broken images in Chromium, and placeholders only where expected. Next is plan item 4 (crop audit).
+
+**Earlier (28 September 2026, later): owner review of the redesign, round 1.** The owner asked
 to *hold the missing features* (cart/checkout, contact details) until they have absorbed the look,
 and to fix three things. All three are done and verified in a browser:
 (1) **the category sidebar is sticky with its own scroll** from 1200px up. The header is pinned to
@@ -125,8 +135,11 @@ with them. Deeper writing, more species and more varieties in those departments.
       bamboo/vampire/whisker shrimp and a few snails; write an "About this shrimp/snail" for
       **every** invertebrate (all were NULL). Render a multi-paragraph shrimp-keeping guide from the
       section description, and make product pages say "About this shrimp", not "About this fish".
-- [ ] **3. Photographs** for everything items 1 and 2 add: product photos (4:3) and section photos
-      (16:9), Commons-licensed and credited, caption checked against the photo.
+- [x] **3. Photographs.** *Done 29 Sep 2026 (V25).* 24 of 33 product photos (4:3) and 6 section
+      banners (16:9), Commons-licensed and credited. 9 stay NULL because no photo of the right
+      form exists, and 4 are marked not launch-eligible; both lists are in `species/CREDITS.md`.
+      `CatalogApiTest` 39/39; verified in k3d with Chromium. Original brief: product photos (4:3) and
+      section photos (16:9), Commons-licensed and credited, caption checked against the photo.
 - [ ] **4. Crop audit.** Screenshot every product and category page and flag any animal that is cut
       off. Known suspect: `oscar.jpg`, which is not quite 4:3.
 - [ ] **5. Docs refresh.** Release notes, diagrams if topology changed, PDF status page.

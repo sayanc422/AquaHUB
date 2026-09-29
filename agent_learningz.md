@@ -35,6 +35,22 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-29 — A candidate picked by list position showed a different photo than the one reviewed
+
+**What happened:** sourcing V25, picks were recorded as "`caridina[44]`" into a candidate list,
+and thumbnails were cached as `<slug>_<index>.jpg`. Re-running the contact-sheet script on a second
+batch overwrote the list file. A later sheet then showed *stale* thumbnails under new indexes: the
+"crowntail" row showed the first search's candidates, not the new ones. It was caught only because the pick lookup raised a
+`KeyError` and the sheet looked wrong. Separately, the download loop opened its output file before
+the fetch, so every failed request left an empty file that the next run skipped as "done".
+Commons also refuses arbitrary thumbnail widths (`HTTP 400: Use thumbnail sizes listed`); 960, 1280
+and 1920 work.
+**Pattern:** identify a photo by its Commons title and carry that through to download, crop and
+CREDITS. An index is a position in a list that the next run may rebuild. Name caches by title, write
+files only after a successful read, and before cropping re-check that each downloaded file matches
+the thumbnail you approved. **Where:** V25's rows in `species/CREDITS.md` are generated from the
+API re-query by title (`verified.json`), not from the candidate lists.
+
 ### 2026-09-28 — A limitation written into a migration header is still a wrong answer on the site
 
 **What happened:** V24's header honestly recorded that the advisor would not catch a whisker
@@ -143,7 +159,9 @@ heterophylla* returned for "Anubias congensis", a *Sagittaria latifolia* "probab
 *S. platyphylla*, and an aquarium carpet whose caption never named the plant. All were caught by
 reading `ImageDescription` for every pick, not by the thumbnail.
 **Pattern:** the thumbnail tells you it is a nice photo; the caption tells you it is the right
-plant. Read both. Reject hedged captions ("probably", "?") for a product photo.
+plant. Read both. Reject hedged captions ("probably", "?") for a product photo. For bettas and shrimp the caption must also
+name the *form* (crowntail vs plakat, snowball vs cherry): the right species in the wrong form is
+the wrong product (V25 left nine NULL rather than use one).
 
 ### 2026-09-26 — Filing by genus put a 10 cm fish on the Large page
 

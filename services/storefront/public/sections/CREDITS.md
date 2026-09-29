@@ -97,3 +97,19 @@ for `species/` in the same change (same licence check; see that file's V17/V18 s
 | `oddballs.jpg` | *Polypterus ornatipinnis* (same source as `species/ornate-bichir.jpg`, cropped 16:9) | Wikimedia Commons, [File:Polypterus ornatipinnis VA 01.jpg](https://commons.wikimedia.org/wiki/File:Polypterus_ornatipinnis_VA_01.jpg), Bloopityboop | CC BY-SA 4.0 | ✅ yes |
 
 | `plants-rosette.jpg` | Swords, Crypts & Bulbs | Wikimedia Commons, [File:Echinodorus uruguayensis kz01.jpg](https://commons.wikimedia.org/wiki/File:Echinodorus_uruguayensis_kz01.jpg), Krzysztof Ziarnek, Kenraiz | CC BY-SA 4.0 | ✅ — added 26 Sep 2026 with V22; the same source as `species/melon-sword.jpg`, cropped to 16:9 |
+
+## Betta, gourami and shrimp sections, 29 September 2026 (V25)
+
+Six tiles for the sections V23 and V24 added, licence-checked the same way as the species files
+(`species/CREDITS.md`, V25 section). Where possible each is a *different* shot from the product
+photo, so a section page does not show the same image twice. Each is a 1920×1080 crop of Commons'
+1920 px rendering, scaled to 1600×900.
+
+| File | Subject | Source | Licence | Cleared for commercial use |
+|---|---|---|---|---|
+| `bettas.jpg` | Bettas | Wikimedia Commons, [File:DVJ Betta splendens 005.jpg](https://commons.wikimedia.org/wiki/File:DVJ_Betta_splendens_005.jpg), Daniella Vereeken | CC BY 2.0 | ✅ halfmoon plakat male, a sibling shot of the `betta-male-plakat` file |
+| `bettas-wild.jpg` | Wild Bettas | Wikimedia Commons, [File:Betta imbellis (male) 20100512.jpg](https://commons.wikimedia.org/wiki/File:Betta_imbellis_%28male%29_20100512.jpg), DefenderRegina | CC BY-SA 3.0 | ✅ *Betta imbellis* male, a sibling shot of the `peaceful-betta` file |
+| `gouramis.jpg` | Gouramis & Paradise Fish | Wikimedia Commons, [File:Moonlight Gourami.jpg](https://commons.wikimedia.org/wiki/File:Moonlight_Gourami.jpg), Photo by Greg Hume (Greg5030) | CC BY-SA 3.0 | ✅ moonlight gourami (Newport Aquarium) |
+| `shrimp-neocaridina.jpg` | Cherry & Colour Shrimp | Wikimedia Commons, [File:Blue N. Davidi Shrimps.jpg](https://commons.wikimedia.org/wiki/File:Blue_N._Davidi_Shrimps.jpg), TonyZimbinski | CC BY-SA 4.0 | ✅ blue *Neocaridina davidi* |
+| `shrimp-caridina.jpg` | Crystal, Bee & Tiger Shrimp | Wikimedia Commons, [File:Garnelepepe redbeeshrimp 2018.jpg](https://commons.wikimedia.org/wiki/File:Garnelepepe_redbeeshrimp_2018.jpg), 神谷純平 | CC BY-SA 4.0 | ✅ red bee / crystal red male, same photographer as `crystal-red-shrimp` |
+| `shrimp-other.jpg` | Amano, Filter-Feeding & Other Shrimp | Wikimedia Commons, [File:Bamboo shrimp.jpg](https://commons.wikimedia.org/wiki/File:Bamboo_shrimp.jpg), Kacper Aleksander | CC BY-SA 4.0 | ✅ bamboo shrimp, a sibling shot of the `bamboo-shrimp` file |

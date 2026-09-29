@@ -329,19 +329,10 @@ class CatalogApiTest {
             "anubias-hastifolia", "dwarf-baby-tears", "green-myrio", "hygrophila-araguaia",
             "kleiner-bar-sword", "ludwigia-peruensis", "oriental-sword", "red-flame-sword",
             "red-pearl-sword", "red-rubin-sword", "rotala-nanjenshan", "ruffle-sword",
-            // V23's bettas and gouramis, photographed in the next change
-            // (development plan item 3). Delete these lines when they are.
-            "betta-male-crowntail", "betta-male-plakat", "betta-male-double-tail",
-            "betta-male-veiltail", "betta-female", "peaceful-betta", "emerald-betta",
-            "mahachai-betta", "whiteseam-betta", "snakehead-betta", "wine-red-betta",
-            "banded-gourami", "thick-lipped-gourami", "moonlight-gourami",
-            "snakeskin-gourami", "croaking-gourami", "giant-gourami",
-            // V24's shrimp and snails, same plan item.
-            "orange-sakura-shrimp", "bloody-mary-shrimp", "black-rose-shrimp",
-            "green-jade-shrimp", "chocolate-shrimp", "red-rili-shrimp", "snowball-shrimp",
-            "crystal-red-shrimp", "crystal-black-shrimp", "blue-bolt-shrimp",
-            "orange-eyed-blue-tiger-shrimp", "bamboo-shrimp", "vampire-shrimp",
-            "indian-whisker-shrimp", "horned-nerite-snail", "blue-mystery-snail");
+            // V25's nine: no licensed photograph of the right species AND form.
+            "betta-male-crowntail", "emerald-betta", "thick-lipped-gourami",
+            "bloody-mary-shrimp", "black-rose-shrimp", "green-jade-shrimp",
+            "chocolate-shrimp", "snowball-shrimp", "blue-mystery-snail");
     }
 
     /**
