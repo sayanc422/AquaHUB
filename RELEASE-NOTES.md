@@ -5,6 +5,87 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Docs refresh: installation manual, operations guide, physical diagrams, PDF (30 September 2026)
+
+Development plan item 5, done ahead of item 4 (the crop audit) because the owner asked for it. The
+owner wants to run and update the shop from a WSL terminal **without a Claude session**, so this
+entry is mostly for them.
+
+**New documents:**
+- **`docs/installation-manual.md`**: a blank Windows 11 laptop to all eight services. Covers WSL
+  and `.wslconfig`, optional systemd, Docker Engine, k3d/kubectl/helm, the clone, `core` first, the
+  enquiry key *before* `commerce` (so order-service needs no restart), `full-app`, a table of checks
+  with the expected answer for each, the tests, and stop/start/uninstall.
+- **`docs/operations-guide.md`**: start and stop after a reboot. Updating in seven steps (pull, map
+  changed paths to services, rebuild, roll out, verify, roll back, commit). A bottom-up
+  troubleshooting method (WSL → Docker/k3d → Kubernetes → pod → service → ingress → browser). A
+  failure table of the problems this project **actually had**, each with its real fix. A command
+  reference for kubectl, Postgres (psql, Flyway history, backup), Docker, `crictl` inside the k3d
+  node, memory and disk. A "starting over" procedure, and a script that collects everything needed
+  to ask for help.
+- **`scripts/redeploy.sh <service>…`** (and `--all`, `--list`): build every named service, import
+  them all, then `set image` and `rollout status` each one. **Why:** re-importing `bootstrap.sh`'s
+  fixed `:dev` tag changes nothing in the Deployment spec, so no rollout happens and the old code
+  keeps running without any error. redeploy.sh tags each build `git-<sha>` (plus `-dirty-<time>`
+  for uncommitted changes). Every build is then a real rollout, `--list` shows what is live, and
+  `rollout undo` goes back to the previous build.
+- **Two new diagrams** from `docs/diagrams/generate.py`. `physical.svg` shows Windows → WSL2 →
+  Docker → the k3d node container → namespaces → pods. It has every service's port and its
+  request/limit from the manifests, the Postgres PVC's location, and the request, image and data
+  paths drawn separately. `operations.svg` shows the update loop beside the troubleshooting ladder.
+
+**The PDF** (`docs/architecture.pdf`) is current to V26, with two new pages for those diagrams and 13
+sections on 13 pages. Before, it had 11 sections on 15 pages: four sections spilled onto a second
+sheet. Overflowing pages now scale their content (`.page.fit`), and the scale factors come from
+each page's measured content height. **Stale content found and fixed on the memory-budget page,
+which the 28 Sep refresh had missed:** it still said the `.wslconfig` override "has never been
+applied" (measured ~11 GB since 22 Sep), still showed `full-app` as a ~5.2 GB estimate (measured
+2234 MiB on 17 Sep), and called uat/prod "real Argo CD Applications", although Argo CD has no
+manifests.
+
+**Measured this session:** the catalogue figures in the new docs come from **applying V1–V26 to a
+real Postgres 16**, not from arithmetic. 253 products, 51 categories (48 ACTIVE, 3 COMING_SOON),
+226 photographed, 27 NULL on purpose, 167 species and 52 plant profiles. Every `image_key` of a
+product or category resolves to a file under `services/storefront/public/`.
+
+**Not proven:** this session had no Docker daemon, so the installation manual has **not been followed
+end to end from a blank machine**, and `redeploy.sh` has run only against stub `docker`, `k3d` and
+`kubectl` binaries. The stubs checked the call order, the tag format, `--all` skipping services not
+deployed, the error for an explicitly named undeployed service, and the non-zero exit when a
+rollout fails. The first real use should be `./scripts/redeploy.sh storefront`.
+
+---
+
+## Owner review of the V25 photographs (30 September 2026, V26)
+
+The owner looked at V25's photographs on the site and asked for the unclear ones to be improved and
+the gaps filled. *(Backfilled: the V26 commit updated `species/CREDITS.md` and `CatalogApiTest` but
+not this file.)*
+
+- **Filled:** `betta-male-crowntail`, a red male crowntail (Betta-Online on Flickr, CC BY 2.0,
+  2707×1900 original, the same breeder series as the plakat photo). Also `snowball-shrimp`, a white
+  Neocaridina carrying eggs (Commons, CC BY-SA 3.0). The snowball is **upscaled 1.3× and not
+  launch-eligible**, and the trade uses "snowball" and "white pearl" interchangeably.
+- **Replaced, same file name:** the veiltail (a pale Cambodian male on a plain background; the canvas
+  was extended top and bottom in the source's own flat background colours, and no part of the fish
+  is synthetic), the vampire shrimp (two *Atya gabonensis* on pale gravel, not one in the dark), and
+  the whisker shrimp, recropped because V25's crop had cut off its tail.
+- **Removed:** `snakeskin-gourami.jpg`. Its only photograph was a caught fish on a tiled floor, and the
+  owner judged the placeholder better. The file is deleted and the key set back to NULL in the same
+  change (a key is a promise that the file exists).
+- **Searched more widely:** Commons, **Openverse** and **iNaturalist**, commercial licences only.
+  liveaquaria.com was used only as a visual reference, because its photos are the retailer's own.
+  **Eight products are still without a photo in these departments:** emerald betta, thick-lipped
+  gourami, bloody mary, black rose, green jade and chocolate shrimp, the blue mystery snail, and now
+  the snakeskin gourami. The shop's own photographs are the way to close them.
+
+**Measured (V26 session):** `CatalogApiTest` 39/39, with its list of deliberately unphotographed products
+updated. In k3d Flyway applied v26, the new files were served byte-identical to the repo, and the
+snakeskin URL returns 404. **Re-measured on 30 Sep** by applying V1–V26 to a scratch Postgres 16:
+27 products NULL in total, and every key resolves to a file.
+
+---
+
 ## Photographs for the betta, gourami and shrimp departments (29 September 2026, V25)
 
 Development plan item 3. **24 of the 33 products V23/V24 added now have a photograph, and all six

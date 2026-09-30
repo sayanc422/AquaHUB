@@ -388,9 +388,166 @@ def gitflow():
     (OUT / "delivery-flow.svg").write_text(s, encoding="utf-8")
 
 
+# ---------------------------------------------------------------- diagram 4 --
+def physical():
+    """Where every byte physically sits on the one laptop, and the three paths
+    through it: a request, an image, and the database's files."""
+    W, H = 1480, 1340
+    s = head(W, H, "AquaShop physical deployment")
+    s += title_bar("Physical Deployment — One Laptop",
+                   "Every layer between a browser on Windows and a row in Postgres, with ports, images and storage.",
+                   "Physical")
+    s += legend(1040, 44, [("REQUEST", TEAL), ("IMAGE", ORANGE), ("DATA", BLUE)])
+
+    # ---- Windows host
+    s += panel(48, 120, 1384, 1100, "Windows 11 host — 16 GB RAM", LINE)
+    s += box(72, 158, 300, 76, "Browser (Windows)", "https://aquashop.localtest.me",
+             "localtest.me -> 127.0.0.1 on public DNS", TEAL, TEAL)
+    s += box(396, 158, 300, 76, "C:\\Users\\<you>\\.wslconfig", "memory=11GB swap=4GB",
+             "applied with wsl --shutdown", accent=LINE, title_color=MUTED)
+    s += box(720, 158, 300, 76, "Staff browser tab", "https://staff.aquashop.localtest.me",
+             "same port 443, routed on the Host header", TEAL, TEAL)
+    s += text(1050, 190, "WSL2 forwards Windows localhost:80/443", 12, MUTED)
+    s += text(1050, 210, "into the Linux VM (localhost forwarding).", 12, MUTED)
+
+    # ---- WSL2 VM. Its label is drawn by hand, indented, so the request
+    # line can run down the left gutter without crossing it.
+    s += panel(72, 256, 1336, 940, None, VIOLET)
+    s += text(130, 282, "WSL2 VM — UBUNTU, ~11 GB USABLE (MEASURED 22 SEP 2026)", 13, VIOLET, weight="700")
+    s += box(130, 296, 360, 84, "~/AquaHUB (git clone, Linux FS)", "services/*/Dockerfile",
+             "never /mnt/c: cross-FS builds are slow", accent=ORANGE, title_color=ORANGE)
+    s += box(514, 296, 420, 84, "Docker Engine (dockerd, native in WSL)", "images: aquashop/<svc>:<tag>",
+             "docker build runs here, not in the cluster", accent=ORANGE, title_color=ORANGE)
+    s += box(958, 296, 426, 84, "kubectl / k3d / helm (CLI)", "context: k3d-aquashop",
+             "API via container k3d-aquashop-serverlb", accent=LINE, title_color=INK)
+    s += arrow(490, 338, 508, 338, ORANGE, "arrowO")
+    s += text(499, 396, "docker build", 10.5, ORANGE, anchor="middle", mono=True)
+
+    # ---- k3d node container
+    s += panel(120, 414, 1264, 762, "Docker container k3d-aquashop-server-0 — k3s v1.30.4, one node", TEAL)
+    s += box(144, 454, 380, 76, "ingress-nginx (ns ingress-nginx)", "hostPort 80/443 <- docker -p 80,443",
+             "TLS ends here; cert from cert-manager's own CA", TEAL, TEAL)
+    s += box(548, 454, 392, 76, "cert-manager (ns cert-manager)", "ClusterIssuer aquashop-ca-issuer",
+             "one cert, two SANs: aquashop + staff", accent=LINE, title_color=INK)
+    s += box(964, 454, 396, 76, "containerd (the node's image store)", "k3d image import copies images in",
+             "imagePullPolicy IfNotPresent; no registry", accent=ORANGE, title_color=ORANGE)
+    # request: browser -> down the WSL gutter -> ingress
+    s += (f'<path d="M100,234 L100,492 L138,492" fill="none" stroke="{TEAL}" '
+          f'stroke-width="1.8" marker-end="url(#arrowT)"/>')
+    s += text(108, 250, "127.0.0.1:443", 10.5, TEAL, mono=True)
+    # image: Docker Engine -> k3d image import -> containerd
+    s += (f'<path d="M860,380 L860,400 L1160,400 L1160,448" fill="none" stroke="{ORANGE}" '
+          f'stroke-width="1.6" marker-end="url(#arrowO)"/>')
+    s += text(1170, 398, "k3d image import", 10.5, ORANGE, mono=True)
+
+    # namespace with pods
+    s += panel(144, 556, 1216, 454, "Namespace aquashop-dev — quota: requests 3Gi, limits.memory 4Gi, 20 pods, no limits.cpu", ORANGE)
+    s += arrow(334, 530, 334, 552, TEAL, "arrowT")   # into the namespace, not across its label
+    pods = [
+        ("storefront", ":3000", "req 96Mi / lim 160Mi", "Node, distroless"),
+        ("catalog-service", ":8080", "req 448Mi / lim 640Mi", "JVM, distroless"),
+        ("order-service", ":8082", "req 448Mi / lim 640Mi", "JVM, distroless"),
+        ("inventory-service", ":8081", "req 64Mi / lim 96Mi", "Go, distroless"),
+        ("payment-service", ":8083", "req 32Mi / lim 64Mi", "Rust, distroless"),
+        ("aquatics-advisor", ":8084", "req 96Mi / lim 160Mi", "Python slim"),
+        ("notification-service", ":8085", "req 64Mi / lim 96Mi", "Go, distroless"),
+        ("staff-portal", ":8080", "req 512Mi / lim 1Gi", "WildFly 33"),
+    ]
+    for i, (name, port, res, kind) in enumerate(pods):
+        col, row = i % 4, i // 4
+        x = 168 + col * 296
+        y = 596 + row * 116
+        s += box(x, y, 280, 96, name, f"Service {port}  ({kind})", res, TEAL, TEAL)
+    s += text(168, 838, "Sum of requests 1952 Mi, of limits 3200 Mi (from the manifests): inside the quota with ~1 GiB spare.",
+              12, MUTED)
+    s += text(168, 858, "runAsUser 65532 on every distroless pod; rollouts maxUnavailable 0 (staff-portal: 1, surge 0).",
+              12, DIM)
+    s += box(168, 878, 580, 106, "postgres-0 (StatefulSet, postgres:16-alpine)", "Service :5432  |  req 192Mi / lim 320Mi",
+             "databases: catalog, inventory, orders, payments, notify", accent=BLUE, title_color=BLUE)
+    s += box(772, 878, 564, 106, "PVC data-postgres-0 — 2Gi, local-path",
+             "/var/lib/rancher/k3s/storage (node container)",
+             "deleted with the cluster (bootstrap.sh --destroy)", accent=BLUE, title_color=BLUE)
+    s += arrow(748, 930, 766, 930, BLUE, "arrow")
+
+    s += text(144, 1040, "Secrets: postgres-credentials (plaintext in Git, dev only)  |  order-inquiry-key (created by hand, never in Git; ADR 0021)",
+              12, ORANGE)
+    s += text(144, 1064, "Not deployed: NATS, Argo CD, Prometheus/Tempo/OTel (no manifests). No uat/prod namespace.", 12, DIM)
+    s += text(144, 1088, "Request path: browser -> 127.0.0.1:443 -> WSL -> docker port map -> ingress-nginx -> Service -> pod.", 12, TEAL)
+    s += text(144, 1112, "Image path: services/<svc> -> docker build -> Docker image store -> k3d image import -> containerd -> kubelet.", 12, ORANGE)
+    s += text(144, 1136, "Data path: pod -> postgres Service :5432 -> postgres-0 -> local-path PVC on the node container's filesystem.", 12, BLUE)
+
+    s += footer(W, 1250,
+                "Resources from platform-repo/dev manifests (30 Sep 2026). Measured totals: full-app ~2.0 GiB at rest (28 Sep 2026).",
+                "AquaShop  /  docs/diagrams/physical.svg")
+    s += "</svg>"
+    (OUT / "physical.svg").write_text(s, encoding="utf-8")
+
+
+# ---------------------------------------------------------------- diagram 5 --
+def operations():
+    """The two loops docs/operations-guide.md teaches: shipping a change, and
+    finding what broke. Drawn so the guide can be followed from the picture."""
+    W, H = 1480, 1080
+    s = head(W, H, "AquaShop operations: update and troubleshoot")
+    s += title_bar("Operating It Without Claude", "Left: getting a change into the cluster. Right: finding the layer that broke.",
+                   "Without Claude")
+
+    # ---- update loop
+    s += panel(48, 120, 700, 880, "Update loop — scripts/redeploy.sh", TEAL)
+    steps = [
+        ("1  git pull", "git pull origin claude/clever-shannon-ivtkw6", "note the old commit first", TEAL),
+        ("2  what changed?", "git diff --name-only OLD HEAD -- services", "one folder = one service to rebuild", TEAL),
+        ("3  build all", "docker build -t aquashop/<svc>:git-<sha>", "a compile error stops here; cluster untouched", ORANGE),
+        ("4  import", "k3d image import -c aquashop ...", "no registry: into the node's containerd", ORANGE),
+        ("5  roll out", "kubectl set image deploy/<svc> ...", "new tag = spec change = real rollout", TEAL),
+        ("6  wait", "kubectl rollout status --timeout", "JVMs run Flyway inside the startup probe", TEAL),
+        ("7  verify", "get pods; curl -H 'Accept-Encoding: br'; browser", "old pods gone? storefront cache 60 s", TEAL),
+    ]
+    for i, (t, sub, note, c) in enumerate(steps):
+        y = 160 + i * 112
+        s += box(72, y, 652, 88, t, sub, note, c, c)
+        if i < len(steps) - 1:
+            s += arrow(398, y + 88, 398, y + 108, c if c == ORANGE else TEAL, "arrowO" if c == ORANGE else "arrowT")
+    s += box(72, 944, 652, 44, "wrong?  kubectl rollout undo deployment/<svc>   (does not undo a migration)",
+             accent=PINK, title_color=PINK)
+
+    # ---- troubleshooting ladder
+    s += panel(776, 120, 656, 880, "Troubleshoot bottom-up — stop at the first failure", ORANGE)
+    rungs = [
+        ("7  Browser", "blank page? curl -H 'Accept-Encoding: br' size 0", VIOLET),
+        ("6  Ingress", "curl -kv https://aquashop.localtest.me/healthz", VIOLET),
+        ("5  Service", "kubectl logs <pod> --previous", TEAL),
+        ("4  Pod", "get pods; describe pod; events", TEAL),
+        ("3  Kubernetes", "config current-context; get nodes", BLUE),
+        ("2  Docker / k3d", "docker ps; k3d cluster list / start", BLUE),
+        ("1  WSL2", "free -m; df -h; sudo service docker start", ORANGE),
+    ]
+    for i, (t, sub, c) in enumerate(rungs):
+        y = 160 + i * 96
+        s += box(800, y, 608, 76, t, sub, accent=c, title_color=c)
+    s += arrow(1420, 810, 1420, 180, MUTED, "arrow")
+    s += text(800, 862, "Pod status -> first command:", 12.5, INK, weight="700")
+    for i, line in enumerate([
+        "Pending -> describe pod (quota? memory?)",
+        "ImagePullBackOff -> image is :PLACEHOLDER or never imported",
+        "CreateContainerConfigError -> missing Secret / runAsUser",
+        "CrashLoopBackOff -> logs --previous (Flyway? DB?)",
+        "OOMKilled / 137 -> runbooks/pod-oomkilled.md",
+    ]):
+        s += text(816, 886 + i * 20, "- " + line, 11.5, MUTED, mono=True)
+
+    s += footer(W, 1030,
+                "Full procedure, command reference and failure table: docs/operations-guide.md",
+                "AquaShop  /  docs/diagrams/operations.svg")
+    s += "</svg>"
+    (OUT / "operations.svg").write_text(s, encoding="utf-8")
+
+
 if __name__ == "__main__":
     architecture()
     deployment()
     gitflow()
+    physical()
+    operations()
     for f in sorted(OUT.glob("*.svg")):
         print(f"{f.name}: {f.stat().st_size} bytes")

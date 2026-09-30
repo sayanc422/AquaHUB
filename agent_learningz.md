@@ -35,6 +35,40 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-30 — A round was committed without the files that carry memory between sessions
+
+**What happened:** the V26 commit updated `CREDITS.md`, the migration and the test, but not
+`context_summary.md`, this file, `CLAUDE.md` or `RELEASE-NOTES.md`. That breaks the owner's standing
+instruction. The next session found `context_summary.md` still saying "Latest: V25", and a fresh
+session would have started from the wrong state.
+**Pattern:** before committing a round, check that `git diff --cached --stat` lists
+`docs/context_summary.md` and `RELEASE-NOTES.md`, plus this file if anything went wrong. A change
+that is not in those files is invisible to the next session, however well the commit message
+describes it.
+
+### 2026-09-30 — A "corrected" PDF still had a stale page; `scrollHeight` could not see overflow
+
+**What happened:** the 28 Sep refresh said the PDF had been corrected for staleness. Its
+memory-budget page still said the `.wslconfig` override was "never applied", still showed
+`full-app` as a ~5.2 GB estimate and called uat/prod real Argo CD Applications. Separately, fitting
+overflowing pages by `scrollHeight` gave wrong answers. `.page` has `min-height: 386mm`, so a page
+never reports less than a full sheet, and a spilled page reports only roughly how much it is over.
+**Pattern:** on every refresh, read each PDF page against `context_summary.md`, not only the pages
+the change touched. Grep the source for "never", "estimate", "not yet" and every GB figure. To fit a
+page, measure the lowest child's `getBoundingClientRect().bottom` (footer excluded) with the scale
+factor set to 1, then compute the factor. Check with `pymupdf`: page count = section count.
+
+### 2026-09-30 — No Docker daemon is not "cannot verify": Postgres 16 is installable here
+
+**What happened:** a cloud session with no Docker daemon still needed real catalogue counts for the
+docs. `apt-get install postgresql` works in this container. Applying `V1`–`V26` with
+`psql -v ON_ERROR_STOP=1` in `sort -V` order gave exact counts, and a loop over `image_key` checked
+that every file exists. The `postgres` user cannot read the scratchpad, so use `/var/tmp/<dir>`,
+owned by `postgres`, and delete it afterwards.
+**Pattern:** before labelling a number an estimate, check whether a cheap real run exists. Scripts
+that need the real tools (`redeploy.sh`) can still have their control flow checked with stub
+binaries on `PATH` that log their arguments. Say which of the two kinds of check was done.
+
 ### 2026-09-29 — A candidate picked by list position showed a different photo than the one reviewed
 
 **What happened:** sourcing V25, picks were recorded as "`caridina[44]`" into a candidate list,

@@ -53,6 +53,9 @@
   .big { font-size:18.67pt; line-height:1.55; }
   .small { font-size:12pt; }
   s { color:#6d7a99; }
+  /* A page whose content is taller than the sheet: scale the content, not the
+     sheet, so the footer stays at the bottom and one section stays one page. */
+  .page.fit > :not(.foot) { zoom: var(--z); }
 </style></head><body>
 
 <!-- ------------------------------------------------------------- cover -->
@@ -85,10 +88,11 @@
   <span class="pill t">PHASES 1&ndash;5 COMPLETE</span>&nbsp;
   <span class="pill t">ALL 8 SERVICES RUN IN k3d</span>&nbsp;
   <span class="pill t">STOREFRONT REBUILT 28 SEP</span>&nbsp;
+  <span class="pill t">CATALOGUE V26: 253 PRODUCTS</span>&nbsp;
   <span class="pill v">PHASES 6&ndash;7 PLANNED</span>&nbsp;
   <span class="pill o">AWS: VALIDATED, NOT APPLIED</span>
 
-  <div class="foot">AquaShop architecture &middot; current to 28 September 2026<span class="r">docs/architecture.md</span></div>
+  <div class="foot">AquaShop architecture &middot; current to 30 September 2026 (catalogue V26)<span class="r">docs/architecture.md</span></div>
 </div>
 
 <!-- -------------------------------------------------------- the product -->
@@ -180,14 +184,46 @@
   <div class="foot">Promotion is a pull request. Rollback is a revert. Not yet built — Phase 6.<span class="r">5</span></div>
 </div>
 
-<!-- ------------------------------------------------------- memory plan -->
+<!-- -------------------------------------------------- physical deployment -->
 <div class="page">
+  <h2><span class="bar"></span>Physical deployment &mdash; what runs where on the laptop</h2>
+  <img class="diagram" src="diagrams/physical.svg">
+  <div class="foot">Requests and limits are read from <span class="mono">platform-repo/dev</span> (30 Sep 2026); the
+    ~2.0 GiB at rest is measured. The serverlb and local-path locations are k3d defaults, not measured here.<span class="r">6</span></div>
+</div>
+
+<!-- -------------------------------------------------------- operations -->
+<div class="page fit" style="--z:0.87">
+  <h2><span class="bar"></span>Operating it without Claude</h2>
+  <img class="diagram" src="diagrams/operations.svg" style="max-height:262mm">
+  <div class="cols" style="margin-top:6mm">
+    <div class="col"><div class="panel teal" style="margin:0">
+      <div class="label teal">Three documents, one per job</div>
+      <table>
+        <tr><td class="k mono" style="width:34%">installation-manual.md</td><td class="n">Blank Windows laptop to all eight services: WSL, Docker Engine, k3d, the enquiry key, profiles, checks.</td></tr>
+        <tr><td class="k mono">operations-guide.md</td><td class="n">Start, stop, update, roll back; a bottom-up troubleshooting method; every failure this project has actually had and its fix; kubectl, Docker and psql commands.</td></tr>
+        <tr><td class="k mono">scripts/redeploy.sh</td><td class="n">Build, import and roll out named services under a per-commit tag, so a rebuild is always a real rollout and <span class="mono">rollout undo</span> is a real rollback.</td></tr>
+      </table></div></div>
+    <div class="col"><div class="panel orange" style="margin:0">
+      <div class="label orange">Stated plainly</div>
+      <ul class="small" style="margin:0">
+        <li>Written 30 Sep 2026 in a session with <b>no Docker daemon</b>. The commands come from <span class="mono">bootstrap.sh</span>, the manifests and recorded runs. The guide has not been followed end to end from a blank machine.</li>
+        <li><span class="mono">redeploy.sh</span> was exercised against stub <span class="mono">docker</span>/<span class="mono">k3d</span>/<span class="mono">kubectl</span>, not a real cluster. Try it on <span class="mono">storefront</span> first.</li>
+        <li>Rolling back an image never rolls back a Flyway migration.</li>
+      </ul></div></div>
+  </div>
+  <div class="foot">Two traps the guide exists for: re-importing the same <span class="mono">:dev</span> tag starts no rollout, and
+    applying a manifest resets its image to <span class="mono">:PLACEHOLDER</span>.<span class="r">7</span></div>
+</div>
+
+<!-- ------------------------------------------------------- memory plan -->
+<div class="page fit" style="--z:0.89">
   <h2><span class="bar"></span>The memory budget — the constraint that shaped the design</h2>
   <p class="muted" style="max-width:320mm">16 GB of physical RAM on the laptop. The design targets 11 GB
-    usable inside WSL2 via a <span class="mono">.wslconfig</span> memory override, but <b class="orange">that
-    override has never been applied on this machine</b> — <span class="mono">/proc/meminfo</span> measures
-    <b class="teal">7.4 GB</b>, WSL2's unconfigured default of roughly half of host RAM. The full platform
-    does not fit at once either way, so the cluster is built as <b>profiles</b>: named subsets brought up
+    usable inside WSL2 via a <span class="mono">.wslconfig</span> memory override. Unconfigured, WSL2
+    measured <b class="orange">7.4 GB</b> here; <b class="teal">the override has since been applied</b> and
+    <span class="mono">/proc/meminfo</span> measured <b class="teal">~11 GB</b> on 22 September 2026. The full
+    platform does not fit at once either way, so the cluster is built as <b>profiles</b>: named subsets brought up
     for a purpose. This is not a workaround bolted on at the end; it is why NATS replaced Kafka, why one
     Postgres instance hosts per-service databases, and why only one environment is materialised at a time.</p>
 
@@ -199,7 +235,7 @@
           <th>Profile</th><th>Adds</th><th style="width:26%">Total</th>
           <tr><td class="k mono">core</td><td class="n">k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront</td><td class="teal mono">1.32 GiB <span class="dim">measured</span></td></tr>
           <tr><td class="k mono">commerce</td><td class="n">order, inventory, payment, advisor, NATS</td><td class="teal mono">~2.05 GiB <span class="dim">measured*</span></td></tr>
-          <tr><td class="k mono">full-app</td><td class="n">notification, staff-portal (WildFly)</td><td class="mono orange">~5.2 GB <span class="dim">estimate</span></td></tr>
+          <tr><td class="k mono">full-app</td><td class="n">notification, staff-portal (WildFly)</td><td class="teal mono">2234 MiB <span class="dim">measured</span></td></tr>
           <tr><td class="k mono">platform</td><td class="n">Argo CD</td><td class="mono orange">~6.1 GB <span class="dim">estimate</span></td></tr>
           <tr><td class="k mono">observability</td><td class="n">kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter</td><td class="mono orange">~9.2 GB <span class="dim">estimate</span></td></tr>
         </table>
@@ -210,15 +246,13 @@
           kernel OOM killer taking an unrelated pod.</p>
       </div>
       <div class="panel orange">
-        <div class="label orange">A ceiling that was also never measured</div>
-        <p class="n" style="margin:0">The <span class="mono">observability</span> estimate (~9.2 GB) does
-          not fit inside the current, <b>unconfigured 7.4 GB</b> WSL2 ceiling at all — even alone, let
-          alone alongside <span class="mono">core</span>. It does fit the intended 11 GB one. This gap was
-          invisible while every figure in this table was an unmeasured estimate sitting against an
-          unmeasured ceiling; it is visible now that <span class="mono">core</span> and
-          <span class="mono">commerce</span> are real numbers. Closing it means editing
-          <span class="mono">.wslconfig</span> on the Windows side and <span class="mono">wsl --shutdown</span>
-          — not done on this machine yet.</p>
+        <div class="label orange">The ceiling, measured both ways</div>
+        <p class="n" style="margin:0">The <span class="mono">observability</span> estimate (~9.2 GB) did
+          not fit the <b>unconfigured 7.4 GB</b> WSL2 ceiling at all, and <span class="mono">full-app</span>
+          was blocked twice by the memory preflight at that ceiling (17 Sep). With the
+          <span class="mono">.wslconfig</span> override applied (~11 GB, measured 22 Sep), observability
+          fits <i>on paper</i>. It has still never been built, so its figure is still an estimate, and a
+          number that fits a budget on paper is not a measurement.</p>
       </div>
     </div>
     <div class="col">
@@ -237,8 +271,9 @@
                 down, which per-service RDS instances would not. Credential isolation and the no-shared-schema
                 rule are unaffected.</span></td></tr>
           <tr><td class="k">One environment<br><span class="dim mono" style="font-weight:400">materialised at a time</span></td>
-              <td class="n">dev, uat and prod are real Argo CD Applications; two of them sit at
-                <span class="mono">replicas: 0</span>.
+              <td class="n">Designed as dev, uat and prod overlays under Argo CD, two at
+                <span class="mono">replicas: 0</span>. Today only the dev overlay exists, applied by
+                <span class="mono">bootstrap.sh</span>; Argo CD has no manifests yet.
                 <span class="orange">Cost: no environment has ever run concurrently with another, so
                 cross-environment concerns are untested. Say "three overlays under GitOps, one
                 materialised", never "I ran prod".</span></td></tr>
@@ -252,11 +287,11 @@
       </div>
     </div>
   </div>
-  <div class="foot">core and commerce are RSS measured with <span class="mono">kubectl top</span> in k3d, 16 Sep 2026; the remaining three profiles are still unmeasured estimates.<span class="r">6</span></div>
+  <div class="foot">core, commerce (16 Sep) and full-app (17 Sep 2026) are measured with <span class="mono">kubectl top</span> in k3d; platform and observability are estimates with no manifests.<span class="r">8</span></div>
 </div>
 
 <!-- ----------------------------------------------------- local to cloud -->
-<div class="page">
+<div class="page fit" style="--z:0.9">
   <h2><span class="bar"></span>Local to cloud — Phase 1 components</h2>
   <p class="muted" style="max-width:320mm">The full mapping document covers every component,
     the Terraform that would provision it, and the traffic path end to end. This page is the
@@ -299,7 +334,7 @@
     </table>
   </div>
   <div class="foot">This page is what makes the AWS labels on the diagrams honest rather than
-    decorative.<span class="r">7</span></div>
+    decorative.<span class="r">9</span></div>
 </div>
 
 <!-- --------------------------------------------------------- phase 2-5 -->
@@ -365,11 +400,11 @@
       </div>
     </div>
   </div>
-  <div class="foot">All four services above are built, tested locally, and have now run together in k3d as the <span class="mono">commerce</span> profile.<span class="r">8</span></div>
+  <div class="foot">All four services above are built, tested locally, and have now run together in k3d as the <span class="mono">commerce</span> profile.<span class="r">10</span></div>
 </div>
 
 <!-- ------------------------------------------------------------ k3d run -->
-<div class="page">
+<div class="page fit" style="--z:0.86">
   <h2><span class="bar"></span>The first k3d run — three defects only a real build could find</h2>
   <p class="muted" style="max-width:340mm">Every prior session verified this repository against a local
     Postgres, never in a cluster, because no session before 16 September 2026 had a Docker daemon. This one
@@ -447,17 +482,17 @@
       </div>
     </div>
   </div>
-  <div class="foot">Total node memory: core 1.32 GiB &rarr; core+commerce 2.05 GiB &mdash; commerce added ~730 MiB against a ~1.6 GB additive estimate.<span class="r">9</span></div>
+  <div class="foot">Total node memory: core 1.32 GiB &rarr; core+commerce 2.05 GiB &mdash; commerce added ~730 MiB against a ~1.6 GB additive estimate.<span class="r">11</span></div>
 </div>
 
 <!-- ---------------------------------------------------------- status -->
 <!-- -------------------------------------------------------- storefront -->
-<div class="page">
+<div class="page fit" style="--z:0.72">
   <h2><span class="bar"></span>The storefront &mdash; the customer-facing layer (28 Sep 2026)</h2>
   <p class="muted" style="max-width:340mm">Rebuilt to make a visitor want to keep fish, without giving up
     ADR 0005: still one server-rendered HTML page per URL, still working with JavaScript off. What
     changed is what it looks like, what it sends, and one feature no other fish shop has.</p>
-  <img src="screenshots/storefront-home.jpg" style="display:block;width:100%;border-radius:10px;border:1px solid #2b3654;margin:2mm 0 6mm">
+  <img src="screenshots/storefront-home.jpg" style="display:block;width:60%;margin-left:auto!important;margin-right:auto!important;border-radius:10px;border:1px solid #2b3654;margin:2mm 0 6mm">
   <div class="cols">
     <div class="col">
       <div class="panel teal">
@@ -468,7 +503,7 @@
         <p class="small muted" style="margin:0">Verified with the advisor scaled to zero: an honest 502 in 16 ms,
           the customer's tank kept in the form, every other page unaffected.</p>
       </div>
-      <img src="screenshots/storefront-tank-checker.jpg" style="display:block;width:100%;border-radius:10px;border:1px solid #2b3654">
+      <img src="screenshots/storefront-tank-checker.jpg" style="display:block;width:72%;margin:0 auto;border-radius:10px;border:1px solid #2b3654">
     </div>
     <div class="col">
       <div class="panel">
@@ -498,22 +533,27 @@
     </div>
   </div>
   <div class="foot">Not proven: no real phone, no Safari, no load. The storefront has no cart; order-service's
-    checkout is not reachable from the shop front yet.<span class="r">10</span></div>
+    checkout is not reachable from the shop front yet.<span class="r">12</span></div>
 </div>
 
 <!-- ------------------------------------------------------------ status -->
-<div class="page">
+<div class="page fit" style="--z:0.77">
   <h2><span class="bar"></span>Status &mdash; what's built, what's measured, what's next</h2>
   <div class="cols">
     <div class="col">
       <div class="panel teal">
-        <div class="label teal">Built and exercised in k3d (16 &ndash; 28 Sep 2026)</div>
+        <div class="label teal">Built and exercised in k3d (16 &ndash; 30 Sep 2026)</div>
         <ul>
           <li><b>All eight services</b> up together as <span class="mono">full-app</span>: 2234 MiB on
             17 Sep, ~2.0 GiB on 28 Sep. notification-service (Go, 4 MiB) and staff-portal (WildFly,
             383 MiB, its own ingress host) included.</li>
-          <li><b>A catalogue of 220 products</b> across 45 sections, with care profiles for every animal
-            and plant, and a photograph on almost all of them.</li>
+          <li><b>A catalogue of 253 products</b> across 51 sections (migrations to <span class="mono">V26</span>),
+            with care profiles for every animal and plant. Bettas, gouramis, shrimp and snails, the owner's
+            lead departments, were deepened in V23&ndash;V26. 226 products have a licensed photograph;
+            <b>27 show a placeholder on purpose</b>, because no licensed photo of the right species
+            <i>and</i> form exists. Each reason is in <span class="mono">species/CREDITS.md</span>.</li>
+          <li><b>The tank checker refuses shrimp predators</b> (advisor rules v5): a whisker shrimp with
+            cherry shrimp is now a "no", which the V24 run found it was not.</li>
           <li><b>Custom tank enquiries</b>, encrypted by Postgres (ADR 0021), and a <b>tank checker</b>
             on the shop front in front of aquatics-advisor.</li>
           <li><b>Probes, resource limits, ingress/TLS</b> exercised in-cluster for the first time.</li>
@@ -558,7 +598,7 @@
     </div>
   </div>
   <div class="foot">Each phase ends in something demonstrable. Phase 1 ended with a fish in a
-    browser; this k3d run ends with a saga in a cluster.<span class="r">11</span></div>
+    browser; this k3d run ends with a saga in a cluster.<span class="r">13</span></div>
 </div>
 
 </body></html>

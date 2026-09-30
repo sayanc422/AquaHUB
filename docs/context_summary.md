@@ -3,7 +3,30 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (29 September 2026): development plan item 3, photographs, done (`V25`).** 24 of the
+**Latest (30 September 2026): docs refresh (plan item 5), done ahead of item 4 at the owner's
+request.** The owner wants to run and update the shop from WSL without a Claude session. New:
+[installation-manual.md](installation-manual.md) (blank laptop → all eight services),
+[operations-guide.md](operations-guide.md) (update step by step, bottom-up troubleshooting, a table
+of the failures this project actually had, and kubectl/Docker/psql commands), `scripts/redeploy.sh`
+(build, import, then `set image` under a `git-<sha>` tag, so a rebuild is always a real rollout and
+`rollout undo` works), and two diagrams, `physical.svg` and `operations.svg`. `architecture.pdf` is
+regenerated: 13 sections on 13 pages, and its memory page is corrected (it still said the
+`.wslconfig` override was never applied and showed full-app as an estimate). **Measured by
+applying V1–V26 to a scratch Postgres 16:** 253 products, 51 categories, 226 photographed, 27 NULL
+on purpose, 167 species and 52 plant profiles, and every image key has a file. **Not proven:** that
+session had no Docker daemon. The manual has not been followed from a blank machine, and
+`redeploy.sh` has run only against stub binaries, so its first real use should be on `storefront`.
+
+**Earlier (30 September 2026): owner photo review of V25 (`V26`).** Filled the male crowntail
+(Flickr, CC BY 2.0) and snowball shrimp (Commons, upscaled, not launch-eligible). Replaced the
+veiltail and vampire shrimp, and recropped the whisker shrimp, whose tail V25 had cut off.
+**Removed the snakeskin gourami photo** (a caught fish on a floor) at the owner's choice.
+Commons, Openverse and iNaturalist were searched; eight betta/gourami/shrimp products remain
+without a photo, with reasons in `species/CREDITS.md`. `CatalogApiTest` 39/39; verified in k3d.
+*This commit did not update this file, `agent_learningz.md` or `CLAUDE.md`; the docs-refresh session
+backfilled them.*
+
+**Earlier (29 September 2026): development plan item 3, photographs, done (`V25`).** 24 of the
 33 products added by V23/V24 now have a licensed Commons photograph, and all six new sections have a
 16:9 banner. **Nine stay NULL on purpose**, because Commons has no photo of the right species *and
 form*: male crowntail, emerald betta, thick-lipped gourami, and the bloody mary, black rose, green
@@ -142,7 +165,10 @@ with them. Deeper writing, more species and more varieties in those departments.
       section photos (16:9), Commons-licensed and credited, caption checked against the photo.
 - [ ] **4. Crop audit.** Screenshot every product and category page and flag any animal that is cut
       off. Known suspect: `oscar.jpg`, which is not quite 4:3.
-- [ ] **5. Docs refresh.** Release notes, diagrams if topology changed, PDF status page.
+- [x] **5. Docs refresh.** *Done 30 Sep 2026, ahead of item 4, at the owner's request.* Release
+      notes (V26 backfilled), `physical.svg` and `operations.svg`, the PDF regenerated with a
+      corrected memory page, plus an installation manual, an operations guide and
+      `scripts/redeploy.sh`. **Item 4 is still the next unticked item.**
 
 **Held by the owner (do not start without asking):** cart and checkout on the storefront; real
 WhatsApp and email values; replacing `sections/plants.jpg`; renaming "Badidae -- Badis & Dario";
@@ -256,6 +282,7 @@ aquashop/
   scripts/
     bootstrap.sh            idempotent; memory preflight refuses to run below 4 GB free
     k3d-cluster.yaml        traefik, servicelb, metrics-server all disabled
+    redeploy.sh             rebuild + roll out named services under a git-<sha> tag (30 Sep 2026)
   services/
     catalog-service/        Java 21, Spring Boot 3.3, Flyway, Testcontainers, distroless
     storefront/             TypeScript, Fastify BFF, SSR HTML, distroless; tank checker,
@@ -271,15 +298,17 @@ aquashop/
                             inventory, order, payment, advisor, notification, staff-portal, ingress
   docs/
     architecture.md         full prose architecture
-    architecture.pdf        11 sections / 15 physical pages, diagrams + storefront screenshots,
-                            current to 28 Sep 2026 (rendered with page.pdf in the playwright image)
+    architecture.pdf        13 sections / 13 pages, diagrams + storefront screenshots, current to
+                            V26 / 30 Sep 2026 (Playwright page.pdf; overflowing pages scale via .page.fit)
+    installation-manual.md  blank Windows laptop -> all eight services in k3d
+    operations-guide.md     update, roll back, troubleshoot, command reference -- no Claude needed
     screenshots/            storefront screenshots embedded in the PDF
     architecture-pdf.html   source of the PDF
     adr/                    twenty-two decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
     runbooks/               five runbooks; four reproduced locally, one written from docs
-    diagrams/generate.py    generates all three SVGs
-    diagrams/*.svg          architecture, deployment, delivery-flow
+    diagrams/generate.py    generates all five SVGs
+    diagrams/*.svg          architecture, deployment, delivery-flow, physical, operations
   RELEASE-NOTES.md          per phase: what was built, measured, and still unproven
 ```
 

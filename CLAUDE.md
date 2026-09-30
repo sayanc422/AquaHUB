@@ -75,6 +75,9 @@ why the advisor's rules are a YAML file. Match that when you add code.
 | `platform-repo/dev/` | The dev overlay. Moves to its own repository at Phase 4 |
 | `docs/adr/` | One record per expensive-to-reverse decision |
 | `docs/runbooks/` | One page per failure, written to be followed at 02:00 |
+| `docs/installation-manual.md`, `docs/operations-guide.md` | For the owner, without Claude: install from a blank laptop; update, roll back, troubleshoot |
+| `docs/diagrams/generate.py` | All five SVGs (architecture, deployment, delivery-flow, physical, operations). The PDF's source is `docs/architecture-pdf.html` |
+| `scripts/` | `bootstrap.sh` (from nothing), `redeploy.sh` (rebuild + roll out named services), `k3d-cluster.yaml` |
 
 ## Rules that are not obvious
 
@@ -120,6 +123,13 @@ why the advisor's rules are a YAML file. Match that when you add code.
   shape must differ, set `object-position` from where the fish is measured to sit in the source.
   The desktop header is pinned to one `--nav-h` row from 1200px because the sticky sidebar's `top`
   depends on it; adding a nav link means re-measuring that it still fits at 1200px.
+- **Rebuilding under a tag the Deployment already uses deploys nothing.** `bootstrap.sh` tags
+  every image `:dev`; re-importing `:dev` and `set image …:dev` leaves the spec unchanged, so there
+  is no rollout and the old code keeps serving without an error. Use `scripts/redeploy.sh <svc>`
+  (a `git-<sha>` tag per build), or follow a same-tag import with `rollout restart`. Also: every
+  `deployment.yaml` says `:PLACEHOLDER`, so a `kubectl apply` of a manifest must be followed by
+  `redeploy.sh` for that service. `maxUnavailable: 0` hides the broken new pod behind the old one,
+  and staff-portal (`maxUnavailable: 1`) just goes down.
 - **A Dockerfile's pinned toolchain version is a claim that gets stale silently.** `go.mod`'s `go`
   directive and `Cargo.lock`'s resolved transitive dependencies can both drift ahead of what a
   Dockerfile pins, and `mvn`/`go build`/`cargo build` inside CI or a local dev shell won't catch it
@@ -134,12 +144,12 @@ cd services/catalog-service  && mvn test     # needs Docker (Testcontainers) —
 cd services/inventory-service && go test ./...
 cd services/order-service    && mvn test     # 77 tests, 34 skipped (DB-gated); 0 skipped with ORDER_TEST_DSN
 cd services/payment-service  && cargo test   # 18 DB tests need PAYMENTS_TEST_DSN
-cd services/aquatics-advisor && python3 -m pytest    # 35 tests
+cd services/aquatics-advisor && python3 -m pytest    # 38 tests
 cd services/notification-service && go test ./...   # integration test needs NOTIFICATION_TEST_DSN
 cd services/staff-portal     && mvn test     # 3 tests, no DB (reads only, no DB of its own)
 ```
 
-`CatalogApiTest` **passes 35/35 as of V22 (26 September 2026)** — its counts are now read from the
+`CatalogApiTest` **passes 39/39 as of V26 (30 September 2026)**; it was 35/35 at V22 — its counts are now read from the
 database rather than written into the test, so a catalogue migration no longer breaks it; only the
 list of deliberately unphotographed products is pinned. History: re-run after V17–V21 it had
 **34 tests, 9 failing, all stale expectations** (hard-coded product/photo counts from before the catalogue grew to 171, and a search
@@ -268,6 +278,11 @@ is the whole decision**; what follows is what you need to not break it.
    replaced with owner-picked Pexels images (Pexels License, not Commons — a second licence source,
    recorded per row in `species/CREDITS.md`). Current state is in `docs/context_summary.md`. `V22` adds 49 live plants and a separate
    `plant_profile` table (a plant is not a quiet fish — see `PlantProfile.java`); 220 products now.
+   **At `V26` (30 September 2026), measured by applying V1–V26 to Postgres 16: 253 products, 51
+   categories, 226 photographed, 27 NULL on purpose** (every one named in `CatalogApiTest` and
+   explained in `species/CREDITS.md`). `V23`/`V24` deepened bettas, gouramis, shrimp and snails;
+   `V25`/`V26` photographed them. `V26` deleted `snakeskin-gourami.jpg` at the owner's choice, and
+   Openverse and iNaturalist joined Commons, Pexels and Flickr as searched sources.
 
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist

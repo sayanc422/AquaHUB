@@ -1,5 +1,12 @@
 # Getting AquaShop running locally
 
+> **Superseded (30 September 2026).** For installing, use
+> [installation-manual.md](installation-manual.md). For updating and troubleshooting, use
+> [operations-guide.md](operations-guide.md). This page is kept for its reasoning (why Docker
+> Engine, not Docker Desktop; why a web session cannot reach your Docker), but its status lines are
+> from 16 September: `full-app` has run in k3d since 17 September. For current open questions, see
+> [context_summary.md](context_summary.md), not section 7.
+
 Everything in this repository has been verified by running the services directly against a local
 Postgres, and — as of 16 September 2026 — the `core` and `commerce` profiles have both run in k3d
 via `scripts/bootstrap.sh`, including a live checkout saga in-cluster. `full-app`, `platform` and

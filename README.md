@@ -76,7 +76,9 @@ Phases 6–7 are planned. See [docs/context_summary.md](docs/context_summary.md)
 - [docs/runbooks/](docs/runbooks/) — one page per failure, written to be followed at 02:00
 - [RELEASE-NOTES.md](RELEASE-NOTES.md) — per phase: what was built, what was measured, what is unproven
 - [CLAUDE.md](CLAUDE.md) — how this project works, for any Claude Code session that opens it
-- [docs/getting-started-locally.md](docs/getting-started-locally.md) — what to install and run to get this up on your own machine
+- [docs/installation-manual.md](docs/installation-manual.md) — a blank Windows laptop to all eight services in k3d, step by step
+- [docs/operations-guide.md](docs/operations-guide.md) — updating, rolling back and troubleshooting it yourself, with kubectl and Docker commands
+- [docs/getting-started-locally.md](docs/getting-started-locally.md) — the original setup notes (16 Sep 2026); superseded by the two above
 - [docs/context_summary.md](docs/context_summary.md) — current state, decisions taken, open items
-- [docs/architecture.pdf](docs/architecture.pdf) — styled and printable, with diagrams, current through the first k3d run (16 Sep 2026)
-- [docs/diagrams/](docs/diagrams/) — SVG diagrams and the script that generates them
+- [docs/architecture.pdf](docs/architecture.pdf) — styled and printable, 13 pages with diagrams, current to V26 (30 Sep 2026)
+- [docs/diagrams/](docs/diagrams/) — five SVG diagrams (architecture, deployment, delivery flow, physical, operations) and the script that generates them
