@@ -14,6 +14,16 @@ previous session. It is external memory, not a change log: keep entries short, a
 it's become a structural guarantee (a test, a constraint, a rule already stated in this file)
 rather than a judgment call.
 
+To operate the running platform by hand (start, update one service, troubleshoot, back up) read
+[docs/operations-guide.md](docs/operations-guide.md). To install from scratch, read
+[docs/installation-manual.md](docs/installation-manual.md). What runs where on this machine is
+drawn in [docs/diagrams/physical.svg](docs/diagrams/physical.svg).
+
+**Every session ends with the doc set updated in the same commit as the work:**
+`docs/context_summary.md` ("Latest"), `RELEASE-NOTES.md`, `agent_learningz.md` when something was
+learned, this file when a rule changes, and `./scripts/render-docs.sh` when topology or measured
+figures change. The V26 commit shipped without it, and nobody noticed until the owner asked.
+
 ## The one thing to know first
 
 **`core`, `commerce` and `full-app` have all now run in k3d** (16–17 September 2026) — the first
@@ -80,8 +90,18 @@ why the advisor's rules are a YAML file. Match that when you add code.
 
 - **Migrations are forward-only and numbered.** `catalog-service` uses Flyway, `inventory-service`
   an embedded Go migrator with an advisory lock, `payment-service` sqlx. Never edit a migration
-  that has been deployed. Nothing here has been deployed anywhere yet, so editing is currently
-  safe — that stops being true the day `bootstrap.sh` runs against a cluster you keep.
+  that has been applied. Nothing has been deployed anywhere real, but the local k3d cluster has kept
+  its database since 17 September 2026 and has every migration applied (catalog at V26). Flyway
+  validates checksums at boot, so an edited migration crash-loops `catalog-service` there. Add
+  `V<n+1>` instead.
+- **`bootstrap.sh --destroy` (`k3d cluster delete`) deletes the database and every Secret.**
+  Postgres's volume and the k3s datastore live on an anonymous Docker volume inside
+  `k3d-aquashop-server-0`, and k3d removes it with the container. Verified on a throwaway cluster,
+  30 September 2026. `k3d cluster stop`, `wsl --shutdown` and reboots keep everything. Back up first:
+  [docs/operations-guide.md §7](docs/operations-guide.md#7-backups-do-this-before-anything-destructive).
+- **Every manifest says `image: …:PLACEHOLDER`; the cluster runs `:dev`.** A hand `kubectl apply`
+  of one manifest sends that pod to `ImagePullBackOff` unless it is followed by `kubectl set image`
+  (`bootstrap.sh` does both).
 - **`ddl-auto: validate`, never `update`.** It caught two mapping defects on the catalog's first
   ever boot. Keep it.
 - **`open-in-view: false`.** Every repository query that feeds a DTO must join-fetch what the DTO
@@ -268,6 +288,8 @@ is the whole decision**; what follows is what you need to not break it.
    replaced with owner-picked Pexels images (Pexels License, not Commons — a second licence source,
    recorded per row in `species/CREDITS.md`). Current state is in `docs/context_summary.md`. `V22` adds 49 live plants and a separate
    `plant_profile` table (a plant is not a quiet fish — see `PlantProfile.java`); 220 products now.
+   `V23`–`V26` (28–30 September) add bettas, gouramis, shrimp and snails and their photos: **253
+   products in 51 sections, and 27 without a photo on purpose**, each reason in `species/CREDITS.md`.
 
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist

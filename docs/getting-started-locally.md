@@ -1,11 +1,15 @@
 # Getting AquaShop running locally
 
-Everything in this repository has been verified by running the services directly against a local
-Postgres, and — as of 16 September 2026 — the `core` and `commerce` profiles have both run in k3d
-via `scripts/bootstrap.sh`, including a live checkout saga in-cluster. `full-app`, `platform` and
-`observability` have not; see [context_summary.md](context_summary.md) for what remains open.
+> **Superseded, 30 September 2026.** For step-by-step instructions use
+> [installation-manual.md](installation-manual.md) (bare Windows to a running cluster) and
+> [operations-guide.md](operations-guide.md) (start, update, troubleshoot, back up, reset). This
+> page is kept for its reasoning: why Docker Engine and not Desktop, why the Linux filesystem, and
+> how local and web Claude sessions share work. Sections 6 and 7 below were corrected on
+> 30 September 2026. The rest is unchanged from 16 September.
 
-This page is the short list of what to install and what to run.
+`core`, `commerce` and `full-app` have all run in k3d via `scripts/bootstrap.sh` (16–17 September
+2026, and continuously since). `platform` and `observability` have no manifests yet; see
+[context_summary.md](context_summary.md) for what remains open.
 
 ---
 
@@ -157,7 +161,8 @@ For the first `bootstrap.sh` run, local is worth it. After that, either is fine.
 ```bash
 ./scripts/bootstrap.sh                      # core:     Postgres, catalog-service, storefront
 ./scripts/bootstrap.sh --profile commerce   # adds inventory, order, payment, advisor
-./scripts/bootstrap.sh --destroy            # delete the cluster
+./scripts/bootstrap.sh --profile full-app   # adds notification, staff-portal
+./scripts/bootstrap.sh --destroy            # delete the cluster -- AND its database (operations-guide.md §7)
 ```
 
 Then open <https://aquashop.localtest.me/>. The certificate is signed by a self-signed CA that
@@ -179,7 +184,7 @@ repository by a wide margin.
 
 The `observability` profile in `docs/context_summary.md` (kube-prometheus-stack, OTel collector,
 Tempo, prometheus-adapter) is a *planned* profile. There are no manifests behind it. The same is
-true of `platform` (Argo CD) and `full-app`. Those rows are budgets for work not yet done, not
+true of `platform` (Argo CD). (`full-app` was built and has run since 17 September 2026.) Those rows are budgets for work not yet done, not
 descriptions of something you could run today. The shop works without them.
 
 That is also deliberate ordering, not just unfinished work. The observability profile budgets
@@ -214,50 +219,21 @@ without the per-pod breakdown.
 
 ---
 
-## 6. What to send back when it breaks
+## 6. When it breaks
 
-It probably will — this script has never run. The useful things:
-
-- The full `bootstrap.sh` output, including the `==>` lines, so the failing step is identifiable.
-- `kubectl -n aquashop-dev get pods -o wide` and `kubectl -n aquashop-dev describe pod <name>` for
-  anything not `Running`.
-- `kubectl -n aquashop-dev logs deploy/<service>` for a `CrashLoopBackOff`. Flyway and the Go and
-  Rust migrators all run during startup, inside the startup probe window, so a migration failure
-  looks like a crash loop rather than an error.
-- `kubectl -n aquashop-dev get events --sort-by=.lastTimestamp | tail -30` for anything the quota
-  or the LimitRange rejected.
-
-Known likely failures, in rough order of probability:
-
-| Symptom | Cause | Where it is written down |
-|---|---|---|
-| Pod `OOMKilled` | The limit is an estimate, not a measurement | `docs/runbooks/pod-oomkilled.md` |
-| `inventory-service` or `order-service` cannot connect to Postgres | Their roles and databases are created by the Postgres init script, which only runs on an **empty** data directory. A PVC created by an earlier `core` run predates them | `docs/runbooks/add-a-service-database.md` |
-| `https://aquashop.localtest.me/` refuses the connection | Ports 80/443 are mapped straight onto the WSL2 host. Something else already has them | — |
-| Cargo build killed | A build during a run with little headroom | Raise `swap` in `.wslconfig` |
+The old advice here was written before the script had ever run. The current version, with a
+symptom table and Kubernetes and Docker commands, is
+[operations-guide.md §4](operations-guide.md#4-troubleshooting-where-to-look-in-order). The runbooks
+in [runbooks/](runbooks/) still apply.
 
 ---
 
-## 7. Inputs that have nothing to do with Docker
+## 7. Inputs from the owner
 
-These are blocked on you, not on a cluster:
-
-1. **The cichlid taxonomy split.** You asked for American / North American / South American /
-   African under Cichlids. North and South American are subsets of American, so as written the tree
-   has a category that contains its own siblings. Tell me which you want: *American* as a parent of
-   *North* and *South*, or three flat siblings with *American* renamed (*Central American* is the
-   usual third). The migration to fix it is small now and awkward once there are orders against
-   those categories.
-
-2. **Photograph licensing.** Every row in `services/storefront/public/species/CREDITS.md` currently
-   says `unverified`. Before this is commercially usable each needs to become own / licensed /
-   breeder-supplied. I cannot determine that; you can.
-
-3. **Two re-shoots.** `nkhomo-benga-peacock.jpg` (1136 px) and `salvini.jpg` (474 px) are below the
-   1200 px minimum the storefront's tiles assume. The second one is visibly soft at tile size.
-
-4. **Species identification** on the handful of photos where the filename was ambiguous — I made a
-   call and recorded it; an aquarist should confirm it before it is on a product page.
+The list that stood here (the cichlid split, photo licensing, re-shoots) is out of date. The
+current owner-held decisions are in [context_summary.md](context_summary.md), under "Held by the
+owner", and photo provenance is recorded per file in
+`services/storefront/public/species/CREDITS.md`.
 
 ---
 
@@ -269,5 +245,5 @@ These are blocked on you, not on a cluster:
 | Can a web session use that Docker? | No, and nothing makes it possible. Run Claude Code locally, or paste output back. |
 | Anything else to install? | `k3d`, `kubectl`, `helm`. ~11 GB RAM, ~20 GB disk. |
 | Anything for observability? | No. It is not built, and the shop runs without it. |
-| First command | `./scripts/bootstrap.sh` |
+| First command | `./scripts/bootstrap.sh --profile full-app --metrics` (see installation-manual.md) |
 | Most valuable thing to send back | `kubectl top pods -A` after `--profile commerce --metrics` |

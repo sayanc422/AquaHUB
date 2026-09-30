@@ -85,10 +85,11 @@
   <span class="pill t">PHASES 1&ndash;5 COMPLETE</span>&nbsp;
   <span class="pill t">ALL 8 SERVICES RUN IN k3d</span>&nbsp;
   <span class="pill t">STOREFRONT REBUILT 28 SEP</span>&nbsp;
+  <span class="pill t">253 PRODUCTS (V26)</span>&nbsp;
   <span class="pill v">PHASES 6&ndash;7 PLANNED</span>&nbsp;
   <span class="pill o">AWS: VALIDATED, NOT APPLIED</span>
 
-  <div class="foot">AquaShop architecture &middot; current to 28 September 2026<span class="r">docs/architecture.md</span></div>
+  <div class="foot">AquaShop architecture &middot; current to 30 September 2026<span class="r">docs/architecture.md</span></div>
 </div>
 
 <!-- -------------------------------------------------------- the product -->
@@ -169,25 +170,84 @@
 <div class="page">
   <h2><span class="bar"></span>Deployment topology</h2>
   <img class="diagram" src="diagrams/deployment.svg">
-  <div class="foot">Left: what runs, per-pod memory measured 28 September 2026. Right: what it is designed to become, and has never
+  <div class="foot">Left: what runs, per-pod memory measured 30 September 2026 (node total 2053 MiB). Right: what it is designed to become, and has never
     been.<span class="r">4</span></div>
+</div>
+
+<!-- ---------------------------------------------------------- physical -->
+<div class="page">
+  <h2><span class="bar"></span>Physical deployment &mdash; what runs where on this machine</h2>
+  <img class="diagram" src="diagrams/physical.svg" style="max-height:318mm">
+  <div class="foot">Read off the live machine with <span class="mono">docker inspect</span>, <span class="mono">kubectl</span>,
+    <span class="mono">/proc/meminfo</span> and <span class="mono">df</span>, 30 Sep 2026. The data-loss box was verified on a
+    throwaway cluster, not assumed.<span class="r">5</span></div>
+</div>
+
+<!-- --------------------------------------------------------- operating -->
+<div class="page">
+  <h2><span class="bar"></span>Operating it without Claude &mdash; the one-page version</h2>
+  <p class="muted" style="max-width:340mm">The full procedure, with every troubleshooting path, is
+    <span class="mono">docs/operations-guide.md</span>; installing from a bare Windows machine is
+    <span class="mono">docs/installation-manual.md</span>. This page is what to remember.</p>
+  <div class="cols">
+    <div class="col">
+      <div class="panel teal">
+        <div class="label teal">Start and check (after a reboot, nothing to do)</div>
+        <p class="n small">systemd starts Docker when WSL starts, and both k3d containers are
+          <span class="mono">restart: unless-stopped</span>, so the cluster comes back by itself.</p>
+        <p class="mono small" style="line-height:1.6">docker ps<br>kubectl get nodes<br>
+          kubectl -n aquashop-dev get pods<br>curl -sk https://aquashop.localtest.me/healthz</p>
+      </div>
+      <div class="panel">
+        <div class="label">Update one service after <span class="mono">git pull</span></div>
+        <p class="mono small" style="line-height:1.6">docker build -t aquashop/storefront:dev services/storefront<br>
+          k3d image import -c aquashop aquashop/storefront:dev<br>
+          kubectl -n aquashop-dev rollout restart deploy/storefront<br>
+          kubectl -n aquashop-dev rollout status deploy/storefront</p>
+        <p class="n small" style="margin:0">Or rebuild everything:
+          <span class="mono">./scripts/bootstrap.sh --profile full-app --metrics</span>. It reuses the cluster
+          and keeps the data.</p>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel orange">
+        <div class="label orange">When it will not come up: look in this order</div>
+        <table>
+          <tr><td class="k">1 Docker</td><td class="n mono small">docker info &nbsp;&rarr;&nbsp; sudo systemctl start docker</td></tr>
+          <tr><td class="k">2 Cluster</td><td class="n mono small">k3d cluster list &nbsp;&rarr;&nbsp; k3d cluster start aquashop</td></tr>
+          <tr><td class="k">3 Pods</td><td class="n mono small">kubectl -n aquashop-dev get pods</td></tr>
+          <tr><td class="k">4 Why</td><td class="n mono small">kubectl -n aquashop-dev describe pod &lt;pod&gt;<br>kubectl -n aquashop-dev get events --sort-by=.lastTimestamp</td></tr>
+          <tr><td class="k">5 Logs</td><td class="n mono small">kubectl -n aquashop-dev logs deploy/&lt;svc&gt; --previous</td></tr>
+          <tr><td class="k">6 Edge</td><td class="n mono small">kubectl -n ingress-nginx logs deploy/ingress-nginx-controller</td></tr>
+        </table>
+      </div>
+      <div class="panel" style="border-color:#f0546a">
+        <div class="label" style="color:#f0546a">Before you ever run --destroy</div>
+        <p class="n small" style="margin:0">The database and the enquiry key live inside the k3d node
+          container. Back them up first:<br>
+          <span class="mono">kubectl -n aquashop-dev exec postgres-0 -- pg_dumpall -U postgres --clean --if-exists &gt; ~/aquashop.sql</span><br>
+          <span class="mono">kubectl -n aquashop-dev get secret order-inquiry-key -o jsonpath='{.data.INQUIRY_ENCRYPTION_KEY}' | base64 -d &gt; ~/.aquashop-inquiry-key</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Measured on this machine 30 Sep 2026: all 16 pods Running, node 2053 MiB of 11 GiB, Postgres 95 MB on
+    disk.<span class="r">6</span></div>
 </div>
 
 <!-- ---------------------------------------------------------- delivery -->
 <div class="page">
   <h2><span class="bar"></span>Delivery flow</h2>
   <img class="diagram" src="diagrams/delivery-flow.svg">
-  <div class="foot">Promotion is a pull request. Rollback is a revert. Not yet built — Phase 6.<span class="r">5</span></div>
+  <div class="foot">Promotion is a pull request. Rollback is a revert. Not yet built — Phase 6.<span class="r">7</span></div>
 </div>
 
 <!-- ------------------------------------------------------- memory plan -->
 <div class="page">
   <h2><span class="bar"></span>The memory budget — the constraint that shaped the design</h2>
   <p class="muted" style="max-width:320mm">16 GB of physical RAM on the laptop. The design targets 11 GB
-    usable inside WSL2 via a <span class="mono">.wslconfig</span> memory override, but <b class="orange">that
-    override has never been applied on this machine</b> — <span class="mono">/proc/meminfo</span> measures
-    <b class="teal">7.4 GB</b>, WSL2's unconfigured default of roughly half of host RAM. The full platform
-    does not fit at once either way, so the cluster is built as <b>profiles</b>: named subsets brought up
+    usable inside WSL2 via a <span class="mono">.wslconfig</span> memory override. It is applied:
+    <span class="mono">/proc/meminfo</span> measures <b class="teal">11 GiB</b> (it measured 7.4 GB, WSL2's
+    unconfigured default, until some point before 22 Sep 2026). The full platform does not fit at once, so the cluster is built as <b>profiles</b>: named subsets brought up
     for a purpose. This is not a workaround bolted on at the end; it is why NATS replaced Kafka, why one
     Postgres instance hosts per-service databases, and why only one environment is materialised at a time.</p>
 
@@ -199,7 +259,7 @@
           <th>Profile</th><th>Adds</th><th style="width:26%">Total</th>
           <tr><td class="k mono">core</td><td class="n">k3d, ingress-nginx, cert-manager, Postgres, catalog, storefront</td><td class="teal mono">1.32 GiB <span class="dim">measured</span></td></tr>
           <tr><td class="k mono">commerce</td><td class="n">order, inventory, payment, advisor, NATS</td><td class="teal mono">~2.05 GiB <span class="dim">measured*</span></td></tr>
-          <tr><td class="k mono">full-app</td><td class="n">notification, staff-portal (WildFly)</td><td class="mono orange">~5.2 GB <span class="dim">estimate</span></td></tr>
+          <tr><td class="k mono">full-app</td><td class="n">notification, staff-portal (WildFly)</td><td class="teal mono">2053 MiB <span class="dim">measured</span></td></tr>
           <tr><td class="k mono">platform</td><td class="n">Argo CD</td><td class="mono orange">~6.1 GB <span class="dim">estimate</span></td></tr>
           <tr><td class="k mono">observability</td><td class="n">kube-prometheus-stack, OTel collector, Tempo, prometheus-adapter</td><td class="mono orange">~9.2 GB <span class="dim">estimate</span></td></tr>
         </table>
@@ -210,15 +270,12 @@
           kernel OOM killer taking an unrelated pod.</p>
       </div>
       <div class="panel orange">
-        <div class="label orange">A ceiling that was also never measured</div>
-        <p class="n" style="margin:0">The <span class="mono">observability</span> estimate (~9.2 GB) does
-          not fit inside the current, <b>unconfigured 7.4 GB</b> WSL2 ceiling at all — even alone, let
-          alone alongside <span class="mono">core</span>. It does fit the intended 11 GB one. This gap was
-          invisible while every figure in this table was an unmeasured estimate sitting against an
-          unmeasured ceiling; it is visible now that <span class="mono">core</span> and
-          <span class="mono">commerce</span> are real numbers. Closing it means editing
-          <span class="mono">.wslconfig</span> on the Windows side and <span class="mono">wsl --shutdown</span>
-          — not done on this machine yet.</p>
+        <div class="label orange">A ceiling that was measured late</div>
+        <p class="n" style="margin:0">For the first week the WSL2 ceiling was the <b>unconfigured 7.4 GB</b>,
+          and the <span class="mono">observability</span> estimate (~9.2 GB) could not have fitted at all.
+          That was invisible while every figure here was an estimate. The <span class="mono">.wslconfig</span>
+          override is now applied and measures 11 GiB, so observability fits <i>on paper</i>. It has never
+          been built, so that is still an estimate against a measurement, not a result.</p>
       </div>
     </div>
     <div class="col">
@@ -237,8 +294,8 @@
                 down, which per-service RDS instances would not. Credential isolation and the no-shared-schema
                 rule are unaffected.</span></td></tr>
           <tr><td class="k">One environment<br><span class="dim mono" style="font-weight:400">materialised at a time</span></td>
-              <td class="n">dev, uat and prod are real Argo CD Applications; two of them sit at
-                <span class="mono">replicas: 0</span>.
+              <td class="n">dev, uat and prod are designed as Argo CD Applications with two at
+                <span class="mono">replicas: 0</span>. Only dev exists today, and Argo CD is not built.
                 <span class="orange">Cost: no environment has ever run concurrently with another, so
                 cross-environment concerns are untested. Say "three overlays under GitOps, one
                 materialised", never "I ran prod".</span></td></tr>
@@ -252,7 +309,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">core and commerce are RSS measured with <span class="mono">kubectl top</span> in k3d, 16 Sep 2026; the remaining three profiles are still unmeasured estimates.<span class="r">6</span></div>
+  <div class="foot">core and commerce are RSS measured with <span class="mono">kubectl top</span> in k3d, 16 Sep 2026; full-app on 30 Sep 2026. platform and observability are still unmeasured estimates.<span class="r">8</span></div>
 </div>
 
 <!-- ----------------------------------------------------- local to cloud -->
@@ -299,7 +356,7 @@
     </table>
   </div>
   <div class="foot">This page is what makes the AWS labels on the diagrams honest rather than
-    decorative.<span class="r">7</span></div>
+    decorative.<span class="r">9</span></div>
 </div>
 
 <!-- --------------------------------------------------------- phase 2-5 -->
@@ -365,7 +422,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">All four services above are built, tested locally, and have now run together in k3d as the <span class="mono">commerce</span> profile.<span class="r">8</span></div>
+  <div class="foot">All four services above are built, tested locally, and have now run together in k3d as the <span class="mono">commerce</span> profile.<span class="r">10</span></div>
 </div>
 
 <!-- ------------------------------------------------------------ k3d run -->
@@ -447,7 +504,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">Total node memory: core 1.32 GiB &rarr; core+commerce 2.05 GiB &mdash; commerce added ~730 MiB against a ~1.6 GB additive estimate.<span class="r">9</span></div>
+  <div class="foot">Total node memory: core 1.32 GiB &rarr; core+commerce 2.05 GiB &mdash; commerce added ~730 MiB against a ~1.6 GB additive estimate.<span class="r">11</span></div>
 </div>
 
 <!-- ---------------------------------------------------------- status -->
@@ -498,7 +555,7 @@
     </div>
   </div>
   <div class="foot">Not proven: no real phone, no Safari, no load. The storefront has no cart; order-service's
-    checkout is not reachable from the shop front yet.<span class="r">10</span></div>
+    checkout is not reachable from the shop front yet.<span class="r">12</span></div>
 </div>
 
 <!-- ------------------------------------------------------------ status -->
@@ -507,13 +564,13 @@
   <div class="cols">
     <div class="col">
       <div class="panel teal">
-        <div class="label teal">Built and exercised in k3d (16 &ndash; 28 Sep 2026)</div>
+        <div class="label teal">Built and exercised in k3d (16 &ndash; 30 Sep 2026)</div>
         <ul>
           <li><b>All eight services</b> up together as <span class="mono">full-app</span>: 2234 MiB on
-            17 Sep, ~2.0 GiB on 28 Sep. notification-service (Go, 4 MiB) and staff-portal (WildFly,
-            383 MiB, its own ingress host) included.</li>
-          <li><b>A catalogue of 220 products</b> across 45 sections, with care profiles for every animal
-            and plant, and a photograph on almost all of them.</li>
+            17 Sep, 2053 MiB on 30 Sep. notification-service (Go, 4 MiB) and staff-portal (WildFly,
+            381 MiB, its own ingress host) included.</li>
+          <li><b>A catalogue of 253 products</b> across 51 sections (Flyway at V26), with care profiles for
+            every animal and plant. 226 have a licensed photograph; 27 show a placeholder on purpose.</li>
           <li><b>Custom tank enquiries</b>, encrypted by Postgres (ADR 0021), and a <b>tank checker</b>
             on the shop front in front of aquatics-advisor.</li>
           <li><b>Probes, resource limits, ingress/TLS</b> exercised in-cluster for the first time.</li>
@@ -558,7 +615,7 @@
     </div>
   </div>
   <div class="foot">Each phase ends in something demonstrable. Phase 1 ended with a fish in a
-    browser; this k3d run ends with a saga in a cluster.<span class="r">11</span></div>
+    browser; this k3d run ends with a saga in a cluster.<span class="r">13</span></div>
 </div>
 
 </body></html>

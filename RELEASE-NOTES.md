@@ -5,6 +5,73 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Operations documentation, a physical deployment diagram, and a PDF refresh (30 September 2026)
+
+Plan item 5 (docs refresh), done ahead of item 4 at the owner's request. No application code
+changed.
+
+- **[docs/installation-manual.md](docs/installation-manual.md)**: from a bare Windows 11 machine
+  to all eight services running, with the versions actually installed here recorded.
+- **[docs/operations-guide.md](docs/operations-guide.md)**: how to start, check, update (the full
+  bootstrap, or one service at a time), troubleshoot, back up, restore and reset, without Claude.
+  It includes a symptom table and Kubernetes and Docker commands. `getting-started-locally.md` was
+  still describing a bootstrap that had never run and owner inputs from two weeks earlier; it now
+  points here, and its stale sections are corrected.
+- **`docs/diagrams/physical.svg`**, new: what runs where on this machine. It shows the
+  Windows/WSL/Docker layers, both k3d containers and their host ports (80/443, 37127), every
+  namespace and Service port, the Secrets, and which volumes survive `--destroy`.
+- **`scripts/render-docs.sh`**, new: regenerates the diagrams and the PDF in one command, using
+  the local Playwright image.
+- **`docs/architecture.pdf`**: 13 sections on 17 pages, up from 11. It adds the physical
+  deployment page and a one-page operating summary. The memory page still said the `.wslconfig`
+  override "has never been applied" and gave `full-app` as a ~5.2 GB estimate, and it called
+  dev/uat/prod "real Argo CD Applications", which were never built. All three are corrected.
+
+**Found by checking rather than assuming: `--destroy` deletes the database.** Postgres's
+local-path volume and the k3s datastore (and with it the hand-made `order-inquiry-key` Secret)
+live on an anonymous Docker volume inside the `k3d-aquashop-server-0` container. A throwaway k3d
+cluster was created, a file was written into that volume, and the cluster was deleted: the volume
+went with it. `k3d cluster stop`, `wsl --shutdown` and reboots keep everything, because both
+containers are `restart: unless-stopped` and `systemd` starts Docker. The backup procedure was run
+for real: `pg_dumpall` gave 376 KB covering all five databases, and the key read back at 64
+characters. The **restore** procedure is written down but has not been rehearsed, and the guide
+says so.
+
+**Measured, 30 Sep 2026:** node 2053 MiB of 11 GiB. Postgres uses 61 MiB of memory and 95 MB on
+disk. staff-portal 381 MiB, order 227, catalog 217, advisor 49, storefront 45, inventory 5,
+notification 4, payment 1. Quota used: 3200 MiB of 4 GiB limits, which is why the guide says to
+restart one JVM at a time.
+
+---
+
+## Owner photo review of V25 (30 September 2026, V26)
+
+The owner reviewed V25's photographs, and V26 acts on it. It **fills** the male crowntail (a
+Betta-Online photo from Flickr, CC BY 2.0, 2707×1900 original) and the snowball shrimp (Commons,
+upscaled, so marked not launch-eligible). It **replaces** the veiltail (now a Cambodian veiltail
+on a plain background) and the vampire shrimp (two shrimp on pale gravel, not one in the dark),
+and re-crops the whisker shrimp, whose V25 crop had cut off its tail. It **removes** the snakeskin
+gourami photo: the only candidate was a caught fish on a tiled floor, and the owner judged the
+placeholder better.
+
+Sources searched: Commons, Openverse and iNaturalist, commercial licences only. liveaquaria.com
+was used only as a visual reference, because its photos are the retailer's own. **Eight of the
+33 bettas, gouramis and invertebrates now have no photo:** seven because no licensed photo of the
+right form exists anywhere searched (emerald betta, thick-lipped gourami, bloody mary, black rose,
+green jade and chocolate shrimp, blue mystery snail), plus the snakeskin gourami, removed on purpose.
+The commit message said "seven gaps", counting only the first group. Reasons are in
+`species/CREDITS.md`.
+
+**Measured:** `CatalogApiTest` 39/39. In k3d, Flyway applied v26. The files were served
+byte-identical (the crowntail is 191,091 bytes through the ingress, the same as in Git), and the
+snakeskin URL returns 404. The catalogue is 253 products in 51 sections, and 27 products have no
+photo on purpose.
+
+**Not done at the time:** the doc set (`context_summary.md`, this file) was not updated in the V26
+commit. That was caught and fixed in the entry above.
+
+---
+
 ## Photographs for the betta, gourami and shrimp departments (29 September 2026, V25)
 
 Development plan item 3. **24 of the 33 products V23/V24 added now have a photograph, and all six

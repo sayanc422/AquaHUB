@@ -3,7 +3,28 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (29 September 2026): development plan item 3, photographs, done (`V25`).** 24 of the
+**Latest (30 September 2026): docs refresh (plan item 5, done ahead of item 4 at the owner's
+request), after `V26`.** No code changed. New: [installation-manual.md](installation-manual.md)
+(bare Windows to a running cluster) and [operations-guide.md](operations-guide.md) (start, update,
+troubleshoot, back up, restore and reset without Claude); `diagrams/physical.svg` (what runs where
+on this machine: ports, containers, volumes, paths); `scripts/render-docs.sh` (diagrams and PDF in
+one command). The PDF is 13 sections on 17 pages, and its stale memory page is fixed.
+**Verified on a throwaway cluster: `bootstrap.sh --destroy` deletes the database and the
+`order-inquiry-key` Secret**, because both live on an anonymous Docker volume inside
+`k3d-aquashop-server-0`. Stop, restart and `wsl --shutdown` keep everything. Backup was run for
+real (`pg_dumpall`, 376 KB). Restore is written down but not rehearsed. Measured: node 2053 MiB,
+all 16 pods Running, quota 3200 MiB of 4 GiB limits. Next is still plan item 4 (crop audit).
+
+**Earlier (30 September 2026): `V26`, the owner's review of V25's photos.** It fills the male
+crowntail (Flickr, CC BY 2.0) and the snowball shrimp (upscaled, not launch-eligible). It replaces
+the veiltail and the vampire shrimp and re-crops the whisker shrimp, and it removes the snakeskin
+gourami photo, so that product goes back to the placeholder. **8 of the 33 V23/V24 products have no
+photo now** (7 because no licensed photo of the right form exists, plus the snakeskin).
+`CatalogApiTest` 39/39, v26 applied in k3d, and the files are served byte-identical. The catalogue
+is **253 products in 51 sections, and 27 have no photo on purpose.** The V26 commit did not update
+this file or RELEASE-NOTES; that was caught the next session.
+
+**Earlier (29 September 2026): development plan item 3, photographs, done (`V25`).** 24 of the
 33 products added by V23/V24 now have a licensed Commons photograph, and all six new sections have a
 16:9 banner. **Nine stay NULL on purpose**, because Commons has no photo of the right species *and
 form*: male crowntail, emerald betta, thick-lipped gourami, and the bloody mary, black rose, green
@@ -138,11 +159,16 @@ with them. Deeper writing, more species and more varieties in those departments.
 - [x] **3. Photographs.** *Done 29 Sep 2026 (V25).* 24 of 33 product photos (4:3) and 6 section
       banners (16:9), Commons-licensed and credited. 9 stay NULL because no photo of the right
       form exists, and 4 are marked not launch-eligible; both lists are in `species/CREDITS.md`.
-      `CatalogApiTest` 39/39; verified in k3d with Chromium. Original brief: product photos (4:3) and
-      section photos (16:9), Commons-licensed and credited, caption checked against the photo.
+      `CatalogApiTest` 39/39; verified in k3d with Chromium. **Owner review, V26 (30 Sep):** 2
+      gaps filled, 3 photos replaced or re-cropped, and the snakeskin removed; 8 stay NULL. Original
+      brief: product photos (4:3) and section photos (16:9), Commons-licensed and credited, caption
+      checked against the photo.
 - [ ] **4. Crop audit.** Screenshot every product and category page and flag any animal that is cut
       off. Known suspect: `oscar.jpg`, which is not quite 4:3.
-- [ ] **5. Docs refresh.** Release notes, diagrams if topology changed, PDF status page.
+- [x] **5. Docs refresh.** *Done 30 Sep 2026, ahead of item 4 at the owner's request.* Release
+      notes, a physical deployment diagram, the PDF (13 sections), an installation manual and an
+      operations guide. Re-run `./scripts/render-docs.sh` whenever topology or measured figures
+      change.
 
 **Held by the owner (do not start without asking):** cart and checkout on the storefront; real
 WhatsApp and email values; replacing `sections/plants.jpg`; renaming "Badidae -- Badis & Dario";
@@ -209,10 +235,9 @@ on the manifest's placeholder image tag, cosmetic on every other service since i
 superseded within seconds) alive forever, and that pod's `1 Gi` `limits.memory` reservation against
 the namespace `ResourceQuota` (4 Gi total, eight services now sharing it) starved the new pod's own
 `1 Gi` request. Fixed by hand — deleting the stuck ReplicaSet freed the reservation and the real
-rollout completed within seconds — but **not fixed in the manifest**; the next fresh deploy of
-`staff-portal` into a fullish namespace will reproduce it. See RELEASE-NOTES for the full account and
-what a real fix looks like (`maxUnavailable: 1` for this specific service, or never applying the
-placeholder tag to begin with).
+rollout completed within seconds. **Fixed in the manifest the same day** (`maxUnavailable: 1,
+maxSurge: 0` for `staff-portal`) and re-verified by redeploying it into the full namespace. See
+RELEASE-NOTES for the full account.
 
 Per-pod, from `kubectl top pods -A` with all eight `full-app` services up and settled:
 
@@ -255,7 +280,9 @@ OOM killer taking an unrelated pod.
 aquashop/
   scripts/
     bootstrap.sh            idempotent; memory preflight refuses to run below 4 GB free
+                            (6 GB for full-app). --destroy DELETES THE DATABASE (verified 30 Sep)
     k3d-cluster.yaml        traefik, servicelb, metrics-server all disabled
+    render-docs.sh          diagrams + architecture.pdf, via the local playwright image
   services/
     catalog-service/        Java 21, Spring Boot 3.3, Flyway, Testcontainers, distroless
     storefront/             TypeScript, Fastify BFF, SSR HTML, distroless; tank checker,
@@ -271,15 +298,18 @@ aquashop/
                             inventory, order, payment, advisor, notification, staff-portal, ingress
   docs/
     architecture.md         full prose architecture
-    architecture.pdf        11 sections / 15 physical pages, diagrams + storefront screenshots,
-                            current to 28 Sep 2026 (rendered with page.pdf in the playwright image)
+    architecture.pdf        13 sections / 17 physical pages, diagrams + storefront screenshots,
+                            current to 30 Sep 2026 (scripts/render-docs.sh)
+    installation-manual.md  bare Windows 11 -> all eight services running
+    operations-guide.md     start, update, troubleshoot, back up, restore, reset -- without Claude
+    getting-started-locally.md  superseded by the two above; kept for its reasoning
     screenshots/            storefront screenshots embedded in the PDF
     architecture-pdf.html   source of the PDF
     adr/                    twenty-two decision records, each with its cost
     slo.md                  objectives, consequences, and which numbers are measured
     runbooks/               five runbooks; four reproduced locally, one written from docs
-    diagrams/generate.py    generates all three SVGs
-    diagrams/*.svg          architecture, deployment, delivery-flow
+    diagrams/generate.py    generates all four SVGs
+    diagrams/*.svg          architecture, deployment, delivery-flow, physical (this machine)
   RELEASE-NOTES.md          per phase: what was built, measured, and still unproven
 ```
 

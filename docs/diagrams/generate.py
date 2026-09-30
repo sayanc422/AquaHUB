@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the AquaShop diagram set as SVG.
+"""Generates the AquaShop diagram set as SVG (four diagrams).
 
 The diagrams are generated rather than hand-drawn so that coordinates stay
 consistent and a change to the palette or spacing is one edit, not thirty.
@@ -245,7 +245,7 @@ def deployment():
              accent=LINE, title_color=MUTED)
     s += box(104, 302, 648, 56, "Docker Engine (native in WSL, not Docker Desktop)", "one container per k3d node",
              accent=LINE, title_color=MUTED)
-    s += box(120, 374, 616, 706, "k3d node container — k3s v1.30", "traefik: disabled | servicelb: disabled | metrics-server: disabled",
+    s += box(120, 374, 616, 706, "k3d node container — k3s v1.30", "traefik, servicelb: disabled | metrics-server: via Helm (--metrics)",
              accent=TEAL, title_color=TEAL, fill=PANEL)
 
     s += text(144, 446, "NAMESPACE  ingress-nginx", 11.5, MUTED, weight="700", mono=True)
@@ -253,17 +253,17 @@ def deployment():
     s += text(144, 542, "NAMESPACE  cert-manager", 11.5, MUTED, weight="700", mono=True)
     s += box(144, 554, 568, 50, "cert-manager + CA issuer", "self-signed root, in-cluster leaf", accent=LINE, title_color=INK)
     s += text(144, 638, "NAMESPACE  aquashop-dev   (ResourceQuota 3Gi / 4Gi) — full-app: all eight run", 11.5, MUTED, weight="700", mono=True)
-    # kubectl top pods, 28 Sep 2026, full-app settled for ~40 h.
-    s += box(144, 650, 180, 70, "storefront", "Node, 33 MiB", accent=TEAL, title_color=TEAL)
-    s += box(338, 650, 180, 70, "catalog-service", "JVM, 272 MiB", accent=TEAL, title_color=TEAL)
-    s += box(532, 650, 180, 70, "order-service", "JVM, 220 MiB", accent=TEAL, title_color=TEAL)
-    s += box(144, 734, 180, 70, "inventory-service", "Go, 4 MiB", accent=TEAL, title_color=TEAL)
+    # kubectl top pods, 30 Sep 2026, full-app settled for ~26 h.
+    s += box(144, 650, 180, 70, "storefront", "Node, 45 MiB", accent=TEAL, title_color=TEAL)
+    s += box(338, 650, 180, 70, "catalog-service", "JVM, 217 MiB", accent=TEAL, title_color=TEAL)
+    s += box(532, 650, 180, 70, "order-service", "JVM, 227 MiB", accent=TEAL, title_color=TEAL)
+    s += box(144, 734, 180, 70, "inventory-service", "Go, 5 MiB", accent=TEAL, title_color=TEAL)
     s += box(338, 734, 180, 70, "payment-service", "Rust, 1 MiB", accent=TEAL, title_color=TEAL)
-    s += box(532, 734, 180, 70, "aquatics-advisor", "Python, 43 MiB", accent=TEAL, title_color=TEAL)
+    s += box(532, 734, 180, 70, "aquatics-advisor", "Python, 49 MiB", accent=TEAL, title_color=TEAL)
     s += box(144, 818, 180, 70, "notification-service", "Go, 4 MiB", accent=TEAL, title_color=TEAL)
-    s += box(338, 818, 374, 70, "staff-portal", "WildFly, 383 MiB  (own ingress host: staff.*)", accent=TEAL, title_color=TEAL)
+    s += box(338, 818, 374, 70, "staff-portal", "WildFly, 381 MiB  (own ingress host: staff.*)", accent=TEAL, title_color=TEAL)
     s += box(144, 902, 568, 70, "postgres (StatefulSet, PVC on local-path)",
-             "61 MiB — databases: catalog, orders, inventory, payments, notify", accent=BLUE, title_color=BLUE)
+             "61 MiB, 95 MB on disk — catalog, orders, inventory, payments, notify", accent=BLUE, title_color=BLUE)
     s += text(144, 1008, "No uat or prod overlay exists yet; Argo CD (the platform profile) has no manifests.", 11.5, ORANGE)
     s += text(144, 1028, "One environment is materialised at a time. None has ever run concurrently with another.", 11.5, ORANGE)
 
@@ -302,7 +302,7 @@ def deployment():
     s += text(808, 478, "maps to", 10, ORANGE, anchor="middle")
 
     s += footer(W, 1150,
-                "Measured, kubectl top node: core 1.32 GiB and core+commerce 2.05 GiB (16 Sep); full-app 2.0 GiB (28 Sep 2026).",
+                "Measured, kubectl top node: core 1.32 GiB and core+commerce 2.05 GiB (16 Sep); full-app 2053 MiB (30 Sep 2026).",
                 "AquaShop  /  docs/diagrams/deployment.svg")
     s += "</svg>"
     (OUT / "deployment.svg").write_text(s, encoding="utf-8")
@@ -388,9 +388,128 @@ def gitflow():
     (OUT / "delivery-flow.svg").write_text(s, encoding="utf-8")
 
 
+# ---------------------------------------------------------------- diagram 4 --
+def physical():
+    """What runs where on this one machine: ports, containers, volumes, disk.
+
+    Every value here was read off the live machine on 30 Sep 2026 (docker
+    inspect, kubectl get, /proc/meminfo, df). The anonymous volume ids change
+    every time the cluster is recreated, so only their mount points are drawn.
+    """
+    W, H = 1480, 1520
+    s = head(W, H, "AquaShop physical deployment")
+    s += title_bar("Physical Deployment — this machine", "Where every process, port and byte of data actually lives. Read off the live machine, 30 Sep 2026.",
+                   "Physical")
+    s += legend(1030, 44, [("SURVIVES --destroy", TEAL), ("LOST ON --destroy", PINK)])
+
+    # ---- Windows
+    s += panel(48, 120, 1384, 150, "Windows 11 host — 16 GB RAM", BLUE)
+    s += box(72, 158, 420, 90, "Browser (Windows side)", "https://aquashop.localtest.me",
+             "https://staff.aquashop.localtest.me   -> both resolve to 127.0.0.1", BLUE, BLUE)
+    s += box(516, 158, 420, 90, "WSL localhost forwarding", "127.0.0.1:80 / :443  ->  WSL2 VM",
+             "no /etc/hosts or Windows hosts-file edit needed", LINE, INK)
+    s += box(960, 158, 448, 90, "C:\\Users\\sayan\\.wslconfig", "memory=11GB  processors=4  swap=4GB",
+             "changes apply only after `wsl --shutdown` (PowerShell)", LINE, INK)
+    s += arrow(492, 203, 510, 203, BLUE, "arrow")
+
+    # ---- WSL2
+    s += panel(48, 290, 1384, 1130, "WSL2 VM — Ubuntu, 11 GiB RAM, 4 vCPU, 4 GiB swap, ext4 1007 GB (44 GB used)", TEAL)
+
+    # left column: the Linux side
+    lx, lw = 72, 360
+    rows = [
+        ("systemd=true (/etc/wsl.conf)", "docker.service enabled", "Docker starts when WSL starts", LINE, INK),
+        ("Repository", "~/Config-Scripts/Repo/AquaHUB", "branch claude/clever-shannon-ivtkw6", TEAL, TEAL),
+        ("kubeconfig", "~/.kube/config", "context k3d-aquashop -> 0.0.0.0:37127", LINE, INK),
+        ("CLI tools", "docker 29.8 k3d 5.9 kubectl 1.37", "helm 3.22, python3 (diagrams)", LINE, INK),
+        ("Build-cache volumes (named)", "aquashop-m2  aquashop-npm", "aquashop-maven-repo  maven-repo-cache", TEAL, TEAL),
+        ("Tool images", "playwright:v1.48.0-jammy", "PDF + screenshots; maven:3.9 for tests", TEAL, TEAL),
+        ("Service images (host copy)", "aquashop/<service>:dev", "built by bootstrap.sh, then imported", TEAL, TEAL),
+    ]
+    y = 332
+    for t, sub, note, acc, tc in rows:
+        s += box(lx, y, lw, 84, t, sub, note, acc, tc)
+        y += 98
+    s += text(lx, y + 14, "No native node, JDK or cargo: every build", 11.5, DIM)
+    s += text(lx, y + 32, "and test runs inside a container.", 11.5, DIM)
+
+    # right: Docker engine
+    dx, dw = 456, 952
+    s += panel(dx, 332, dw, 1068, "Docker Engine — /var/lib/docker — bridge network k3d-aquashop", VIOLET)
+    s += box(dx + 24, 366, dw - 48, 74, "container  k3d-aquashop-serverlb", "ghcr.io/k3d-io/k3d-proxy:5.9.0",
+             "host 0.0.0.0:37127 -> 6443: the Kubernetes API that kubectl talks to", LINE, INK)
+
+    nx, nw = dx + 24, dw - 48
+    s += box(nx, 452, nw, 926, "container  k3d-aquashop-server-0", "rancher/k3s:v1.30.4-k3s1  172.18.0.3  restart: unless-stopped",
+             "host 0.0.0.0:80 and :443 -> ingress-nginx hostPort. The whole cluster is this one container.",
+             TEAL, TEAL, fill=PANEL)
+
+    ix = nx + 20
+    iw = nw - 40
+    s += text(ix, 538, "NAMESPACE  ingress-nginx", 11.5, MUTED, weight="700", mono=True)
+    s += box(ix, 548, iw, 58, "ingress-nginx-controller  :80 :443", "aquashop.localtest.me /  -> storefront:3000    /api -> catalog-service:8080",
+             None, LINE, INK)
+    s += text(ix + 14, 622, "staff.aquashop.localtest.me /  -> staff-portal:8080    TLS: Secret aquashop-tls (cert-manager, self-signed CA)",
+              11, DIM, mono=True)
+
+    s += text(ix, 656, "NAMESPACES  cert-manager  kube-system", 11.5, MUTED, weight="700", mono=True)
+    s += box(ix, 666, iw, 44, "cert-manager (3 pods)   coredns   local-path-provisioner   metrics-server", accent=LINE, title_color=MUTED)
+
+    s += text(ix, 740, "NAMESPACE  aquashop-dev   (Service port shown; all ClusterIP, none reachable from Windows directly)",
+              11.5, MUTED, weight="700", mono=True)
+    svcs = [("storefront", ":3000"), ("catalog-service", ":8080"), ("order-service", ":8082"),
+            ("inventory-service", ":8081"), ("payment-service", ":8083"), ("aquatics-advisor", ":8084"),
+            ("notification-service", ":8085"), ("staff-portal", ":8080")]
+    bw, gap = (iw - 3 * 12) / 4, 12
+    for i, (n, port) in enumerate(svcs):
+        bx = ix + (i % 4) * (bw + gap)
+        by = 752 + (i // 4) * 60
+        s += box(bx, by, bw, 50, n, port, accent=TEAL, title_color=TEAL)
+    s += box(ix, 876, iw, 50, "postgres-0  :5432 (headless)", "postgres:16-alpine   databases: catalog orders inventory payments notify",
+             accent=BLUE, title_color=BLUE)
+    s += box(ix, 936, iw, 44, "Secrets: postgres-credentials, aquashop-tls, order-inquiry-key (made by hand, in no file)",
+             accent=PINK, title_color=PINK)
+
+    s += text(ix, 1012, "INSIDE THE NODE CONTAINER'S FILESYSTEM", 11.5, MUTED, weight="700")
+    vols = [
+        ("/var/lib/rancher/k3s", "anonymous volume",
+         "k3s datastore (every object, every Secret) + storage/pvc-..._data-postgres-0 = Postgres, 95 MB", PINK),
+        ("/var/lib/kubelet  /var/lib/cni  /var/log", "anonymous volumes", "pod sandboxes, CNI state, container logs", PINK),
+        ("containerd image store", "inside the node", "8 aquashop/*:dev images, 5 MB (Go) to 476 MB (WildFly)", PINK),
+        ("/k3d/images", "named volume k3d-aquashop-images", "staging area for `k3d image import`", DIM),
+    ]
+    vy = 1024
+    for path, kind, what, col in vols:
+        s += (f'<rect x="{ix}" y="{vy}" width="{iw}" height="44" rx="7" fill="{PANEL2}" stroke="{col}" stroke-width="1.3"/>')
+        s += text(ix + 14, vy + 19, path, 12, col if col != DIM else MUTED, weight="700", mono=True)
+        s += text(ix + 14, vy + 36, kind + "  —  " + what, 11, MUTED)
+        vy += 54
+
+    s += (f'<rect x="{ix}" y="{vy + 6}" width="{iw}" height="104" rx="9" fill="{PINK}" fill-opacity="0.10" '
+          f'stroke="{PINK}" stroke-width="1.5"/>')
+    s += text(ix + 16, vy + 32, "k3d cluster delete  (= bootstrap.sh --destroy)  deletes the database.", 14, PINK, weight="700")
+    s += text(ix + 16, vy + 54, "It removes server-0 and its anonymous volumes: verified 30 Sep 2026 on a throwaway cluster. Orders,", 11.5, INK)
+    s += text(ix + 16, vy + 72, "enquiries, Flyway history and the order-inquiry-key Secret all go. Back up first: pg_dumpall plus", 11.5, INK)
+    s += text(ix + 16, vy + 90, "the key's value (docs/operations-guide.md, section 7). A WSL restart or k3d cluster stop loses nothing.", 11.5, INK)
+
+    # arrows: browser -> node :443, kubectl -> serverlb
+    s += (f'<path d="M282,248 L282,276 L1420,276 L1420,470 L{nx + nw},470" fill="none" stroke="{BLUE}" '
+          f'stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#arrow)"/>')
+    s += text(1180, 268, "HTTPS :443 via localhost forwarding", 10.5, BLUE, mono=True)
+    s += arrow(lx + lw, 528, dx + 20, 403, MUTED, "arrow", dashed=True)
+    s += text(lx + lw + 6, 500, "kubectl", 10.5, MUTED, mono=True)
+
+    s += footer(W, 1460,
+                "Survives a WSL restart: everything (restart: unless-stopped). Survives --destroy: only the repo, the host images and the named volumes.",
+                "AquaShop  /  docs/diagrams/physical.svg")
+    s += "</svg>"
+    (OUT / "physical.svg").write_text(s, encoding="utf-8")
+
+
 if __name__ == "__main__":
     architecture()
     deployment()
     gitflow()
+    physical()
     for f in sorted(OUT.glob("*.svg")):
         print(f"{f.name}: {f.stat().st_size} bytes")

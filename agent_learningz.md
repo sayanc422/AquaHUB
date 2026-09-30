@@ -35,6 +35,22 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-30 — V26 was committed and pushed without the doc set; a data-loss claim was nearly assumed
+
+**What happened:** the V26 commit (owner photo review) had a thorough message, but
+`context_summary.md` still said "Latest: V25" and RELEASE-NOTES had no entry. The owner had to ask.
+The message also said "seven gaps remain" while CREDITS.md lists eight (seven with no photo
+anywhere, plus the snakeskin removed on purpose). Separately, while writing the operations guide,
+"deleting the cluster wipes Postgres" was about to go in as fact. It was true, but it had not been
+checked. A throwaway `k3d cluster create volprobe --no-lb` (no host ports, own name, no kubeconfig
+change) took under a minute to confirm it.
+**Pattern:** a commit message is not documentation. Before committing a migration, grep
+`context_summary.md` for the new `V<n>` and check that RELEASE-NOTES has an entry. Take counts from
+the source (CREDITS.md, the database), not from memory of the work. For any claim about what a
+destructive command does, test it on a throwaway copy: it's cheap here, and a guide the owner
+follows alone at 02:00 cannot hedge. **Where:** the doc-set rule is now in `CLAUDE.md`, and the
+`--destroy` fact is in `CLAUDE.md` and `docs/operations-guide.md` §7.
+
 ### 2026-09-29 — A candidate picked by list position showed a different photo than the one reviewed
 
 **What happened:** sourcing V25, picks were recorded as "`caridina[44]`" into a candidate list,
