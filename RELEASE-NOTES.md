@@ -5,6 +5,73 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Crop audit: no animal cut off by the page, three more photos (30 September 2026, V27–V28)
+
+Plan item 4, the last one on the development plan.
+
+**How it was checked.** A Playwright script opened all 308 storefront pages (home, 51 sections,
+253 products, two searches and the tank checker) at 390, 1366 and 1920 px. For each visible photo
+it compared the rendered box's shape with the file's shape and computed how much of the file
+`object-fit: cover` hides. Then every one of the 226 product and 51 section files was looked at on
+contact sheets, and the ~48 suspects again at a larger size, to find animals cut off in the file
+itself.
+
+**Measured before:** 10 product photos cropped by the page, by 6–35%, in both the card and the
+product page (`green-severum` 35%, `johannii` 26%, `red-devil` 16%, `auratus` 14%, `oscar` 13%,
+`demasoni`, `yellow-lab` and `nkhomo-benga-peacock` 11%, `salvini` 10%, `electric-blue-hap` 6.5%).
+These are the ten original shop-owner photos, none of which was 4:3. Every 4:3 and 16:9 file in a
+box of its own shape lost nothing. **Measured after:** 0 of 230 product photos cropped more than
+2% in any card or product-page box, at any of the three widths. All 51 section banners and the 4
+collection tiles show their whole file. Three decorative placements crop by design: the home hero
+(30% of `sections/live-fish.jpg`'s width at 390 px), the enquiry panel (`sections/hardscape.jpg`)
+and the 12:5 arowana panorama. They were screenshotted: no animal is cut in the first two, and the
+arowana is whole at both 390 and 1366 px.
+
+**Fixed:**
+- **19 files re-framed** with the new `scripts/reframe-photo.sh`: the ten owner photos, plus nine
+  whose Commons originals hold the whole fish that our own 4:3 crop had cut (bleeding-heart tetra,
+  blue acara, diamond tetra, glowlight danio, kenyi, pearl danio, pearl gourami, red-eye tetra,
+  siamese algae eater). Where the fish is wider than a 4:3 window of its source, the script
+  extends the canvas with a blurred, feathered copy of the photo's own background, 17–201 px per
+  side. Those bands are synthetic, and `species/CREDITS.md` gives each file's size. Two defects in
+  the script were caught by looking at its output before any file was replaced: a hard seam, and a
+  pale haze at the edges from alpha inherited by the background layer.
+- **Tiger shovelnose replaced** with an iNaturalist photo of the whole fish (CC BY-SA). The
+  Commons one had its tail cut off in the source.
+- **Three gaps filled** from iNaturalist, which earlier sessions had only searched for the bettas
+  and shrimp: `endlers-livebearer` (community ID *P. reticulata × wingei*, the hybrid much of the
+  trade sells as Endler's, and CREDITS says so), `dwarf-baby-tears` and `ludwigia-peruensis` (sold
+  under that name; it is *L. glandulosa*). **24 products are without a photo, down from 27.**
+  Captive fish are graded "casual" on iNaturalist, so a research-grade filter finds almost none.
+  The filter was dropped, and identity was checked by eye and by re-querying each observation.
+
+**Caught and reversed the same session: `V28`.** V27 gave `green-myrio` a photo of
+*Myriophyllum mattogrossense*, the trade's "green myrio". The product's V22 plant profile is
+*M. pinnatum*. The product page showed the mismatch, because the scientific name sits under the
+photo. A replacement found by searching for *pinnatum* turned out, on re-query, to be
+*M. verticillatum*. The only licensed *pinnatum* photos are emersed flowering spikes, so V28 sets
+the key back to NULL and the file is deleted. V27 was already applied in k3d, so it was corrected
+forward, not edited.
+
+**Found, not fixed (the owner's call):**
+- **13 photos cut off in their source**, with no better licensed photo anywhere searched:
+  `asian-arowana-green`, `black-skirt-tetra`, `rummynose-tetra`, `red-tail-shark`,
+  `oranda-goldfish`, `fire-eel`, `frontosa`, `royal-pleco`, `gold-nugget-pleco`,
+  `pearlscale-goldfish`, `zebra-danio`, `iridescent-shark` and `bristlenose-pleco`.
+- **Section tiles that are extreme close-ups:** `catfish-bristlenose`, `catfish-pleco-large`,
+  `cichlids`, `cichlids-american` and `goldfish`. `cichlids-south-american` shows a leaf and no fish.
+- **`auratus.jpg` carries a burned-in "DrTomBailey" watermark.** It is one of the ten
+  "unverified" owner photos, and the watermark points to a retailer's photograph. It was left in:
+  cropping a watermark out would hide exactly the provenance question it raises.
+- `salvini.jpg` is 474×321 at source. Re-framed, it is still a ~3× upscale, and soft.
+
+**Measured in k3d:** Flyway v28 applied. `CatalogApiTest` 39/39 at V28 (Testcontainers). All 24
+changed files served byte-identical after the old pods had gone, WebP variants present, and every
+changed product page decodes its photo at 390 and 1366 px. A `pg_dumpall` backup (376 KB) was taken
+before V27. No change to topology or memory.
+
+---
+
 ## Operations documentation, a physical deployment diagram, and a PDF refresh (30 September 2026)
 
 Plan item 5 (docs refresh), done ahead of item 4 at the owner's request. No application code

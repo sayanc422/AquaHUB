@@ -13,7 +13,7 @@ and a different fix.
 | `yellow-lab.jpg` | *Labidochromis caeruleus* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet |
 | `nkhomo-benga-peacock.jpg` | *Aulonocara baenschi* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet |
 | `johannii.jpg` | *Melanochromis johannii* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet |
-| `auratus.jpg` | *Melanochromis auratus* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet |
+| `auratus.jpg` | *Melanochromis auratus* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet — **carries a burned-in "DrTomBailey" watermark** (bottom left), which points to a retailer's photograph rather than the shop's own; found in the crop audit, 30 Sep 2026 |
 | `salvini.jpg` | *Trichromis salvini* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet |
 | `red-devil.jpg` | *Amphilophus labiatus* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet |
 | `oscar.jpg` | *Astronotus ocellatus* | supplied by shop owner, 15 Sep 2026 | **unverified** | ❌ not yet |
@@ -64,7 +64,7 @@ and a different fix.
 | `frozen-bloodworm-100g.jpg` | Freeze-dried red mosquito larvae (bloodworm) | Wikimedia Commons, [File:Fischfutter-Mueckenlarven.jpg](https://commons.wikimedia.org/wiki/File:Fischfutter-Mueckenlarven.jpg), Buchling | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **wrong product form.** These are **freeze-dried** bloodworm, dry and loose on white; the product is a frozen blister pack, and the packaging is a large part of what is being bought. Commons has no frozen fish food or blister pack of any kind. This is still much closer than the previously rejected candidate, which was live worms in water. Worked from the 960×959 Commons thumbnail (the 1001×1000 original was 429-blocked), cropped 960×720 and enlarged 1.46× to 1400×1050 |
 | `heater-100w.jpg` | Submersible glass-tube aquarium heater | Wikimedia Commons, [File:Grzałka do akwarium.jpg](https://commons.wikimedia.org/wiki/File:Grza%C5%82ka_do_akwarium.jpg), Ewkaa | CC BY-SA 3.0 | ✅ yes — **caveat:** this shows the product *class*, not the product. It is an unbranded glass-tube heater photographed out of the tank with its suction cups and lead; no thermostat dial and no wattage marking are visible anywhere in frame, so nothing in the photograph says "100 W" or "thermostatic". No brand or logo is in frame, which is why this one was used and the canister-filter candidates were not (see below). **Third caveat:** the glass tube carries visible mineral/limescale buildup along its length — this is a heater that has been run in hard water, not a new-in-box unit, and it reads as used rather than the clean retail shot the rest of the catalogue aims for. Left in rather than dropped back to the placeholder, on the same "an honest compromise beats an empty tile" reasoning as `common-pleco.jpg`'s dorsal framing, but flagged here for a deliberate call, not a silent one. Cropped to 4:3 at 1400×1050 and encoded at quality 76 — the dark woven-cloth background compresses badly, and at this crop quality 82 measured 335 KB and even 78 measured 301 KB, both over `README.md`'s 300 KB ceiling |
 | `redtail-catfish.jpg` | *Phractocephalus hemioliopterus* | Wikimedia Commons, [File:Redtail catfish (Phractocephalus hemioliopterus) (15594456228).jpg](https://commons.wikimedia.org/wiki/File:Redtail_catfish_(Phractocephalus_hemioliopterus)_(15594456228).jpg), harum.koh from Kobe city, Japan | CC BY-SA 2.0 | ✅ yes |
-| `tiger-shovelnose-catfish.jpg` | *Pseudoplatystoma fasciatum* | Wikimedia Commons, [File:Pseudoplatystoma fasciatum1.jpg](https://commons.wikimedia.org/wiki/File:Pseudoplatystoma_fasciatum1.jpg), KENPEI | CC BY-SA 3.0 | ✅ yes — see `V13`'s own note on this species: the 2007 generic revision means the Amazon fish the trade ships under this name is now usually *P. punctifer*, and the two are not reliably separable from a photograph |
+| ~~`tiger-shovelnose-catfish.jpg`~~ *(replaced 30 Sep 2026, crop audit: the tail was cut off in this source; see the last section)* | *Pseudoplatystoma fasciatum* | Wikimedia Commons, [File:Pseudoplatystoma fasciatum1.jpg](https://commons.wikimedia.org/wiki/File:Pseudoplatystoma_fasciatum1.jpg), KENPEI | CC BY-SA 3.0 | ✅ yes — see `V13`'s own note on this species: the 2007 generic revision means the Amazon fish the trade ships under this name is now usually *P. punctifer*, and the two are not reliably separable from a photograph |
 | `iridescent-shark.jpg` | *Pangasianodon hypophthalmus* | Wikimedia Commons, [File:Oniria - Poisson 67.jpg](https://commons.wikimedia.org/wiki/File:Oniria_-_Poisson_67.jpg), Tylwyth Eldar | CC BY-SA 4.0 | ✅ yes — source caption itself identifies it as "Panga (*Pangasianodon hypophthalmus*)" |
 | `dolphin-cichlid.jpg` | *Cyrtocara moorii* | Wikimedia Commons, [File:Cyrtocara moorii male 2.jpg](https://commons.wikimedia.org/wiki/File:Cyrtocara_moorii_male_2.jpg), Brian Gratwicke | CC BY 2.0 | ✅ yes |
 | `green-terror.jpg` | *Andinoacara rivulatus* | Wikimedia Commons, [File:Andinoacara rivulatus - Karlsruhe Zoo 01.jpg](https://commons.wikimedia.org/wiki/File:Andinoacara_rivulatus_-_Karlsruhe_Zoo_01.jpg), H. Zell | CC BY 4.0 | ✅ yes |
@@ -548,3 +548,75 @@ the way to close these.
 |---|---|---|---|---|
 | `betta-male-crowntail.jpg` | *Betta splendens*, male crowntail | Flickr, [CT Multicolour M - Betta-Online](https://www.flickr.com/photos/14805366@N03/1549644007/), Daniella Vereeken | CC BY 2.0 | ✅ yes — title names the form and sex (CT = crowntail, M = male); the same breeder series as `betta-male-plakat.jpg`. Original 2707×1900, cropped 2533×1900 around the fish → 1400×1050 |
 | `snowball-shrimp.jpg` | *Neocaridina* cf. *zhangjiajiensis*, "white pearl" | Wikimedia Commons, [File:Neocaridina-cf-zhangjiajiensis-sp-white-pearl.jpg](https://commons.wikimedia.org/wiki/File:Neocaridina-cf-zhangjiajiensis-sp-white-pearl.jpg), DirkBlankenhaus | CC BY-SA 3.0 | ⚠️ licence yes, **not launch-eligible** — **upscaled** 1.3× (source 1024×693, cropped 924×693 → 1200×900). **Caveat:** the trade sells white Neocaridina as "snowball" and "white pearl" interchangeably, and the snowball's species is itself disputed (*N. davidi* vs *N.* cf. *zhangjiajiensis*); V24 files it under *N. davidi*. It is a white Neocaridina carrying eggs, which is what the snowball is named for |
+
+## Crop audit, 30 September 2026 (V27)
+
+Development plan item 4. Every photograph was measured in a real browser (Chromium, 308 pages at
+390, 1366 and 1920 px wide: every rendered photo box against its file's shape) and then looked at,
+all 226 product and 51 section files, for animals cut off in the file itself.
+
+**What the browser measurement found.** A 4:3 file in a 4:3 box, or a 16:9 file in a 16:9 box,
+loses nothing, and that is 216 of the 226 product photos and all 51 section photos. The other ten are
+the original shop-owner photos at the top of this file, which were never 4:3 (`green-severum.jpg` was
+2.06:1). The 4:3 card and product-page boxes centre-cropped them by 6–35%, snouts and tails included.
+
+**What looking found.** About 22 product photos cut part of the animal off in the file itself.
+Nine of those were our own crops from wider Commons originals, which do hold the whole fish. The
+other thirteen are cut in the source too, so only a different photograph fixes them.
+
+**Re-framed, same source, same licence** — made with `scripts/reframe-photo.sh`, which keeps the
+whole fish and, where it is wider than a 4:3 window of the source, extends the canvas with a
+**blurred, feathered copy of the photo's own background**. Those bands are synthetic pixels and
+are listed here, per file, as a band size at the source's scale:
+
+| File | Source worked from | Kept | Synthetic band |
+|---|---|---|---|
+| `bleeding-heart-tetra.jpg` | Commons original at 1920×1146 | x 76–1862 | 97 px top and bottom |
+| `blue-acara.jpg` | Commons original at 1920×1016 | x 0–1872 | 194 px top and bottom |
+| `diamond-tetra.jpg` | Commons original at 1920×1078 | x 38–1881 | 152 px top and bottom |
+| `glowlight-danio.jpg` | Commons original at 1920×937 | x 0–1785 | 201 px top and bottom |
+| `kenyi-cichlid.jpg` | Commons original at 1920×1280 | x 213–1920 | none (a wider 4:3 window) |
+| `pearl-danio.jpg` | Commons original at 1920×1080 | x 153–1804 | 79 px top and bottom |
+| `pearl-gourami.jpg` | Commons original at 1920×1281 | x 0–1708 | none |
+| `red-eye-tetra.jpg` | Commons original at 1920×1082 | x 192–1881 | 92 px top and bottom |
+| `siamese-algae-eater.jpg` | Commons original at 1920×1280 | x 213–1920 | none; the tail tip still touches the edge, as in the source |
+| `green-severum.jpg` | owner file, 1600×778 | x 128–1312 | 55 px top and bottom |
+| `johannii.jpg` | owner file, 1600×888 | x 0–1392 | 78 px top and bottom |
+| `red-devil.jpg` | owner file, 1600×1006 | all | 97 px top and bottom |
+| `demasoni.jpg` | owner file, 1600×1066 | all | 67 px top and bottom |
+| `electric-blue-hap.jpg` | owner file, 1600×1122 | all | 39 px top and bottom |
+| `nkhomo-benga-peacock.jpg` | owner file, 1136×758 | all | 47 px top and bottom |
+| `oscar.jpg` | owner file, 1600×1042 | all | 79 px top and bottom |
+| `yellow-lab.jpg` | owner file, 1600×1066 | all | 67 px top and bottom |
+| `auratus.jpg` | owner file, 1280×1120 | all | 106 px left and right; the watermark stays in, deliberately |
+| `salvini.jpg` | owner file, 474×321 | all | 17 px top and bottom; **then upscaled ~3×**, so it is soft |
+
+The ten owner files stay **unverified**; re-framing changes their shape, not their status.
+
+**New photographs, from iNaturalist.** Searched for the gaps that had only ever been tried on
+Commons and Openverse (the seven V17 fish and the twelve V22 plants), and for replacements for the
+thirteen photographs cut in their source. Licences limited to CC0, CC BY and CC BY-SA, and each pick
+re-queried by photo id for licence, attribution and identifications before download. Captive animals
+are graded "casual" on iNaturalist, so the grade filter was dropped and identity checked by eye.
+
+| File | Subject | Source | Licence | Cleared for commercial use |
+|---|---|---|---|---|
+| `endlers-livebearer.jpg` | *Poecilia reticulata × wingei* (male) | iNaturalist, [observation 370537460](https://www.inaturalist.org/observations/370537460), photo 676907382, Иван Пристрем | CC BY 4.0 | ⚠️ licence yes, **caveat:** three community IDs say *P. reticulata × wingei*, the hybrid much of the trade sells as "Endler's"; it is not pure *P. wingei*, which the product profile names. Source 2048×1153, kept x 327–1945, 30 px synthetic band top and bottom |
+| `dwarf-baby-tears.jpg` | *Micranthemum* (*Hemianthus*) *callitrichoides* | iNaturalist, [observation 369612256](https://www.inaturalist.org/observations/369612256), photo 675164895, J. L. Gómez-Hechavarría | CC BY 4.0 | ✅ yes — **caveat:** wild carpet on a river rock in Cuba, where the plant comes from; **one identification only** ("needs ID"). Source 2048×1365, crop 1820×1365+114+0 |
+| ~~`green-myrio.jpg`~~ | *Myriophyllum mattogrossense* | *keyed in V27, withdrawn in V28 the same day* | — | **Wrong species for this product.** The photo (iNaturalist observation 185331042, Igor Balashov, CC BY) is *M. mattogrossense*, but the product's V22 plant profile is *M. pinnatum*. A second pick (photo 254806797) turned out on re-query to be *M. verticillatum*. The only four licensed *M. pinnatum* observations are emersed flowering spikes, not the submerged stems sold, so the key is NULL and the file is deleted |
+| `ludwigia-peruensis.jpg` | *Ludwigia glandulosa* | iNaturalist, [observation 356172876](https://www.inaturalist.org/observations/356172876), photo 649516719, anonymous (CC0) | CC0 | ✅ yes — **caveat:** the plant sold as 'peruensis' is *L. glandulosa*; this one is growing wild and emersed in a Texas creek, so it is greener than a submerged, well-lit aquarium plant. **One identification only.** Source 2000×1196, kept x 200–1800 |
+| `tiger-shovelnose-catfish.jpg` | *Pseudoplatystoma fasciatum* | iNaturalist, [observation 203085721](https://www.inaturalist.org/observations/203085721), photo 358766690, Gannu03 | CC BY-SA 4.0 | ✅ yes — replaces the Commons photo above, whose tail was cut off in the source. The whole fish, in a bare tank. Source 2048×1536, no crop |
+
+**Looked at and rejected:** every licensed tire-track eel, snakeskin gourami, scissortail rasbora and
+gold nugget pleco (a caught fish in a hand, a net, a market bowl or on the ground); black skirt tetra
+(GloFish, or too blurred to show the fish); a sharper frontosa (heavily processed) and a whole-fish
+frontosa (soft, motion-blurred), both worse than the current one, which clips only the tail tip; a
+zebra danio (motion-blurred) and a royal pleco (tail cut); red-tail shark and green arowana (no
+whole-fish photo better than the current ones). No licensed photograph was found at all for the skunk
+cory, snowball pleco, bumblebee cichlid, emerald betta, *Anubias hastifolia* or the ruffle sword.
+
+**Still cut in the source, no better photo found (13):** `asian-arowana-green`, `black-skirt-tetra`,
+`rummynose-tetra`, `red-tail-shark`, `oranda-goldfish` (a head-only close-up), `fire-eel`,
+`frontosa`, `royal-pleco`, `gold-nugget-pleco`, `pearlscale-goldfish`, `zebra-danio`,
+`iridescent-shark` and `bristlenose-pleco`. The shop's own photographs are the fix.
+

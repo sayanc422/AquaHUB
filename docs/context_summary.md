@@ -3,7 +3,33 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (30 September 2026): docs refresh (plan item 5, done ahead of item 4 at the owner's
+**Latest (30 September 2026): plan item 4, the crop audit (`V27`, `V28`). Every plan item is now
+done.** All 308 pages (home, 51 sections, 253 products, search, checker) were measured in Chromium at
+390, 1366 and 1920 px, comparing each rendered photo box with its file's shape, and all 277 photo
+files were looked at. **Found:** the ten original shop-owner photos were not 4:3, so every card and
+product page centre-cropped them by 6–35% (the green severum lost its tail and snout). About 22
+more product photos cut the animal off in the file itself. **Fixed:** the ten, plus nine whose
+Commons originals hold the whole fish, were re-framed with the new `scripts/reframe-photo.sh`. It
+never cuts the animal: where needed it extends the canvas with a blurred, feathered band, and
+CREDITS lists each band's size. Re-measured: **0 of 230 product photos cropped** in any card or
+product-page box. The tiger shovelnose was replaced from iNaturalist. **Gaps:** iNaturalist was
+searched for the first time for the V17 fish and V22 plants. Endler's (a *reticulata × wingei*
+hybrid, caveated), dwarf baby tears and Ludwigia 'peruensis' now have photos, so **24 products are
+without one** (was 27). Green myrio was keyed in V27 to *M. mattogrossense*, but the product is
+*M. pinnatum*; the product page showed that, and V28 set it back to NULL. **Also found:** `auratus.jpg` (an
+"unverified" owner photo) carries a "DrTomBailey" retailer watermark. **Still open, for the
+owner:** 13 photos cut off in their source with no better licensed photo (`asian-arowana-green`,
+`black-skirt-tetra`, `rummynose-tetra`, `red-tail-shark`, `oranda-goldfish`, `fire-eel`,
+`frontosa`, `royal-pleco`, `gold-nugget-pleco`, `pearlscale-goldfish`, `zebra-danio`,
+`iridescent-shark`, `bristlenose-pleco`). Five section tiles are extreme close-ups
+(`catfish-bristlenose`, `catfish-pleco-large`, `cichlids`, `cichlids-american`, `goldfish`), and
+`cichlids-south-american` shows a leaf, no fish. The hero, the enquiry panel and the 12:5 arowana
+panorama crop by design; checked, and no animal is cut. `CatalogApiTest` 39/39 at V28. Flyway v28 is
+applied in k3d, and all 24 changed files are served byte-identical. Backup taken first
+(`~/aquashop-backups/aquashop-2026-09-30-pre-v27.sql`). **Next: ask the owner.** Every item below
+is ticked, and the rest is on the held list or needs the shop's own photographs.
+
+**Earlier (30 September 2026): docs refresh (plan item 5, done ahead of item 4 at the owner's
 request), after `V26`.** No code changed. New: [installation-manual.md](installation-manual.md)
 (bare Windows to a running cluster) and [operations-guide.md](operations-guide.md) (start, update,
 troubleshoot, back up, restore and reset without Claude); `diagrams/physical.svg` (what runs where
@@ -163,8 +189,12 @@ with them. Deeper writing, more species and more varieties in those departments.
       gaps filled, 3 photos replaced or re-cropped, and the snakeskin removed; 8 stay NULL. Original
       brief: product photos (4:3) and section photos (16:9), Commons-licensed and credited, caption
       checked against the photo.
-- [ ] **4. Crop audit.** Screenshot every product and category page and flag any animal that is cut
-      off. Known suspect: `oscar.jpg`, which is not quite 4:3.
+- [x] **4. Crop audit.** *Done 30 Sep 2026 (V27, V28).* 308 pages measured at three widths and 277
+      files looked at. 19 photos re-framed without cutting the animal, 1 replaced, 3 gaps filled
+      from iNaturalist (24 remain). 0 of 230 product photos are now cropped by the page. 13 are cut
+      in their source and need the shop's own photos; see "Latest". Original brief: screenshot every
+      product and category page and flag any animal that is cut off. Known suspect: `oscar.jpg`,
+      which is not quite 4:3 (confirmed: 1.54:1, and nine others like it).
 - [x] **5. Docs refresh.** *Done 30 Sep 2026, ahead of item 4 at the owner's request.* Release
       notes, a physical deployment diagram, the PDF (13 sections), an installation manual and an
       operations guide. Re-run `./scripts/render-docs.sh` whenever topology or measured figures

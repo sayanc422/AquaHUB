@@ -35,6 +35,26 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-09-30 — A photo matched the product's name, not its species; and "looks fine" missed ten crops
+
+**What happened:** filling gaps from iNaturalist, `green-myrio` got a photo of *Myriophyllum
+mattogrossense*, the plant the trade calls "green myrio". But the product's own V22 profile says
+*M. pinnatum*. The replacement, found by searching `taxon_name=Myriophyllum pinnatum`, came back
+on re-query as *M. verticillatum*: iNaturalist's search matches observations whose community ID has
+since moved elsewhere. V27 was already applied in k3d, so V28 had to undo it. Separately, the
+ten original owner photos had never been 4:3 (1.14–2.06:1), and every card had been cutting 6–35%
+off them since 15 September. Four sessions of screenshot review never flagged it, because a
+cropped fish in a card still looks like a photo of a fish.
+**Pattern:** source a photo against the product's **scientific name as the catalogue stores it**
+(`SELECT … FROM species_profile/plant_profile`), not the product's display name. Accept an
+iNaturalist pick only when the re-queried `observation.taxon.name` equals that name. Open the
+product page (the name sits under the photo) **before** applying the migration. For crops, measure
+instead of looking: compare each rendered box's aspect ratio with its file's
+(`getBoundingClientRect()` vs `identify`) across widths, then look only at files that pass. Also, a
+research-grade iNaturalist filter drops almost every aquarium fish, because captive animals are graded
+"casual". **Where:** `species/CREDITS.md` "Crop audit"; `scripts/reframe-photo.sh`;
+`V28__green_myrio_back_to_null.sql`; the aspect rule in `CLAUDE.md`.
+
 ### 2026-09-30 — V26 was committed and pushed without the doc set; a data-loss claim was nearly assumed
 
 **What happened:** the V26 commit (owner photo review) had a thorough message, but

@@ -308,7 +308,7 @@ class CatalogApiTest {
      * directory, in a different service, and a test that reached across that
      * boundary would be asserting on somebody else's deployment. What it can
      * check is the convention, and which products are knowingly without a
-     * photograph: V18 left seven NULL on purpose and V22 twelve, each with a reason in the
+     * photograph: V18 left seven NULL on purpose and V22 twelve (V27 photographed two of those to keep), each with a reason in the
      * storefront's species/CREDITS.md. A new NULL, or one of these gaining a
      * key, is a decision someone should see in a diff, not a count that
      * silently moves.
@@ -323,11 +323,11 @@ class CatalogApiTest {
         var unphotographed = jdbc.queryForList(
             "SELECT slug FROM product WHERE image_key IS NULL", String.class);
         assertThat(unphotographed).containsExactlyInAnyOrder(
-            "bumblebee-cichlid", "endlers-livebearer", "head-and-tail-light-tetra",
+            "bumblebee-cichlid", "head-and-tail-light-tetra",
             "scissortail-rasbora", "skunk-cory", "snowball-pleco", "tire-track-eel",
-            // V22's twelve plants with no licensed photograph of the right plant.
-            "anubias-hastifolia", "dwarf-baby-tears", "green-myrio", "hygrophila-araguaia",
-            "kleiner-bar-sword", "ludwigia-peruensis", "oriental-sword", "red-flame-sword",
+            // V22's plants with no licensed photograph of the right plant (V27 filled two).
+            "anubias-hastifolia", "green-myrio", "hygrophila-araguaia",
+            "kleiner-bar-sword", "oriental-sword", "red-flame-sword",
             "red-pearl-sword", "red-rubin-sword", "rotala-nanjenshan", "ruffle-sword",
             // V25/V26: no licensed photograph of the right species AND form.
             "emerald-betta", "thick-lipped-gourami", "bloody-mary-shrimp",
