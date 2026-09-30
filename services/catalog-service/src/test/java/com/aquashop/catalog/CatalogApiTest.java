@@ -329,10 +329,12 @@ class CatalogApiTest {
             "anubias-hastifolia", "dwarf-baby-tears", "green-myrio", "hygrophila-araguaia",
             "kleiner-bar-sword", "ludwigia-peruensis", "oriental-sword", "red-flame-sword",
             "red-pearl-sword", "red-rubin-sword", "rotala-nanjenshan", "ruffle-sword",
-            // V25's nine: no licensed photograph of the right species AND form.
-            "betta-male-crowntail", "emerald-betta", "thick-lipped-gourami",
-            "bloody-mary-shrimp", "black-rose-shrimp", "green-jade-shrimp",
-            "chocolate-shrimp", "snowball-shrimp", "blue-mystery-snail");
+            // V25/V26: no licensed photograph of the right species AND form.
+            "emerald-betta", "thick-lipped-gourami", "bloody-mary-shrimp",
+            "black-rose-shrimp", "green-jade-shrimp", "chocolate-shrimp",
+            "blue-mystery-snail",
+            // V26: the only photo was a dead fish on a floor; the owner chose none.
+            "snakeskin-gourami");
     }
 
     /**
