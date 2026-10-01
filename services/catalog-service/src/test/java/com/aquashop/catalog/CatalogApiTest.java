@@ -330,8 +330,9 @@ class CatalogApiTest {
             "kleiner-bar-sword", "oriental-sword", "red-flame-sword",
             "red-pearl-sword", "red-rubin-sword", "rotala-nanjenshan", "ruffle-sword",
             // V25/V26: no licensed photograph of the right species AND form.
+            // (V29 gave green-jade-shrimp a colour match, at the owner's direction.)
             "emerald-betta", "thick-lipped-gourami", "bloody-mary-shrimp",
-            "black-rose-shrimp", "green-jade-shrimp", "chocolate-shrimp",
+            "black-rose-shrimp", "chocolate-shrimp",
             "blue-mystery-snail",
             // V26: the only photo was a dead fish on a floor; the owner chose none.
             "snakeskin-gourami");

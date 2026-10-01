@@ -5,6 +5,20 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Green jade shrimp photo (1 October 2026, V29)
+
+The owner asked again about the four Neocaridina colour lines with no photo. The search went
+further than V26's: Openverse (13 queries × 3 pages), iNaturalist by tag and description, every one
+of the 221 commercially licensed *N. davidi* photos looked at, and Pexels. **None names bloody mary,
+black rose, green jade or chocolate.** The two iNaturalist records that say "green jade" show dark
+brown shrimp. At the owner's direction, `green-jade-shrimp` now uses the clearest colour match (a
+translucent green *N. davidi*, CC BY), marked **not launch-eligible** in CREDITS. The other three
+stay placeholders. **Measured:** `CatalogApiTest` 39/39. Flyway v29 is applied in k3d, and the file
+is served byte-identical with its WebP variants. It shows on the product page and in the section
+grid in Chromium. 23 products are without a photo.
+
+---
+
 ## Crop audit: no animal cut off by the page, three more photos (30 September 2026, V27–V28)
 
 Plan item 4, the last one on the development plan.

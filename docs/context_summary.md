@@ -3,7 +3,18 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (30 September 2026): plan item 4, the crop audit (`V27`, `V28`). Every plan item is now
+**Latest (1 October 2026): `V29`, green jade shrimp photo.** The owner asked about the four
+colour shrimp still without a photo. This was the deepest search yet: Openverse (13 queries, 3 pages
+each), iNaturalist by tag and description, every one of the 221 licensed *N. davidi* photos looked
+at, and Pexels. **No licensed photo anywhere names bloody mary, black rose, green jade or
+chocolate.** The owner chose to accept the clearest colour match: green jade now shows a green
+*N. davidi* (CC BY), marked not launch-eligible in CREDITS. Bloody mary (the only deep-red one was a
+wild shrimp on a dry rock), black rose and chocolate (they could be blue dream or choco black) stay
+placeholders until the shop photographs its own. **23 products without a photo.**
+`CatalogApiTest` 39/39. Flyway v29 is applied in k3d, and the file is served byte-identical.
+Backup: `~/aquashop-backups/aquashop-2026-10-01-pre-v29.sql`.
+
+**Earlier (30 September 2026): plan item 4, the crop audit (`V27`, `V28`). Every plan item is now
 done.** All 308 pages (home, 51 sections, 253 products, search, checker) were measured in Chromium at
 390, 1366 and 1920 px, comparing each rendered photo box with its file's shape, and all 277 photo
 files were looked at. **Found:** the ten original shop-owner photos were not 4:3, so every card and

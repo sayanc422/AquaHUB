@@ -35,6 +35,17 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-10-01 — "Still missing" after an exhaustive search is a decision for the owner, not a re-search
+
+**What happened:** the owner asked about four shrimp gaps that V26 had already searched. A deeper
+search (221 photos, by eye) found no photo that names the lines, the same answer as before. What
+moved things was asking whether a colour match by eye was acceptable. The owner said yes for the
+unambiguous case only (green), and no where the colour fits more than one line (black, brown).
+**Pattern:** when a gap repeats after a thorough search, do one deeper pass, then put the trade-off
+to the owner with the candidates on one sheet (`AskUserQuestion`). Don't silently lower the bar,
+and don't re-run the same search. A caption that names the line can still be wrong: both "green
+jade" records showed brown shrimp, so look at the photo too.
+
 ### 2026-09-30 — A photo matched the product's name, not its species; and "looks fine" missed ten crops
 
 **What happened:** filling gaps from iNaturalist, `green-myrio` got a photo of *Myriophyllum

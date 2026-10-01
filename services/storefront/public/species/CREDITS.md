@@ -620,3 +620,31 @@ cory, snowball pleco, bumblebee cichlid, emerald betta, *Anubias hastifolia* or 
 `frontosa`, `royal-pleco`, `gold-nugget-pleco`, `pearlscale-goldfish`, `zebra-danio`,
 `iridescent-shark` and `bristlenose-pleco`. The shop's own photographs are the fix.
 
+## Neocaridina colour lines, 1 October 2026 (V29)
+
+The owner asked again about the four colour shrimp without a photo: bloody mary, black rose, green
+jade and chocolate. This time the search went deeper than V26's:
+- Openverse: 13 queries, 3 pages each.
+- iNaturalist: searched by tag and description as well as by species, and **every one of the 221
+  commercially licensed *N. davidi* photos (77 observations) looked at**.
+- Pexels.
+
+**No photograph anywhere names bloody mary, black rose or chocolate.** Two iNaturalist observations
+describe themselves as green jade (252899670, 261028663), but they show small, dark brown shrimp in
+busy tanks, with no green visible. The owner chose to accept a colour match by eye for the clearest
+case only.
+
+| File | Subject | Source | Licence | Cleared for commercial use |
+|---|---|---|---|---|
+| `green-jade-shrimp.jpg` | *Neocaridina davidi*, green | iNaturalist, [observation 193253063](https://www.inaturalist.org/observations/193253063), photo 339456346, Daniel Schelesky | CC BY 4.0 | ⚠️ licence yes, **not launch-eligible**: **the colour is matched by eye, and the photographer does not name the line.** It shows a translucent green *N. davidi*, whole, in an aquarium in Brazil, identified to species by two people. It is slightly soft. Source 2048×1536, no crop, resized to 1400×1050 |
+
+**Rejected:**
+- **Bloody mary:** the only deep-red candidate (photo 288234226, research grade, CC BY) is a
+  wild-caught shrimp from the Warm Bay hot-springs population in British Columbia, lying on its side
+  on a dry rock. That is the same failure as the snakeskin gourami on a floor (V26).
+- **Black rose and chocolate:** the black and brown candidates (444218356, 380381894, 484308774) are
+  a fair colour match, but black could equally be blue dream and brown choco black. The owner chose
+  to keep these as placeholders.
+
+These three need the shop's own photographs.
+
