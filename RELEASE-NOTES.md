@@ -5,6 +5,45 @@ A number that has not been measured is written as a target and labelled as one.
 
 ---
 
+## Gobies & Gudgeons: a new section, and advisor rules v6 (1 October 2026, V30–V31)
+
+The owner asked for freshwater gobies, naming the bumblebee goby. A new section under Freshwater
+has five fish, each with a species profile and a description over the word floor:
+- **bumblebee goby** (*Brachygobius doriae*)
+- **peacock gudgeon** (*Tateurndina ocellicauda*, IUCN Vulnerable, captive-bred only)
+- **Philippine neon goby** (*Stiphodon atropurpureus*, wild-caught: its larvae go to sea, so no
+  one farms it)
+- **knight goby** (*Stigmatogobius sadanundio*, an Indian native)
+- **Zhou's scarlet goby** (*Rhinogobius zhoui*, a cool-water stream goby, captive-bred only)
+
+Facts are from each species' Wikipedia article. The retailer page the owner linked was a cross-check
+only.
+
+**Photos:** four from Wikimedia Commons (CC BY-SA) and one from iNaturalist (CC0), plus a 16:9
+section banner. Two were re-framed with `reframe-photo.sh`, and CREDITS lists their synthetic bands.
+The Zhou's goby photo shows a male out of colour (pale, not scarlet), and CREDITS says so. The two
+photos the owner attached came from a web search with no licence, so they were not used, and
+`assets/` is now git-ignored.
+
+**Caught before shipping:** the first draft called the bumblebee and knight gobies "tank-bred".
+Most in the trade are wild-caught, so both summaries now say so.
+
+**Advisor rules v6:** the bumblebee, peacock, knight and Zhou's gobies join `shrimp_eater_skus`.
+The neon goby is an algae grazer and stays off the list. **Known gap, not fixed:** two of these
+gobies prefer a little salt, and the catalogue has no salinity field.
+
+**Measured:**
+- Advisor tests 40/40, run in `python:3.12-slim`. With the bumblebee goby removed from the list,
+  its test failed, so the test really guards the rule.
+- `CatalogApiTest` 39/39 at V31.
+- In k3d: Flyway v31 applied, and all three services rebuilt and rolled out one at a time.
+- All six files are served byte-identical, and the section shows 5 cards with no broken images at
+  390 and 1366 px.
+- The live checker refuses bumblebee goby + cherry shrimp, passes neon goby + cherry shrimp
+  ("version 6" in its footer), and flags knight goby + neon tetra on pH.
+
+---
+
 ## Green jade shrimp photo (1 October 2026, V29)
 
 The owner asked again about the four Neocaridina colour lines with no photo. The search went

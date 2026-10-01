@@ -45,3 +45,31 @@ def test_the_rule_is_data_so_the_list_is_in_the_rules_file(rules):
     # Like fin-nippers: which animals hunt shrimp is a fact about the animal the
     # catalog does not carry, and it belongs to whoever keeps them.
     assert "INV-WHS-01" in rules.skus("behaviour", "shrimp_eater_skus")
+
+
+BUMBLEBEE_GOBY = species(
+    sku="FSH-GOB-01", common_name="Bumblebee Goby", scientific_name="Brachygobius doriae",
+    max_size_cm=4.2, min_tank_litres=40, min_group_size=6,
+    temperature=Interval(24.0, 28.0), ph=Interval(7.5, 8.5), dgh=Interval(10.0, 25.0),
+    temperament="TERRITORIAL", diet="CARNIVORE",
+)
+NEON_GOBY = species(
+    sku="FSH-GOB-03", common_name="Philippine Neon Goby", scientific_name="Stiphodon atropurpureus",
+    max_size_cm=5.0, min_tank_litres=60, min_group_size=3,
+    temperature=Interval(22.0, 26.0), ph=Interval(6.8, 8.0), dgh=Interval(5.0, 15.0),
+    diet="HERBIVORE",
+)
+
+
+def test_a_bumblebee_goby_is_refused_with_cherry_shrimp(rules):
+    # v6: at 4.2 cm and peaceful-looking, the size and temperament rules both
+    # pass it, but it eats shrimplets and a colony beside it does not last.
+    result = assess(*tank(60, (CHERRY_SHRIMP, 10), (BUMBLEBEE_GOBY, 6)), rules)
+    hits = reasons(result, "behaviour.shrimp_predation")
+    assert hits and set(hits[0].species) == {"FSH-GOB-01", "INV-CHE-01"}
+
+
+def test_the_neon_goby_grazes_algae_and_is_left_off_the_list(rules):
+    result = assess(*tank(60, (CHERRY_SHRIMP, 10), (NEON_GOBY, 3)), rules)
+    assert not reasons(result, "behaviour.shrimp_predation")
+

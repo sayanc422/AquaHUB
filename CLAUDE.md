@@ -91,7 +91,7 @@ why the advisor's rules are a YAML file. Match that when you add code.
 - **Migrations are forward-only and numbered.** `catalog-service` uses Flyway, `inventory-service`
   an embedded Go migrator with an advisory lock, `payment-service` sqlx. Never edit a migration
   that has been applied. Nothing has been deployed anywhere real, but the local k3d cluster has kept
-  its database since 17 September 2026 and has every migration applied (catalog at V29). Flyway
+  its database since 17 September 2026 and has every migration applied (catalog at V31). Flyway
   validates checksums at boot, so an edited migration crash-loops `catalog-service` there. Add
   `V<n+1>` instead.
 - **`bootstrap.sh --destroy` (`k3d cluster delete`) deletes the database and every Secret.**
@@ -158,12 +158,12 @@ cd services/catalog-service  && mvn test     # 39 tests; needs Docker (Testconta
 cd services/inventory-service && go test ./...
 cd services/order-service    && mvn test     # 77 tests, 34 skipped (DB-gated); 0 skipped with ORDER_TEST_DSN
 cd services/payment-service  && cargo test   # 18 DB tests need PAYMENTS_TEST_DSN
-cd services/aquatics-advisor && python3 -m pytest    # 35 tests
+cd services/aquatics-advisor && python3 -m pytest    # 40 tests (no local pytest: run in python:3.12-slim)
 cd services/notification-service && go test ./...   # integration test needs NOTIFICATION_TEST_DSN
 cd services/staff-portal     && mvn test     # 3 tests, no DB (reads only, no DB of its own)
 ```
 
-`CatalogApiTest` **passes 39/39 as of V29 (1 October 2026)**; 35/35 at V22 — its counts are now read from the
+`CatalogApiTest` **passes 39/39 as of V31 (1 October 2026)**; 35/35 at V22 — its counts are now read from the
 database rather than written into the test, so a catalogue migration no longer breaks it; only the
 list of deliberately unphotographed products is pinned. History: re-run after V17–V21 it had
 **34 tests, 9 failing, all stale expectations** (hard-coded product/photo counts from before the catalogue grew to 171, and a search
@@ -295,9 +295,14 @@ is the whole decision**; what follows is what you need to not break it.
    `V23`–`V26` (28–30 September) add bettas, gouramis, shrimp and snails and their photos: **253
    products in 51 sections, and 27 without a photo on purpose**, each reason in `species/CREDITS.md`.
    `V27`/`V28` (30 September, the crop audit) fill three of them, and `V29` (1 October) one more, green jade by colour match: **23 without a photo now.**
+   `V30`/`V31` (1 October) add a Gobies & Gudgeons section, five products with photos: **258 products in 52 sections.**
    The same audit found **`auratus.jpg`, one of the ten "unverified" owner photos, carries a burned-in
    "DrTomBailey" watermark**, a retailer's mark. Treat all ten as someone else's until the owner shows
    otherwise; they are the first thing to replace with the shop's own photographs.
+
+   **The advisor has no salinity field.** The bumblebee and knight gobies (V30) do best with a
+   little salt, and only their care notes say so; the checker will pass them beside soft-water fish
+   on pH and hardness alone. Adding a salinity range to `species_profile` is the fix.
 
 5. `staff-portal` is read-only: no stock-adjustment, species-editing, or claims workflow, because
    none of those have a backend write endpoint on any service yet. A DOA-claims model doesn't exist

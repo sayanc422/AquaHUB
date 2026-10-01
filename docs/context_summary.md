@@ -3,7 +3,26 @@
 *Paste this as the opening message of a new session, together with the original project brief.
 It is the state of the work, not a restatement of the brief.*
 
-**Latest (1 October 2026): `V29`, green jade shrimp photo.** The owner asked about the four
+**Latest (1 October 2026): `V30`/`V31`, a Gobies & Gudgeons section, advisor rules v6.** At the
+owner's request, five gobies under Freshwater:
+- bumblebee goby (*Brachygobius doriae*, the one the owner named)
+- peacock gudgeon (IUCN Vulnerable, so captive-bred only)
+- Philippine neon goby (wild-caught only: no one breeds it)
+- knight goby (an Indian native)
+- Zhou's scarlet goby (captive-bred only)
+
+All five have licensed photos (Commons and iNaturalist), and the section has a 16:9 banner. The
+two photos the owner attached came from a web search with no licence, so they were used as
+reference only; `assets/` is now in `.gitignore`. **Known gap:** the bumblebee and knight gobies do
+best with a little salt, and `species_profile` has no salinity field, so the tank checker cannot
+warn about it; the care notes and section text say it in words. Advisor rules v6 add four of the
+gobies as shrimp eaters (not the neon goby, an algae grazer). The live checker refuses bumblebee +
+cherry shrimp and passes neon goby + cherry shrimp. Advisor 40/40 (the new test was seen to fail
+without the rule), `CatalogApiTest` 39/39, v31 applied in k3d, all six files served
+byte-identical. **258 products in 52 sections, 23 without a photo.** Prices are Claude's
+estimates. Backup: `~/aquashop-backups/aquashop-2026-10-01-pre-v30.sql`.
+
+**Earlier (1 October 2026): `V29`, green jade shrimp photo.** The owner asked about the four
 colour shrimp still without a photo. This was the deepest search yet: Openverse (13 queries, 3 pages
 each), iNaturalist by tag and description, every one of the 221 licensed *N. davidi* photos looked
 at, and Pexels. **No licensed photo anywhere names bloody mary, black rose, green jade or

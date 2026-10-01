@@ -35,6 +35,19 @@ experiment; keeping it lean is the point of running it.
 
 ## Mistakes and lessons, newest first
 
+### 2026-10-01 — "Tank-bred" was written by habit; owner-supplied photos were web downloads
+
+**What happened:** V30's first draft opened the bumblebee and knight goby summaries with
+"Tank-bred.", copying the opening of earlier summaries. Neither is reliably farm-bred; most in the
+trade are wild-caught. It was caught on re-reading, before the migration ran. Separately, the
+owner's "attachment" photos were Windows downloads (`Zone.Identifier` ZoneId=3, Internet) with no
+author or licence.
+**Pattern:** treat the provenance word (tank-bred, captive-bred, wild-caught) as a fact to source,
+like a size. When a species has no farming, say "wild-caught" first. Before using any file the
+owner supplies, check where it came from (`cat file:Zone.Identifier`, EXIF): "supplied by the owner"
+is not a licence, which is the lesson of the ten "unverified" owner photos and the
+DrTomBailey watermark.
+
 ### 2026-10-01 — "Still missing" after an exhaustive search is a decision for the owner, not a re-search
 
 **What happened:** the owner asked about four shrimp gaps that V26 had already searched. A deeper

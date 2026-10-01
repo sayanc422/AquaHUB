@@ -648,3 +648,23 @@ case only.
 
 These three need the shop's own photographs.
 
+## Gobies & Gudgeons, 1 October 2026 (V30, V31)
+
+The owner asked for freshwater gobies and attached two bumblebee goby photos and a liveaquaria.com
+link. The attached photos were downloaded from the web (Windows marks both as Internet-zone files)
+and carry no author or licence, so per `README.md` they were used only as a picture of what to look
+for. The retailer's facts were cross-checked against Wikipedia rather than copied. Every file below
+was re-queried by title or photo id before download.
+
+| File | Subject | Source | Licence | Cleared for commercial use |
+|---|---|---|---|---|
+| `bumblebee-goby.jpg` | *Brachygobius doriae* | Wikimedia Commons, [File:Brachygobius doriae in aquarium.jpg](https://commons.wikimedia.org/wiki/File:Brachygobius_doriae_in_aquarium.jpg), Sven Kullander | CC BY-SA 4.0 | ✅ yes. Caption: "Brachygobius doriae, bumblebee goby, in the aquarium". Source 4740×2406, kept x 331–4503 with `reframe-photo.sh`, **361 px synthetic band top and bottom** |
+| `peacock-gudgeon.jpg` | *Tateurndina ocellicauda*, male | Wikimedia Commons, [File:Tateurndina ocellicauda, male after lunch.jpg](https://commons.wikimedia.org/wiki/File:Tateurndina_ocellicauda,_male_after_lunch.jpg), Cisamarc | CC BY-SA 3.0 | ✅ yes. The caption names the species and sex. Source 2748×2061, already 4:3, resized only |
+| `philippine-neon-goby.jpg` | *Stiphodon atropurpureus*, male | iNaturalist, [observation 332679502](https://www.inaturalist.org/observations/332679502), photo 603802018, anonymous | CC0 | ✅ yes. A captive male in Taiwan, identified to species by one person. The tail tip touches the left edge, as in the source. Source 2048×1536, resized only |
+| `knight-goby.jpg` | *Stigmatogobius sadanundio* | Wikimedia Commons, [File:Babka nakrapiana - Podwodne Królestwo.jpg](https://commons.wikimedia.org/wiki/File:Babka_nakrapiana_-_Podwodne_Kr%C3%B3lestwo.jpg), Konrad Tu | CC BY-SA 4.0 | ✅ yes. **Caveat:** the caption gives only the Polish common name ("babka nakrapiana"); the species comes from the file's Commons category, *Stigmatogobius sadanundio*, and the black-spotted body and tall dorsal match it. The tank lighting makes the fish look pinker than it is. Source 3408×2508, crop 3344×2508 centred |
+| `zhous-scarlet-goby.jpg` | *Rhinogobius zhoui*, male | Wikimedia Commons, [File:Rhinogobius zhoui male.jpg](https://commons.wikimedia.org/wiki/File:Rhinogobius_zhoui_male.jpg), Andrewbogott | CC BY-SA 4.0 | ✅ yes, **with a caveat:** the male is out of breeding colour, pale with orange markings rather than the scarlet the product describes. It is the only licensed photo of the species found. Source 3444×1491, kept x 206–3030, **313 px synthetic band top and bottom** |
+
+**Looked at and rejected:** a *B. xanthozonus* (a different species from the one sold here), a
+diagram, a studio plate of *B. sabanus*, and wild knight gobies photographed through murky water.
+iNaturalist has no licensed photo of *Rhinogobius zhoui*.
+

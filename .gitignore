@@ -10,3 +10,7 @@ node_modules/
 target/
 .claude/worktrees/
 services/storefront/public/variants/
+
+# The owner's drop folder for reference material (1 Oct 2026). Photos here come from web
+# searches with no licence, so they must never be committed or served; see species/README.md.
+assets/

@@ -14,8 +14,8 @@
 # A rule that cannot explain itself in a sentence an aquarist would use is a
 # rule that should not be in here.
 
-version: 5
-updated: 2026-09-28
+version: 6
+updated: 2026-10-01
 
 water:
   # An overlap narrower than this is technically possible and practically a
@@ -131,7 +131,11 @@ behaviour:
   # the list exists: at 7 cm against a 3 cm cherry shrimp it is under the
   # predation ratio, and the checker passed a tank its own care note forbids.
   # Add a fish here when its appetite for shrimp is the known fact about it.
-  shrimp_eater_skus: [INV-WHS-01]
+  # v6 (1 October 2026, catalog V30): four of the five gobies. Each eats
+  # shrimplets at least, so a breeding colony beside them stops growing and
+  # then shrinks; the knight goby takes adults. The Philippine neon goby
+  # (FSH-GOB-03) is an algae grazer and is deliberately not listed.
+  shrimp_eater_skus: [INV-WHS-01, FSH-GOB-01, FSH-GOB-02, FSH-GOB-04, FSH-GOB-05]
   why_shrimp_predation: >-
     Shrimp are prey for anything that can catch them, and a predatory shrimp or
     a shrimp-hunting fish clears a colony a few at a time, at night, until the

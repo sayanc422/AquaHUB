@@ -59,7 +59,7 @@ spec:
         # new rollout. That is the point: two pods answering the same question
         # differently for the length of a rollout is bad enough without the
         # file changing underneath a running process as well.
-        aquashop.io/rules-version: "5"
+        aquashop.io/rules-version: "6"
     spec:
       # 15s. Nothing here holds state, nothing is mid-transaction, and the only
       # in-flight work is a read of the catalog.
